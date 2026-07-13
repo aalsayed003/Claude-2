@@ -1,6 +1,15 @@
 <meta charset="utf-8" />
 <title>Oman Trip — X O for the road</title>
-<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<link rel="manifest" href="manifest.webmanifest" />
+<meta name="theme-color" content="#e9e0cc" media="(prefers-color-scheme: light)" />
+<meta name="theme-color" content="#16130d" media="(prefers-color-scheme: dark)" />
+<link rel="apple-touch-icon" href="icons/icon-180.png" />
+<link rel="icon" href="icons/icon-192.png" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="default" />
+<meta name="apple-mobile-web-app-title" content="Oman Trip" />
+<meta name="mobile-web-app-capable" content="yes" />
 <style>
   :root {
     --paper: #e9e0cc;
@@ -481,6 +490,7 @@
 
   function commitSeat(){
     if (!pending.name || !pending.mark) return;
+    askNotify(); // taking a seat is a user gesture — a good moment to ask
     mySeat = { name: pending.name, mark: pending.mark };
     if (role === "guest") {
       send({ t: "seat", seat: mySeat });
@@ -498,6 +508,11 @@
       resetGame("X"); // X always makes the first move of a game
       gameReady = true;
       setConn("live", "Connected — " + oppSeat.name);
+      // The host was the one waiting, so let them know their friend arrived.
+      if (role === "host") {
+        notify(oppSeat.name + " joined the game",
+          G.turn === myMark ? "Your move — good luck!" : oppSeat.name + " goes first.");
+      }
       render();
     }
   }
@@ -535,7 +550,10 @@
         render();
       }
     } else if (msg.t === "move") {
-      if (gameReady && typeof msg.i === "number" && G.turn === oppMark) applyMove(msg.i, oppMark);
+      if (gameReady && typeof msg.i === "number" && G.turn === oppMark) {
+        applyMove(msg.i, oppMark);
+        if (!G.over && G.turn === myMark) notify(nameFor(oppMark) + " made a move", "Your turn on the board.");
+      }
     } else if (msg.t === "reset") {
       resetGame(msg.start === "O" ? "O" : "X");
       render();
@@ -643,6 +661,27 @@
     });
   }
 
+  // ---------- Notifications ----------
+  function askNotify(){
+    if (!("Notification" in window)) return;
+    if (Notification.permission === "default") {
+      try { Notification.requestPermission(); } catch (e) {}
+    }
+  }
+  // Alert the player when the app isn't in focus (open in the background,
+  // on another tab, or freshly reopened). Closed-app push needs a server.
+  function notify(title, body){
+    if (!("Notification" in window) || Notification.permission !== "granted") return;
+    if (document.visibilityState === "visible") return;
+    var opts = { body: body, icon: "icons/icon-192.png", badge: "icons/icon-192.png", tag: "oman-ttt", renotify: true };
+    if (navigator.serviceWorker && navigator.serviceWorker.ready) {
+      navigator.serviceWorker.ready.then(function(reg){ reg.showNotification(title, opts); })
+        .catch(function(){ try { new Notification(title, opts); } catch (e) {} });
+    } else {
+      try { new Notification(title, opts); } catch (e) {}
+    }
+  }
+
   // ---------- Wire up ----------
   var joinId = new URLSearchParams(location.search).get("r");
 
@@ -669,5 +708,12 @@
 
   refreshSeatCard();
   render();
+
+  // Register the service worker so the game installs as an app and can show alerts.
+  if ("serviceWorker" in navigator) {
+    window.addEventListener("load", function(){
+      navigator.serviceWorker.register("sw.js").catch(function(){});
+    });
+  }
 })();
 </script>

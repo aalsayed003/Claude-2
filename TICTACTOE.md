@@ -23,6 +23,33 @@ Because it's peer-to-peer with no relay (TURN) server, a small number of very
 restrictive networks (some corporate/school firewalls) may block the direct
 connection. If that ever happens, use `pass-and-play.html` instead — it always works.
 
+## Install it as an app (PWA)
+
+The live version is a Progressive Web App, so it installs to a phone's home
+screen and opens fullscreen like a native app.
+
+- **iPhone/iPad (Safari):** open the site → Share → **Add to Home Screen**.
+- **Android (Chrome):** open the site → menu → **Install app** (or the install prompt).
+
+`manifest.webmanifest`, `sw.js` (service worker), and `icons/` provide the app
+name, icon, and offline shell.
+
+## Notifications
+
+When you take your seat the app asks for notification permission. After that it
+alerts you when:
+
+- your friend **joins** the game, and
+- your friend **makes a move** (so you know it's your turn).
+
+**Important limitation:** because the game is peer-to-peer with no server, these
+alerts only fire while the app is **open or still running in the background**.
+If the app is fully closed, nothing is running to receive your friend's move, so
+no notification can arrive. True "notify even when the app is closed" push
+requires a backend push server (e.g. Firebase Cloud Messaging), which would mean
+routing the game through a server instead of pure peer-to-peer. The service
+worker already has a `push` handler ready for that if it's added later.
+
 ## Hosting it (GitHub Pages)
 
 The whole thing is static files, so GitHub Pages hosts it for free:
