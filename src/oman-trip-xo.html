@@ -68,36 +68,59 @@
   /* Keep everything above the watermark */
   .banners, header, .stage, footer { position: relative; z-index: 1; }
 
+  /* ---- Oman flag flying from the corner ---- */
+  .oman-flag {
+    position: fixed;
+    top: -6px;
+    left: -6px;
+    z-index: 4;
+    pointer-events: none;
+    transform: rotate(32deg);
+    transform-origin: top left;
+  }
+  .oman-flag .pole {
+    width: 6px;
+    height: 168px;
+    border-radius: 4px;
+    background: linear-gradient(90deg, #6b5836, #d8c393 45%, #f2e6c6 55%, #6b5836);
+    box-shadow: 0 6px 16px -8px var(--shadow);
+    position: relative;
+  }
+  .oman-flag .pole::before {
+    content: "";
+    position: absolute;
+    top: -9px;
+    left: -3px;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 30%, #f2e6c6, #b99a5e);
+  }
+  .oman-flag .cloth {
+    position: absolute;
+    top: 8px;
+    left: 5px;
+    width: 92px;
+    height: 61px;
+    transform-origin: left center;
+    animation: wave 3.6s ease-in-out infinite;
+    filter: drop-shadow(0 6px 10px rgba(6, 12, 24, 0.45));
+  }
+  .oman-flag .cloth svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+    border-radius: 0 4px 4px 0;
+  }
+  @keyframes wave {
+    0%, 100% { transform: skewY(-2deg) scaleY(1); }
+    50% { transform: skewY(2deg) scaleY(0.97); }
+  }
+
   /* ---- Header ---- */
   header {
     text-align: center;
     margin: 44px 0 6px;
-  }
-  .flags {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    gap: 22px;
-    margin-bottom: 20px;
-  }
-  .flag {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 6px;
-  }
-  .flag svg {
-    width: 66px;
-    height: 44px;
-    border-radius: 4px;
-    box-shadow: 0 6px 16px -6px var(--shadow);
-    display: block;
-  }
-  .flag .lbl {
-    font-size: 0.6rem;
-    letter-spacing: 0.2em;
-    text-transform: uppercase;
-    color: var(--muted);
   }
   .kicker {
     font-size: 0.72rem;
@@ -360,10 +383,9 @@
   <div class="row">قوطي أناناس · نبي عمران · صبر أيوب</div>
 </div>
 
-<header>
-  <div class="flags">
-    <div class="flag">
-      <!-- Oman -->
+<div class="oman-flag" aria-hidden="true">
+  <div class="pole">
+    <div class="cloth">
       <svg viewBox="0 0 60 40" role="img" aria-label="Flag of Oman">
         <rect width="60" height="40" fill="#ffffff"/>
         <rect y="13.33" width="60" height="13.34" fill="#d21034"/>
@@ -375,17 +397,11 @@
           <path d="M4.6 6.2 C6.4 4.4, 9.6 4.4, 11.4 6.2"/>
         </g>
       </svg>
-      <span class="lbl">Oman</span>
-    </div>
-    <div class="flag">
-      <!-- Bahrain -->
-      <svg viewBox="0 0 60 40" role="img" aria-label="Flag of Bahrain">
-        <rect width="60" height="40" fill="#ce1126"/>
-        <polygon points="0,0 20,0 27,4 20,8 27,12 20,16 27,20 20,24 27,28 20,32 27,36 20,40 0,40" fill="#ffffff"/>
-      </svg>
-      <span class="lbl">Bahrain</span>
     </div>
   </div>
+</div>
+
+<header>
   <div class="kicker">Oman Trip</div>
   <h1><span class="x">X</span> <span class="xo">·</span> <span class="o">O</span></h1>
   <p class="subtitle">Tic-tac-toe for the road. Pick who you are, then play.</p>
