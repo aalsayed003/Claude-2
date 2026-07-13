@@ -1,0 +1,603 @@
+<title>Oman Trip — X O</title>
+<style>
+  :root {
+    --ground: #111d33;
+    --ground-2: #16233d;
+    --panel: #1c2b48;
+    --panel-line: #2b3d60;
+    --sand: #e7c27d;
+    --sand-soft: #f0d6a0;
+    --cream: #f5ecd6;
+    --muted: #9fb0cc;
+    --red: #d9553f;
+    --red-glow: rgba(217, 85, 63, 0.35);
+    --green: #35a37c;
+    --green-glow: rgba(53, 163, 124, 0.35);
+    --shadow: rgba(6, 12, 24, 0.55);
+    --ar: "Noto Naskh Arabic", "Amiri", "Geeza Pro", "Scheherazade New", "Arial", serif;
+    --display: "Georgia", "Iowan Old Style", "Palatino Linotype", serif;
+    --sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    min-height: 100vh;
+    font-family: var(--sans);
+    color: var(--cream);
+    background:
+      radial-gradient(1200px 600px at 50% -10%, #1d3252 0%, transparent 60%),
+      radial-gradient(900px 500px at 90% 110%, #14283f 0%, transparent 55%),
+      linear-gradient(180deg, var(--ground) 0%, var(--ground-2) 100%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 0 20px 60px;
+  }
+
+  /* ---- Banners ---- */
+  .banners {
+    width: 100%;
+    max-width: 860px;
+    margin: 26px 0 6px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    justify-content: center;
+  }
+  .banner {
+    flex: 1 1 210px;
+    text-align: center;
+    padding: 12px 10px 10px;
+    border-radius: 14px;
+    border: 1px solid var(--panel-line);
+    background: linear-gradient(180deg, rgba(231,194,125,0.14), rgba(231,194,125,0.04));
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.05);
+    position: relative;
+    overflow: hidden;
+  }
+  .banner::before {
+    content: "";
+    position: absolute;
+    inset: 0 0 auto 0;
+    height: 3px;
+    background: linear-gradient(90deg, transparent, var(--sand), transparent);
+    opacity: 0.7;
+  }
+  .banner .ar {
+    font-family: var(--ar);
+    font-size: 1.5rem;
+    line-height: 1.5;
+    color: var(--sand-soft);
+    direction: rtl;
+    font-weight: 700;
+  }
+  .banner .tag {
+    display: block;
+    margin-top: 4px;
+    font-size: 0.62rem;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  /* ---- Header ---- */
+  header {
+    text-align: center;
+    margin: 20px 0 6px;
+  }
+  .kicker {
+    font-size: 0.72rem;
+    letter-spacing: 0.4em;
+    text-transform: uppercase;
+    color: var(--sand);
+    margin-bottom: 8px;
+  }
+  h1 {
+    font-family: var(--display);
+    margin: 0;
+    font-size: clamp(2.4rem, 8vw, 4rem);
+    font-weight: 700;
+    letter-spacing: 0.01em;
+    text-wrap: balance;
+    line-height: 1;
+  }
+  h1 .xo {
+    color: var(--sand);
+    font-style: italic;
+  }
+  h1 .x { color: var(--red); }
+  h1 .o { color: var(--green); }
+  .subtitle {
+    margin-top: 12px;
+    color: var(--muted);
+    font-size: 0.95rem;
+  }
+
+  /* ---- Stage / cards ---- */
+  .stage {
+    width: 100%;
+    max-width: 560px;
+    margin-top: 26px;
+  }
+  .card {
+    background: linear-gradient(180deg, var(--panel), var(--ground-2));
+    border: 1px solid var(--panel-line);
+    border-radius: 22px;
+    padding: 28px 26px 30px;
+    box-shadow: 0 30px 60px -30px var(--shadow);
+  }
+  .hidden { display: none !important; }
+
+  /* ---- Identity picker ---- */
+  .pick-title {
+    text-align: center;
+    font-family: var(--display);
+    font-size: 1.35rem;
+    margin: 0 0 4px;
+  }
+  .pick-sub {
+    text-align: center;
+    color: var(--muted);
+    font-size: 0.9rem;
+    margin: 0 0 22px;
+  }
+  .seat-row {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 20px;
+  }
+  .seat {
+    flex: 1;
+    border: 1px solid var(--panel-line);
+    border-radius: 16px;
+    padding: 16px 14px;
+    background: rgba(255,255,255,0.02);
+  }
+  .seat h3 {
+    margin: 0 0 12px;
+    font-size: 0.7rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--muted);
+    text-align: center;
+  }
+  .seat.x h3 { color: var(--red); }
+  .seat.o h3 { color: var(--green); }
+  .seat .mark {
+    text-align: center;
+    font-family: var(--display);
+    font-weight: 700;
+    font-size: 2rem;
+    margin-bottom: 12px;
+  }
+  .seat.x .mark { color: var(--red); }
+  .seat.o .mark { color: var(--green); }
+  .choices { display: flex; flex-direction: column; gap: 8px; }
+  .choice {
+    font-family: var(--sans);
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--cream);
+    background: var(--ground);
+    border: 1px solid var(--panel-line);
+    border-radius: 10px;
+    padding: 10px;
+    cursor: pointer;
+    transition: transform 0.12s ease, border-color 0.12s ease, background 0.12s ease;
+  }
+  .choice:hover { transform: translateY(-1px); border-color: var(--sand); }
+  .choice:focus-visible { outline: 2px solid var(--sand); outline-offset: 2px; }
+  .seat.x .choice.active { background: var(--red); border-color: var(--red); color: #fff; }
+  .seat.o .choice.active { background: var(--green); border-color: var(--green); color: #fff; }
+  .choice:disabled { opacity: 0.32; cursor: not-allowed; }
+  .choice:disabled:hover { transform: none; border-color: var(--panel-line); }
+
+  .primary {
+    display: block;
+    width: 100%;
+    font-family: var(--display);
+    font-size: 1.1rem;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    color: var(--ground);
+    background: linear-gradient(180deg, var(--sand-soft), var(--sand));
+    border: none;
+    border-radius: 14px;
+    padding: 14px;
+    cursor: pointer;
+    transition: transform 0.12s ease, filter 0.12s ease;
+  }
+  .primary:hover { transform: translateY(-1px); filter: brightness(1.04); }
+  .primary:focus-visible { outline: 2px solid var(--cream); outline-offset: 3px; }
+  .primary:disabled { opacity: 0.4; cursor: not-allowed; transform: none; filter: none; }
+  .pick-hint {
+    text-align: center;
+    color: var(--muted);
+    font-size: 0.78rem;
+    margin: 12px 0 0;
+    min-height: 1.1em;
+  }
+
+  /* ---- Scoreboard ---- */
+  .score {
+    display: flex;
+    align-items: stretch;
+    gap: 10px;
+    margin-bottom: 18px;
+  }
+  .score .player {
+    flex: 1;
+    border: 1px solid var(--panel-line);
+    border-radius: 14px;
+    padding: 12px 10px;
+    text-align: center;
+    background: rgba(255,255,255,0.02);
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  }
+  .score .player .who { font-weight: 700; font-size: 1.05rem; }
+  .score .player .role {
+    font-size: 0.62rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-top: 3px;
+  }
+  .score .player .wins {
+    font-family: var(--display);
+    font-size: 1.6rem;
+    font-weight: 700;
+    margin-top: 6px;
+    font-variant-numeric: tabular-nums;
+  }
+  .score .player.x .who, .score .player.x .wins { color: var(--red); }
+  .score .player.o .who, .score .player.o .wins { color: var(--green); }
+  .score .player.turn.x { border-color: var(--red); box-shadow: 0 0 0 1px var(--red), 0 0 24px -6px var(--red-glow); }
+  .score .player.turn.o { border-color: var(--green); box-shadow: 0 0 0 1px var(--green), 0 0 24px -6px var(--green-glow); }
+  .score .vs {
+    align-self: center;
+    color: var(--muted);
+    font-family: var(--display);
+    font-style: italic;
+    font-size: 0.9rem;
+  }
+
+  .status {
+    text-align: center;
+    min-height: 1.5em;
+    margin-bottom: 16px;
+    font-size: 1.05rem;
+    font-weight: 600;
+  }
+  .status .name.x { color: var(--red); }
+  .status .name.o { color: var(--green); }
+
+  /* ---- Board ---- */
+  .board {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    aspect-ratio: 1;
+    margin: 0 auto;
+  }
+  .cell {
+    border: 1px solid var(--panel-line);
+    border-radius: 16px;
+    background: var(--ground);
+    font-family: var(--display);
+    font-weight: 700;
+    font-size: clamp(2.4rem, 12vw, 3.6rem);
+    color: var(--cream);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.1s ease, background 0.15s ease, box-shadow 0.15s ease;
+    user-select: none;
+  }
+  .cell:hover:not(:disabled) { transform: translateY(-2px); background: #15223a; }
+  .cell:focus-visible { outline: 2px solid var(--sand); outline-offset: 2px; }
+  .cell:disabled { cursor: default; }
+  .cell.x { color: var(--red); }
+  .cell.o { color: var(--green); }
+  .cell.win.x { background: var(--red); color: #fff; box-shadow: 0 0 26px -4px var(--red-glow); }
+  .cell.win.o { background: var(--green); color: #fff; box-shadow: 0 0 26px -4px var(--green-glow); }
+  @keyframes pop { 0% { transform: scale(0.4); opacity: 0; } 60% { transform: scale(1.12); } 100% { transform: scale(1); opacity: 1; } }
+  .cell .mk { display: inline-block; animation: pop 0.18s ease-out; }
+
+  .controls {
+    display: flex;
+    gap: 10px;
+    margin-top: 18px;
+  }
+  .ghost {
+    flex: 1;
+    font-family: var(--sans);
+    font-size: 0.92rem;
+    font-weight: 600;
+    color: var(--cream);
+    background: transparent;
+    border: 1px solid var(--panel-line);
+    border-radius: 12px;
+    padding: 11px;
+    cursor: pointer;
+    transition: border-color 0.12s ease, background 0.12s ease;
+  }
+  .ghost:hover { border-color: var(--sand); background: rgba(231,194,125,0.06); }
+  .ghost:focus-visible { outline: 2px solid var(--sand); outline-offset: 2px; }
+
+  footer {
+    margin-top: 34px;
+    color: var(--muted);
+    font-size: 0.75rem;
+    text-align: center;
+    letter-spacing: 0.04em;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; animation: none !important; }
+  }
+</style>
+
+<div class="banners">
+  <div class="banner">
+    <div class="ar">صبر أيوب</div>
+    <span class="tag">The patience of Ayoub</span>
+  </div>
+  <div class="banner">
+    <div class="ar">قوطي أناناس</div>
+    <span class="tag">A can of pineapple</span>
+  </div>
+  <div class="banner">
+    <div class="ar">نبي عمران</div>
+    <span class="tag">Nabi Imran</span>
+  </div>
+</div>
+
+<header>
+  <div class="kicker">Oman Trip</div>
+  <h1><span class="x">X</span> <span class="xo">·</span> <span class="o">O</span></h1>
+  <p class="subtitle">Tic-tac-toe for the road. Pick who you are, then play.</p>
+</header>
+
+<div class="stage">
+  <!-- Identity picker -->
+  <section class="card" id="setup">
+    <h2 class="pick-title">Take your seat</h2>
+    <p class="pick-sub">Ahmed and Hawah — choose who plays which mark.</p>
+
+    <div class="seat-row">
+      <div class="seat x">
+        <h3>Plays X · goes first</h3>
+        <div class="mark">✕</div>
+        <div class="choices" data-seat="X">
+          <button class="choice" data-name="Ahmed">Ahmed</button>
+          <button class="choice" data-name="Hawah">Hawah</button>
+        </div>
+      </div>
+      <div class="seat o">
+        <h3>Plays O</h3>
+        <div class="mark">◯</div>
+        <div class="choices" data-seat="O">
+          <button class="choice" data-name="Ahmed">Ahmed</button>
+          <button class="choice" data-name="Hawah">Hawah</button>
+        </div>
+      </div>
+    </div>
+
+    <button class="primary" id="startBtn" disabled>Start the game</button>
+    <p class="pick-hint" id="pickHint">Pick a player for each seat to begin.</p>
+  </section>
+
+  <!-- Game -->
+  <section class="card hidden" id="game">
+    <div class="score">
+      <div class="player x" id="scoreX">
+        <div class="who" id="whoX">—</div>
+        <div class="role">Plays ✕</div>
+        <div class="wins" id="winsX">0</div>
+      </div>
+      <div class="vs">vs</div>
+      <div class="player o" id="scoreO">
+        <div class="who" id="whoO">—</div>
+        <div class="role">Plays ◯</div>
+        <div class="wins" id="winsO">0</div>
+      </div>
+    </div>
+
+    <div class="status" id="status"></div>
+
+    <div class="board" id="board">
+      <button class="cell" data-i="0" aria-label="cell 1"></button>
+      <button class="cell" data-i="1" aria-label="cell 2"></button>
+      <button class="cell" data-i="2" aria-label="cell 3"></button>
+      <button class="cell" data-i="3" aria-label="cell 4"></button>
+      <button class="cell" data-i="4" aria-label="cell 5"></button>
+      <button class="cell" data-i="5" aria-label="cell 6"></button>
+      <button class="cell" data-i="6" aria-label="cell 7"></button>
+      <button class="cell" data-i="7" aria-label="cell 8"></button>
+      <button class="cell" data-i="8" aria-label="cell 9"></button>
+    </div>
+
+    <div class="controls">
+      <button class="ghost" id="nextBtn">Next round</button>
+      <button class="ghost" id="switchBtn">Change players</button>
+    </div>
+  </section>
+</div>
+
+<footer>Made for the Oman trip · صبر أيوب · قوطي أناناس · نبي عمران</footer>
+
+<script>
+  (function () {
+    var seats = { X: null, O: null };
+    var players = { X: null, O: null };
+    var wins = { X: 0, O: 0 };
+    var board = new Array(9).fill(null);
+    var current = "X";
+    var over = false;
+
+    var LINES = [
+      [0,1,2],[3,4,5],[6,7,8],
+      [0,3,6],[1,4,7],[2,5,8],
+      [0,4,8],[2,4,6]
+    ];
+
+    var els = {
+      setup: document.getElementById("setup"),
+      game: document.getElementById("game"),
+      start: document.getElementById("startBtn"),
+      hint: document.getElementById("pickHint"),
+      whoX: document.getElementById("whoX"),
+      whoO: document.getElementById("whoO"),
+      winsX: document.getElementById("winsX"),
+      winsO: document.getElementById("winsO"),
+      scoreX: document.getElementById("scoreX"),
+      scoreO: document.getElementById("scoreO"),
+      status: document.getElementById("status"),
+      board: document.getElementById("board"),
+      next: document.getElementById("nextBtn"),
+      switch: document.getElementById("switchBtn"),
+      cells: Array.prototype.slice.call(document.querySelectorAll(".cell"))
+    };
+
+    // ---- Identity picking ----
+    function refreshChoices() {
+      document.querySelectorAll(".choices").forEach(function (group) {
+        var seat = group.getAttribute("data-seat");
+        var otherSeat = seat === "X" ? "O" : "X";
+        group.querySelectorAll(".choice").forEach(function (btn) {
+          var name = btn.getAttribute("data-name");
+          btn.classList.toggle("active", seats[seat] === name);
+          // Disable a name if it's taken by the other seat
+          btn.disabled = seats[otherSeat] === name;
+        });
+      });
+
+      var ready = seats.X && seats.O;
+      els.start.disabled = !ready;
+      els.hint.textContent = ready
+        ? seats.X + " is ✕ (first), " + seats.O + " is ◯. Ready when you are."
+        : "Pick a player for each seat to begin.";
+    }
+
+    document.querySelectorAll(".choices").forEach(function (group) {
+      var seat = group.getAttribute("data-seat");
+      group.querySelectorAll(".choice").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          var name = btn.getAttribute("data-name");
+          seats[seat] = seats[seat] === name ? null : name;
+          refreshChoices();
+        });
+      });
+    });
+
+    // ---- Start / setup ----
+    els.start.addEventListener("click", function () {
+      players.X = seats.X;
+      players.O = seats.O;
+      wins.X = 0;
+      wins.O = 0;
+      els.whoX.textContent = players.X;
+      els.whoO.textContent = players.O;
+      els.winsX.textContent = "0";
+      els.winsO.textContent = "0";
+      els.setup.classList.add("hidden");
+      els.game.classList.remove("hidden");
+      newRound(true);
+    });
+
+    els.switch.addEventListener("click", function () {
+      els.game.classList.add("hidden");
+      els.setup.classList.remove("hidden");
+    });
+
+    els.next.addEventListener("click", function () { newRound(false); });
+
+    // ---- Gameplay ----
+    function nameSpan(mark) {
+      return '<span class="name ' + mark.toLowerCase() + '">' + players[mark] + "</span>";
+    }
+
+    function setStatus(html) { els.status.innerHTML = html; }
+
+    function updateTurnUI() {
+      els.scoreX.classList.toggle("turn", !over && current === "X");
+      els.scoreO.classList.toggle("turn", !over && current === "O");
+      if (!over) {
+        setStatus(nameSpan(current) + " &mdash; your move");
+      }
+    }
+
+    function newRound(firstEver) {
+      board = new Array(9).fill(null);
+      over = false;
+      // Alternate who starts each round for fairness; X-seat still starts the very first.
+      current = firstEver ? "X" : (roundStarter === "X" ? "O" : "X");
+      roundStarter = current;
+      els.cells.forEach(function (c) {
+        c.textContent = "";
+        c.disabled = false;
+        c.classList.remove("x", "o", "win");
+      });
+      updateTurnUI();
+    }
+    var roundStarter = "X";
+
+    function place(i) {
+      if (over || board[i]) return;
+      board[i] = current;
+      var cell = els.cells[i];
+      cell.innerHTML = '<span class="mk">' + (current === "X" ? "✕" : "◯") + "</span>";
+      cell.classList.add(current.toLowerCase());
+      cell.disabled = true;
+
+      var line = winningLine();
+      if (line) {
+        endRound(current, line);
+        return;
+      }
+      if (board.every(Boolean)) {
+        endRound(null, null);
+        return;
+      }
+      current = current === "X" ? "O" : "X";
+      updateTurnUI();
+    }
+
+    function winningLine() {
+      for (var k = 0; k < LINES.length; k++) {
+        var a = LINES[k][0], b = LINES[k][1], c = LINES[k][2];
+        if (board[a] && board[a] === board[b] && board[a] === board[c]) return LINES[k];
+      }
+      return null;
+    }
+
+    function endRound(winner, line) {
+      over = true;
+      els.scoreX.classList.remove("turn");
+      els.scoreO.classList.remove("turn");
+      els.cells.forEach(function (c) { c.disabled = true; });
+
+      if (winner) {
+        wins[winner]++;
+        (winner === "X" ? els.winsX : els.winsO).textContent = wins[winner];
+        line.forEach(function (idx) {
+          els.cells[idx].classList.add("win", winner.toLowerCase());
+        });
+        setStatus(nameSpan(winner) + " wins this round! 🎉");
+      } else {
+        setStatus("It's a draw — قوطي أناناس for everyone.");
+      }
+    }
+
+    els.cells.forEach(function (cell) {
+      cell.addEventListener("click", function () {
+        place(parseInt(cell.getAttribute("data-i"), 10));
+      });
+    });
+
+    refreshChoices();
+  })();
+</script>
