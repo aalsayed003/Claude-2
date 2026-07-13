@@ -1,4 +1,5 @@
-<title>Tic Tac Toe — Play by Link</title>
+<meta charset="utf-8" />
+<title>Tic Tac Toe — Play Live</title>
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <style>
   :root {
@@ -12,6 +13,8 @@
     --x-tint: rgba(36, 64, 232, 0.10);
     --o-tint: rgba(240, 67, 43, 0.10);
     --line: #d8d5cb;
+    --good: #1f9d5b;
+    --wait: #c98a1e;
     --shadow: rgba(25, 28, 31, 0.10);
     --radius: 14px;
     --mono: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, monospace;
@@ -19,603 +22,531 @@
   }
   @media (prefers-color-scheme: dark) {
     :root {
-      --paper: #14171a;
-      --paper-2: #1c2024;
-      --ink: #edece6;
-      --ink-soft: #949aa1;
-      --grid: #333a40;
-      --x: #6a86ff;
-      --o: #ff6a54;
-      --x-tint: rgba(106, 134, 255, 0.13);
-      --o-tint: rgba(255, 106, 84, 0.13);
-      --line: #2a2f34;
-      --shadow: rgba(0, 0, 0, 0.4);
+      --paper: #14171a; --paper-2: #1c2024; --ink: #edece6; --ink-soft: #949aa1;
+      --grid: #333a40; --x: #6a86ff; --o: #ff6a54;
+      --x-tint: rgba(106,134,255,.13); --o-tint: rgba(255,106,84,.13);
+      --line: #2a2f34; --good: #35c07d; --wait: #e0a83c; --shadow: rgba(0,0,0,.4);
     }
   }
   :root[data-theme="light"] {
     --paper: #f2f1ec; --paper-2: #eae8e0; --ink: #191c1f; --ink-soft: #5f656b;
     --grid: #cbc8bf; --x: #2440e8; --o: #f0432b;
     --x-tint: rgba(36,64,232,.10); --o-tint: rgba(240,67,43,.10);
-    --line: #d8d5cb; --shadow: rgba(25,28,31,.10);
+    --line: #d8d5cb; --good: #1f9d5b; --wait: #c98a1e; --shadow: rgba(25,28,31,.10);
   }
   :root[data-theme="dark"] {
     --paper: #14171a; --paper-2: #1c2024; --ink: #edece6; --ink-soft: #949aa1;
     --grid: #333a40; --x: #6a86ff; --o: #ff6a54;
     --x-tint: rgba(106,134,255,.13); --o-tint: rgba(255,106,84,.13);
-    --line: #2a2f34; --shadow: rgba(0,0,0,.4);
+    --line: #2a2f34; --good: #35c07d; --wait: #e0a83c; --shadow: rgba(0,0,0,.4);
   }
 
   * { box-sizing: border-box; }
   html, body { margin: 0; padding: 0; }
   body {
-    background: var(--paper);
-    color: var(--ink);
-    font-family: var(--sans);
-    -webkit-font-smoothing: antialiased;
-    display: flex;
-    justify-content: center;
-    padding: clamp(20px, 5vw, 56px) 18px 40px;
-    min-height: 100vh;
+    background: var(--paper); color: var(--ink);
+    font-family: var(--sans); -webkit-font-smoothing: antialiased;
+    display: flex; justify-content: center;
+    padding: clamp(20px, 5vw, 56px) 18px 40px; min-height: 100vh;
     background-image:
       radial-gradient(circle at 20% 12%, var(--x-tint), transparent 42%),
       radial-gradient(circle at 82% 88%, var(--o-tint), transparent 42%);
   }
-  .wrap { width: 100%; max-width: 480px; display: flex; flex-direction: column; gap: 22px; }
+  .wrap { width: 100%; max-width: 480px; display: flex; flex-direction: column; gap: 20px; }
 
-  /* ---- Header ---- */
   header { text-align: center; display: flex; flex-direction: column; gap: 8px; }
   .wordmark {
-    font-weight: 800;
-    font-size: clamp(30px, 8.5vw, 44px);
-    letter-spacing: 0.14em;
-    line-height: 0.95;
-    text-transform: uppercase;
-    margin: 0;
-    text-wrap: balance;
+    font-weight: 800; font-size: clamp(28px, 8vw, 42px);
+    letter-spacing: 0.14em; line-height: 0.95; text-transform: uppercase;
+    margin: 0; text-wrap: balance;
   }
   .wordmark .dot { color: var(--o); }
   .wordmark .b { color: var(--x); }
   .tagline {
-    font-family: var(--mono);
-    font-size: 11px;
-    letter-spacing: 0.22em;
-    text-transform: uppercase;
-    color: var(--ink-soft);
-    margin: 0;
+    font-family: var(--mono); font-size: 11px; letter-spacing: 0.2em;
+    text-transform: uppercase; color: var(--ink-soft); margin: 0;
   }
 
-  /* ---- Status ---- */
+  .conn {
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    font-family: var(--mono); font-size: 11px; letter-spacing: 0.08em;
+    text-transform: uppercase; color: var(--ink-soft);
+  }
+  .conn .led {
+    width: 8px; height: 8px; border-radius: 50%; background: var(--ink-soft);
+    box-shadow: 0 0 0 0 transparent; transition: background .2s;
+  }
+  .conn.live .led { background: var(--good); animation: pulse 2s infinite; }
+  .conn.waiting .led { background: var(--wait); }
+  @keyframes pulse {
+    0% { box-shadow: 0 0 0 0 rgba(53,192,125,.5); }
+    70% { box-shadow: 0 0 0 7px transparent; }
+    100% { box-shadow: 0 0 0 0 transparent; }
+  }
+
   .status {
-    font-family: var(--mono);
-    font-size: 13px;
-    text-align: center;
-    padding: 12px 14px;
-    border: 1px solid var(--line);
-    border-radius: var(--radius);
-    background: var(--paper-2);
-    color: var(--ink);
-    line-height: 1.5;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    min-height: 46px;
+    font-family: var(--mono); font-size: 13px; text-align: center;
+    padding: 12px 14px; border: 1px solid var(--line); border-radius: var(--radius);
+    background: var(--paper-2); color: var(--ink); line-height: 1.5;
+    display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 46px;
   }
-  .chip {
-    display: inline-flex; align-items: center; gap: 6px;
-    font-weight: 700; letter-spacing: 0.02em;
-  }
-  .chip .mk { width: 12px; height: 12px; display: inline-block; }
+  .chip { display: inline-flex; align-items: center; gap: 6px; font-weight: 700; }
   .chip.x { color: var(--x); }
   .chip.o { color: var(--o); }
 
-  /* ---- Board ---- */
   .board-wrap { position: relative; width: 100%; aspect-ratio: 1 / 1; }
-  .board {
-    position: absolute; inset: 0;
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    grid-template-rows: repeat(3, 1fr);
-  }
+  .board-wrap.locked { opacity: 0.55; }
+  .board { position: absolute; inset: 0; display: grid;
+    grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(3, 1fr); }
   .cell {
-    position: relative;
-    background: transparent;
-    border: 0;
-    padding: 0;
-    cursor: pointer;
-    display: flex; align-items: center; justify-content: center;
-    color: inherit;
-    -webkit-tap-highlight-color: transparent;
-    transition: background 0.15s ease;
-    border-radius: 6px;
+    position: relative; background: transparent; border: 0; padding: 0;
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+    color: inherit; -webkit-tap-highlight-color: transparent;
+    transition: background .15s ease; border-radius: 6px;
   }
   .cell:disabled { cursor: default; }
-  .cell.playable:hover:not(:disabled) { background: var(--x-tint); }
+  .cell.playable.x-turn:hover:not(:disabled) { background: var(--x-tint); }
   .cell.playable.o-turn:hover:not(:disabled) { background: var(--o-tint); }
   .cell svg { width: 62%; height: 62%; overflow: visible; }
   .cell:focus-visible { outline: 2px solid var(--ink); outline-offset: -4px; }
   .mark-x { stroke: var(--x); }
   .mark-o { stroke: var(--o); }
-  .stroke {
-    fill: none;
-    stroke-width: 9;
-    stroke-linecap: round;
-    stroke-linejoin: round;
-  }
-  .draw { stroke-dasharray: var(--len); stroke-dashoffset: var(--len); animation: draw 0.42s ease forwards; }
-  .draw.d2 { animation-delay: 0.16s; }
+  .stroke { fill: none; stroke-width: 9; stroke-linecap: round; stroke-linejoin: round; }
+  .draw { stroke-dasharray: var(--len); stroke-dashoffset: var(--len); animation: draw .42s ease forwards; }
+  .draw.d2 { animation-delay: .16s; }
   @keyframes draw { to { stroke-dashoffset: 0; } }
-  .win-line {
-    position: absolute; inset: 0; pointer-events: none;
-  }
-  .win-line line {
-    stroke: var(--ink);
-    stroke-width: 6;
-    stroke-linecap: round;
-    stroke-dasharray: var(--len);
-    stroke-dashoffset: var(--len);
-    animation: draw 0.5s 0.25s ease forwards;
-    opacity: 0.85;
-  }
-  /* grid overlay */
   .grid-lines { position: absolute; inset: 0; pointer-events: none; }
-  .grid-lines line {
-    stroke: var(--grid);
-    stroke-width: 4;
-    stroke-linecap: round;
+  .grid-lines line { stroke: var(--grid); stroke-width: 4; stroke-linecap: round; }
+  .win-line { position: absolute; inset: 0; pointer-events: none; }
+  .win-line line {
+    stroke: var(--ink); stroke-width: 6; stroke-linecap: round;
+    stroke-dasharray: var(--len); stroke-dashoffset: var(--len);
+    animation: draw .5s .25s ease forwards; opacity: .85;
   }
 
-  /* ---- Action panel ---- */
   .panel {
-    display: flex; flex-direction: column; gap: 12px;
-    padding: 16px;
-    border: 1px solid var(--line);
-    border-radius: var(--radius);
-    background: var(--paper-2);
+    display: flex; flex-direction: column; gap: 12px; padding: 16px;
+    border: 1px solid var(--line); border-radius: var(--radius); background: var(--paper-2);
   }
   .panel.hidden { display: none; }
   .panel-title {
-    font-family: var(--mono);
-    font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase;
-    color: var(--ink-soft); margin: 0;
+    font-family: var(--mono); font-size: 11px; letter-spacing: 0.16em;
+    text-transform: uppercase; color: var(--ink-soft); margin: 0;
   }
-  .link-row { display: flex; gap: 8px; }
-  .link-field {
-    flex: 1; min-width: 0;
-    font-family: var(--mono); font-size: 12px;
-    padding: 11px 12px;
-    border: 1px solid var(--line); border-radius: 9px;
-    background: var(--paper); color: var(--ink);
-    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-  }
-  .btn {
-    font-family: var(--sans); font-weight: 700; font-size: 14px;
-    letter-spacing: 0.02em;
-    padding: 11px 16px;
-    border-radius: 9px;
-    border: 1px solid var(--ink);
-    background: var(--ink); color: var(--paper);
-    cursor: pointer;
-    transition: transform 0.08s ease, opacity 0.15s ease;
-    white-space: nowrap;
-  }
-  .btn:hover { opacity: 0.9; }
-  .btn:active { transform: translateY(1px); }
-  .btn.ghost { background: transparent; color: var(--ink); }
-  .btn.block { width: 100%; }
-  .btn:focus-visible { outline: 2px solid var(--x); outline-offset: 2px; }
-  .btn-row { display: flex; gap: 8px; }
-  .hint { font-size: 12.5px; color: var(--ink-soft); line-height: 1.55; margin: 0; }
-
-  /* ---- Setup (fresh game) ---- */
-  .setup { display: flex; flex-direction: column; gap: 12px; }
-  .names { display: flex; gap: 10px; }
-  .name-field { flex: 1; display: flex; flex-direction: column; gap: 6px; }
+  .name-field { display: flex; flex-direction: column; gap: 6px; }
   .name-field label {
     font-family: var(--mono); font-size: 10px; letter-spacing: 0.14em;
     text-transform: uppercase; color: var(--ink-soft);
   }
   .name-field input {
-    font-family: var(--sans); font-size: 14px;
-    padding: 10px 11px; border-radius: 9px;
+    font-family: var(--sans); font-size: 15px; padding: 11px 12px; border-radius: 9px;
     border: 1px solid var(--line); background: var(--paper); color: var(--ink);
   }
   .name-field input:focus-visible { outline: 2px solid var(--x); outline-offset: 1px; }
-  .name-field.o input:focus-visible { outline-color: var(--o); }
+  .link-row { display: flex; gap: 8px; }
+  .link-field {
+    flex: 1; min-width: 0; font-family: var(--mono); font-size: 12px; padding: 11px 12px;
+    border: 1px solid var(--line); border-radius: 9px; background: var(--paper); color: var(--ink);
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .btn {
+    font-family: var(--sans); font-weight: 700; font-size: 15px; letter-spacing: 0.02em;
+    padding: 12px 16px; border-radius: 9px; border: 1px solid var(--ink);
+    background: var(--ink); color: var(--paper); cursor: pointer;
+    transition: transform .08s ease, opacity .15s ease; white-space: nowrap;
+  }
+  .btn:hover { opacity: .9; }
+  .btn:active { transform: translateY(1px); }
+  .btn:disabled { opacity: .5; cursor: default; }
+  .btn.ghost { background: transparent; color: var(--ink); }
+  .btn.block { width: 100%; }
+  .btn:focus-visible { outline: 2px solid var(--x); outline-offset: 2px; }
+  .hint { font-size: 12.5px; color: var(--ink-soft); line-height: 1.55; margin: 0; }
+  .spinner {
+    width: 15px; height: 15px; border: 2px solid var(--line); border-top-color: var(--ink);
+    border-radius: 50%; animation: spin .7s linear infinite; display: inline-block;
+    vertical-align: -3px; margin-right: 6px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
 
   footer {
-    text-align: center; font-family: var(--mono);
-    font-size: 10.5px; letter-spacing: 0.1em; color: var(--ink-soft);
-    line-height: 1.7; text-transform: uppercase;
+    text-align: center; font-family: var(--mono); font-size: 10.5px;
+    letter-spacing: 0.1em; color: var(--ink-soft); line-height: 1.7; text-transform: uppercase;
   }
+  footer a { color: inherit; }
   .toast {
     position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%) translateY(20px);
-    background: var(--ink); color: var(--paper);
-    font-family: var(--mono); font-size: 12px; letter-spacing: 0.04em;
-    padding: 10px 16px; border-radius: 999px;
-    opacity: 0; pointer-events: none; transition: opacity 0.2s ease, transform 0.2s ease;
+    background: var(--ink); color: var(--paper); font-family: var(--mono); font-size: 12px;
+    letter-spacing: 0.04em; padding: 10px 16px; border-radius: 999px; opacity: 0;
+    pointer-events: none; transition: opacity .2s ease, transform .2s ease;
     box-shadow: 0 8px 24px var(--shadow);
   }
   .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
-
   @media (prefers-reduced-motion: reduce) {
     .draw, .win-line line { animation: none; stroke-dashoffset: 0; }
-    .toast { transition: opacity 0.15s ease; }
+    .conn.live .led { animation: none; } .spinner { animation-duration: 1.4s; }
   }
 </style>
 
 <div class="wrap">
   <header>
     <h1 class="wordmark"><span class="b">TIC</span> <span class="dot">·</span> TAC <span class="dot">·</span> <span class="b">TOE</span></h1>
-    <p class="tagline">Play by link · pass the board</p>
+    <p class="tagline">Live · two players · one link</p>
   </header>
 
-  <div class="status" id="status">Loading…</div>
+  <div class="conn" id="conn"><span class="led"></span><span id="connText">Not connected</span></div>
 
-  <div class="board-wrap">
+  <div class="status" id="status">Set up a game to begin.</div>
+
+  <div class="board-wrap" id="boardWrap">
     <svg class="grid-lines" viewBox="0 0 300 300" preserveAspectRatio="none" aria-hidden="true">
-      <line x1="101" y1="8"   x2="99"  y2="292" />
-      <line x1="199" y1="8"   x2="201" y2="292" />
-      <line x1="8"   y1="99"  x2="292" y2="101" />
-      <line x1="8"   y1="201" x2="292" y2="199" />
+      <line x1="101" y1="8" x2="99" y2="292" /><line x1="199" y1="8" x2="201" y2="292" />
+      <line x1="8" y1="99" x2="292" y2="101" /><line x1="8" y1="201" x2="292" y2="199" />
     </svg>
     <div class="board" id="board" role="grid" aria-label="Tic tac toe board"></div>
     <svg class="win-line" id="winLine" viewBox="0 0 300 300" preserveAspectRatio="none" aria-hidden="true"></svg>
   </div>
 
-  <!-- Setup: only shown on a brand-new game -->
-  <div class="panel setup hidden" id="setup">
-    <p class="panel-title">New game — who's playing?</p>
-    <div class="names">
-      <div class="name-field">
-        <label for="nx">You (X · blue)</label>
-        <input id="nx" type="text" maxlength="14" placeholder="Player X" autocomplete="off" />
-      </div>
-      <div class="name-field o">
-        <label for="no">Friend (O · red)</label>
-        <input id="no" type="text" maxlength="14" placeholder="Player O" autocomplete="off" />
-      </div>
+  <!-- Lobby: pick a name and create/join -->
+  <div class="panel" id="lobby">
+    <p class="panel-title" id="lobbyTitle">New game</p>
+    <div class="name-field">
+      <label for="name">Your name</label>
+      <input id="name" type="text" maxlength="14" placeholder="You" autocomplete="off" />
     </div>
-    <p class="hint">Make your first move on the board above, then send your friend the link that appears.</p>
+    <button class="btn block" id="primaryBtn">Create a game</button>
+    <p class="hint" id="lobbyHint">You'll get a link to send your friend. When they open it, you play live — moves appear on both screens instantly.</p>
   </div>
 
-  <!-- Share panel: shown after you make a move -->
+  <!-- Host waiting: share the room link -->
   <div class="panel hidden" id="share">
-    <p class="panel-title" id="shareTitle">Your move is in — send it over</p>
+    <p class="panel-title">Send this link to your friend</p>
     <div class="link-row">
       <div class="link-field" id="linkField" title="">link…</div>
       <button class="btn" id="copyBtn">Copy</button>
     </div>
-    <div class="btn-row">
-      <button class="btn ghost block" id="shareBtn" hidden>Share…</button>
-    </div>
-    <p class="hint" id="shareHint">Send this link to your friend. When they open it, they'll see your move and can play theirs.</p>
+    <button class="btn ghost block" id="shareBtn" hidden>Share…</button>
+    <p class="hint"><span class="spinner"></span>Waiting for your friend to open the link…</p>
   </div>
 
-  <!-- Result panel -->
-  <div class="panel hidden" id="result">
-    <p class="panel-title" id="resultTitle">Game over</p>
-    <div class="link-row">
-      <div class="link-field" id="resultLinkField">link…</div>
-      <button class="btn" id="resultCopyBtn">Copy</button>
-    </div>
-    <button class="btn ghost block" id="rematchBtn">Start a new game</button>
-    <p class="hint" id="resultHint">Send the final board to your friend, or start a fresh game.</p>
+  <!-- Rematch -->
+  <div class="panel hidden" id="rematch">
+    <button class="btn block" id="rematchBtn">Play again</button>
+    <p class="hint">Starts a fresh round on both screens. You keep the same connection.</p>
   </div>
 
-  <footer>No account · No server · Just a link</footer>
+  <footer>Peer&#8209;to&#8209;peer &middot; no account &middot; no game server</footer>
 </div>
 
 <div class="toast" id="toast">Copied</div>
 
+<script src="vendor/peerjs.min.js"></script>
 <script>
 (function () {
   "use strict";
 
-  var WINS = [
-    [0,1,2],[3,4,5],[6,7,8],
-    [0,3,6],[1,4,7],[2,5,8],
-    [0,4,8],[2,4,6]
-  ];
-  // cell center coordinates in the 300x300 viewBox
+  var WINS = [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
   var CENTERS = [50,150,250];
   function centerOf(i){ return { x: CENTERS[i%3], y: CENTERS[Math.floor(i/3)] }; }
+  var PEER_OPTS = { config: { iceServers: [
+    { urls: "stun:stun.l.google.com:19302" },
+    { urls: "stun:stun1.l.google.com:19302" }
+  ] } };
 
-  var boardEl = document.getElementById("board");
-  var statusEl = document.getElementById("status");
-  var setupEl = document.getElementById("setup");
-  var shareEl = document.getElementById("share");
-  var resultEl = document.getElementById("result");
-  var winLineEl = document.getElementById("winLine");
-  var toastEl = document.getElementById("toast");
+  var $ = function (id) { return document.getElementById(id); };
+  var boardEl = $("board"), statusEl = $("status"), boardWrap = $("boardWrap");
+  var winLineEl = $("winLine"), toastEl = $("toast");
+  var connEl = $("conn"), connText = $("connText");
+  var lobbyEl = $("lobby"), shareEl = $("share"), rematchEl = $("rematch");
 
-  var state = { board: "         ", turn: "X", last: -1, x: "", o: "" };
-  var moved = false; // has the local player already moved in this view?
+  // Networking
+  var peer = null, conn = null, connected = false, role = null; // 'host' | 'guest'
+  var hostId = null, roomLink = "";
+  var myName = "", oppName = "";
 
-  // ---------- URL state ----------
-  function parseHash() {
-    var h = location.hash.replace(/^#/, "");
-    if (!h) return null;
-    var p = new URLSearchParams(h);
-    var b = p.get("b");
-    if (!b || b.length !== 9 || !/^[XO ]{9}$/.test(b.replace(/_/g, " "))) return null;
-    b = b.replace(/_/g, " ");
-    var t = p.get("t") === "O" ? "O" : "X";
-    var last = parseInt(p.get("m"), 10);
-    return {
-      board: b,
-      turn: t,
-      last: isNaN(last) ? -1 : last,
-      x: (p.get("x") || "").slice(0, 14),
-      o: (p.get("o") || "").slice(0, 14)
-    };
-  }
+  // Game
+  var G = { board: "         ", turn: "X", start: "X", over: false, last: -1 };
+  var myMark = "X", oppMark = "O";
 
-  function buildHash(s) {
-    var p = new URLSearchParams();
-    p.set("b", s.board.replace(/ /g, "_"));
-    p.set("t", s.turn);
-    if (s.last >= 0) p.set("m", String(s.last));
-    if (s.x) p.set("x", s.x);
-    if (s.o) p.set("o", s.o);
-    return "#" + p.toString();
-  }
-
-  function linkFor(s) {
-    return location.origin + location.pathname + buildHash(s);
-  }
-
-  function nameFor(mark) {
-    if (mark === "X") return state.x || "Player X";
-    return state.o || "Player O";
-  }
-
-  // ---------- Rendering ----------
+  // ---------- Marks & board ----------
   function markSVG(mark, animate) {
     var svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
     svg.setAttribute("viewBox", "0 0 100 100");
     if (mark === "X") {
-      addLine(svg, 22, 22, 78, 78, "mark-x", animate, 0);
-      addLine(svg, 78, 22, 22, 78, "mark-x", animate, 1);
+      line(svg, 22,22,78,78, "mark-x", animate, 0);
+      line(svg, 78,22,22,78, "mark-x", animate, 1);
     } else {
       var c = document.createElementNS("http://www.w3.org/2000/svg", "circle");
-      c.setAttribute("cx", "50"); c.setAttribute("cy", "50"); c.setAttribute("r", "30");
-      c.setAttribute("class", "stroke mark-o" + (animate ? " draw" : ""));
-      var len = 2 * Math.PI * 30;
-      c.style.setProperty("--len", len);
+      c.setAttribute("cx","50"); c.setAttribute("cy","50"); c.setAttribute("r","30");
+      c.setAttribute("class","stroke mark-o" + (animate ? " draw" : ""));
+      c.style.setProperty("--len", 2 * Math.PI * 30);
       svg.appendChild(c);
     }
     return svg;
   }
-  function addLine(svg, x1, y1, x2, y2, cls, animate, idx) {
-    var l = document.createElementNS("http://www.w3.org/2000/svg", "line");
-    l.setAttribute("x1", x1); l.setAttribute("y1", y1);
-    l.setAttribute("x2", x2); l.setAttribute("y2", y2);
-    var c = "stroke " + cls + (animate ? " draw" + (idx === 1 ? " d2" : "") : "");
-    l.setAttribute("class", c);
-    var len = Math.hypot(x2 - x1, y2 - y1);
-    l.style.setProperty("--len", len);
+  function line(svg,x1,y1,x2,y2,cls,animate,idx){
+    var l = document.createElementNS("http://www.w3.org/2000/svg","line");
+    l.setAttribute("x1",x1); l.setAttribute("y1",y1); l.setAttribute("x2",x2); l.setAttribute("y2",y2);
+    l.setAttribute("class","stroke "+cls+(animate?" draw"+(idx===1?" d2":""):""));
+    l.style.setProperty("--len", Math.hypot(x2-x1,y2-y1));
     svg.appendChild(l);
   }
-
-  function render() {
-    var winner = getWinner(state.board);
-    var full = state.board.indexOf(" ") === -1;
-    var over = !!winner || full;
-
-    boardEl.innerHTML = "";
-    for (var i = 0; i < 9; i++) {
-      var cell = document.createElement("button");
-      cell.className = "cell";
-      cell.setAttribute("role", "gridcell");
-      var mark = state.board[i];
-      if (mark !== " ") {
-        var animate = (i === state.last);
-        cell.appendChild(markSVG(mark, animate));
-        cell.disabled = true;
-        cell.setAttribute("aria-label", nameFor(mark) + " (" + mark + ")");
-      } else if (!over && !moved) {
-        cell.classList.add("playable");
-        if (state.turn === "O") cell.classList.add("o-turn");
-        cell.setAttribute("aria-label", "Empty cell " + (i + 1) + ", play here");
-        (function (idx) {
-          cell.addEventListener("click", function () { play(idx); });
-        })(i);
-      } else {
-        cell.disabled = true;
-        cell.setAttribute("aria-label", "Empty cell " + (i + 1));
-      }
-      boardEl.appendChild(cell);
-    }
-
-    drawWinLine(winner);
-    updateStatus(winner, full, over);
-    updatePanels(winner, over);
-  }
-
-  function drawWinLine(winner) {
-    winLineEl.innerHTML = "";
-    if (!winner) return;
-    var a = centerOf(winner.line[0]);
-    var b = centerOf(winner.line[2]);
-    var dx = b.x - a.x, dy = b.y - a.y;
-    var ext = 22;
-    var mag = Math.hypot(dx, dy);
-    var ux = dx / mag, uy = dy / mag;
-    var l = document.createElementNS("http://www.w3.org/2000/svg", "line");
-    l.setAttribute("x1", a.x - ux * ext); l.setAttribute("y1", a.y - uy * ext);
-    l.setAttribute("x2", b.x + ux * ext); l.setAttribute("y2", b.y + uy * ext);
-    var len = mag + ext * 2;
-    l.style.setProperty("--len", len);
-    winLineEl.appendChild(l);
-  }
-
-  function chip(mark) {
-    var name = nameFor(mark);
-    return '<span class="chip ' + mark.toLowerCase() + '">' + escapeHtml(name) + " (" + mark + ")</span>";
-  }
-
-  function updateStatus(winner, full, over) {
-    if (winner) {
-      statusEl.innerHTML = chip(winner.mark) + " wins!";
-    } else if (full) {
-      statusEl.innerHTML = "It's a draw — nobody wins this one.";
-    } else if (moved) {
-      statusEl.innerHTML = "Waiting for " + chip(state.turn) + " to play…";
-    } else {
-      statusEl.innerHTML = chip(state.turn) + " — your move.";
-    }
-  }
-
-  function updatePanels(winner, over) {
-    setupEl.classList.add("hidden");
-    shareEl.classList.add("hidden");
-    resultEl.classList.add("hidden");
-
-    if (over) {
-      var link = linkFor(state);
-      document.getElementById("resultLinkField").textContent = link;
-      document.getElementById("resultLinkField").title = link;
-      document.getElementById("resultTitle").textContent =
-        winner ? nameFor(winner.mark) + " won the game" : "A hard-fought draw";
-      resultEl.classList.remove("hidden");
-      return;
-    }
-
-    if (moved) {
-      // We just played; show the link to send onward.
-      var s = linkFor(state);
-      var lf = document.getElementById("linkField");
-      lf.textContent = s; lf.title = s;
-      document.getElementById("shareTitle").textContent =
-        "Sent! Now it's " + nameFor(state.turn) + "'s turn";
-      document.getElementById("shareHint").innerHTML =
-        "Send this link to <strong>" + escapeHtml(nameFor(state.turn)) +
-        "</strong>. When they open it they'll see your move and play theirs.";
-      shareEl.classList.remove("hidden");
-      maybeShowNativeShare("shareBtn", s);
-    } else if (isFreshGame()) {
-      setupEl.classList.remove("hidden");
-    }
-  }
-
-  function isFreshGame() {
-    return state.board === "         " && state.last === -1;
-  }
-
-  // ---------- Game logic ----------
-  function getWinner(b) {
-    for (var i = 0; i < WINS.length; i++) {
-      var w = WINS[i];
-      if (b[w[0]] !== " " && b[w[0]] === b[w[1]] && b[w[1]] === b[w[2]]) {
-        return { mark: b[w[0]], line: w };
-      }
+  function getWinner(b){
+    for (var i=0;i<WINS.length;i++){ var w=WINS[i];
+      if (b[w[0]]!==" " && b[w[0]]===b[w[1]] && b[w[1]]===b[w[2]]) return {mark:b[w[0]], line:w};
     }
     return null;
   }
+  function nameFor(mark){
+    var me = (mark === myMark);
+    var n = me ? (myName||"You") : (oppName||"Friend");
+    return n;
+  }
 
-  function play(i) {
-    if (moved) return;
-    if (state.board[i] !== " ") return;
-    if (getWinner(state.board)) return;
+  function render() {
+    var winner = getWinner(G.board);
+    var full = G.board.indexOf(" ") === -1;
+    G.over = !!winner || full;
+    var myTurn = connected && !G.over && G.turn === myMark;
 
-    // capture names from setup if this is the first move
-    if (isFreshGame()) {
-      var nx = document.getElementById("nx").value.trim();
-      var no = document.getElementById("no").value.trim();
-      if (nx) state.x = nx;
-      if (no) state.o = no;
+    boardWrap.classList.toggle("locked", !connected && role !== null);
+
+    boardEl.innerHTML = "";
+    for (var i=0;i<9;i++){
+      var cell = document.createElement("button");
+      cell.className = "cell"; cell.setAttribute("role","gridcell");
+      var mark = G.board[i];
+      if (mark !== " ") {
+        cell.appendChild(markSVG(mark, i === G.last));
+        cell.disabled = true;
+        cell.setAttribute("aria-label", nameFor(mark) + " (" + mark + ")");
+      } else if (myTurn) {
+        cell.classList.add("playable", G.turn === "X" ? "x-turn" : "o-turn");
+        cell.setAttribute("aria-label", "Play cell " + (i+1));
+        (function(idx){ cell.addEventListener("click", function(){ localMove(idx); }); })(i);
+      } else {
+        cell.disabled = true;
+        cell.setAttribute("aria-label", "Cell " + (i+1));
+      }
+      boardEl.appendChild(cell);
     }
-
-    var arr = state.board.split("");
-    arr[i] = state.turn;
-    state.board = arr.join("");
-    state.last = i;
-    state.turn = state.turn === "X" ? "O" : "X";
-    moved = true;
-
-    // Persist to URL so a refresh keeps the position.
-    history.replaceState(null, "", buildHash(state));
-    render();
+    drawWinLine(winner);
+    updateStatus(winner, full, myTurn);
+    updatePanels();
   }
 
-  function newGame() {
-    state = { board: "         ", turn: "X", last: -1, x: state.x, o: state.o };
-    moved = false;
-    history.replaceState(null, "", location.pathname);
-    render();
-    document.getElementById("nx").value = state.x;
-    document.getElementById("no").value = state.o;
+  function drawWinLine(winner){
+    winLineEl.innerHTML = "";
+    if (!winner) return;
+    var a = centerOf(winner.line[0]), b = centerOf(winner.line[2]);
+    var dx=b.x-a.x, dy=b.y-a.y, mag=Math.hypot(dx,dy), ux=dx/mag, uy=dy/mag, ext=22;
+    var l = document.createElementNS("http://www.w3.org/2000/svg","line");
+    l.setAttribute("x1",a.x-ux*ext); l.setAttribute("y1",a.y-uy*ext);
+    l.setAttribute("x2",b.x+ux*ext); l.setAttribute("y2",b.y+uy*ext);
+    l.style.setProperty("--len", mag+ext*2);
+    winLineEl.appendChild(l);
   }
 
-  // ---------- Sharing ----------
-  function copyText(text) {
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(text).then(showToast, function () { legacyCopy(text); });
+  function chip(mark){
+    return '<span class="chip '+mark.toLowerCase()+'">'+escapeHtml(nameFor(mark))+" ("+mark+")</span>";
+  }
+  function updateStatus(winner, full, myTurn){
+    if (role === null) { statusEl.textContent = "Set up a game to begin."; return; }
+    if (!connected) {
+      statusEl.innerHTML = role === "host"
+        ? "Waiting for your friend to join…"
+        : '<span class="spinner"></span>Connecting to your friend…';
+      return;
+    }
+    if (winner) {
+      statusEl.innerHTML = winner.mark === myMark
+        ? chip(winner.mark) + " — you win! 🎉"
+        : chip(winner.mark) + " wins.";
+    } else if (full) {
+      statusEl.innerHTML = "It's a draw — nobody wins this one.";
+    } else if (myTurn) {
+      statusEl.innerHTML = chip(myMark) + " — your move.";
     } else {
-      legacyCopy(text);
+      statusEl.innerHTML = "Waiting for " + chip(oppMark) + "…";
     }
   }
-  function legacyCopy(text) {
-    var ta = document.createElement("textarea");
-    ta.value = text; ta.style.position = "fixed"; ta.style.opacity = "0";
-    document.body.appendChild(ta); ta.select();
-    try { document.execCommand("copy"); showToast(); } catch (e) {}
+  function updatePanels(){
+    lobbyEl.classList.toggle("hidden", role !== null);
+    shareEl.classList.toggle("hidden", !(role === "host" && !connected));
+    rematchEl.classList.toggle("hidden", !(connected && G.over));
+  }
+  function setConn(kind, text){
+    connEl.className = "conn" + (kind ? " " + kind : "");
+    connText.textContent = text;
+  }
+
+  // ---------- Moves ----------
+  function localMove(i){
+    if (!connected || G.over || G.turn !== myMark || G.board[i] !== " ") return;
+    applyMove(i, myMark);
+    send({ t: "move", i: i });
+  }
+  function applyMove(i, mark){
+    if (G.board[i] !== " ") return;
+    var arr = G.board.split(""); arr[i] = mark; G.board = arr.join("");
+    G.last = i; G.turn = (mark === "X") ? "O" : "X";
+    render();
+  }
+  function resetGame(startMark){
+    G = { board: "         ", turn: startMark, start: startMark, over: false, last: -1 };
+    render();
+  }
+
+  // ---------- Networking ----------
+  function send(msg){ if (conn && conn.open) { try { conn.send(msg); } catch (e) {} } }
+
+  function onData(msg){
+    if (!msg || typeof msg !== "object") return;
+    if (msg.t === "hello") {
+      oppName = (msg.name || "").slice(0,14);
+      // Host tells guest the authoritative starting mark on first hello.
+      if (role === "host") send({ t: "welcome", name: myName, start: G.start });
+      render();
+    } else if (msg.t === "welcome") {
+      oppName = (msg.name || "").slice(0,14);
+      if (typeof msg.start === "string") resetGame(msg.start === "O" ? "O" : "X"); else render();
+    } else if (msg.t === "move") {
+      if (typeof msg.i === "number" && G.turn === oppMark) applyMove(msg.i, oppMark);
+    } else if (msg.t === "reset") {
+      resetGame(msg.start === "O" ? "O" : "X");
+    } else if (msg.t === "bye") {
+      handleDrop();
+    }
+  }
+
+  function bindConn(c){
+    if (conn && conn.open) { try { c.close(); } catch (e) {} return; } // one opponent only
+    conn = c;
+    c.on("open", function(){
+      connected = true;
+      setConn("live", "Connected — " + (oppName || "friend"));
+      send({ t: "hello", name: myName });
+      // Backstop: notice a hard disconnect (closed tab, dropped network) via ICE state.
+      var pc = c.peerConnection;
+      if (pc) pc.oniceconnectionstatechange = function(){
+        var s = pc.iceConnectionState;
+        if (s === "disconnected" || s === "failed" || s === "closed") handleDrop();
+      };
+      render();
+    });
+    c.on("data", onData);
+    c.on("close", function(){ handleDrop(); });
+    c.on("error", function(){ handleDrop(); });
+  }
+  function handleDrop(){
+    connected = false;
+    setConn("waiting", role === "host" ? "Friend left — link still works" : "Disconnected");
+    render();
+  }
+  function handlePeerError(err){
+    var t = err && err.type;
+    if (t === "peer-unavailable") {
+      setConn("waiting", "Game not found");
+      statusEl.textContent = "This game has ended or the host closed the tab. Ask them for a fresh link.";
+    } else if (t === "unavailable-id") {
+      // retry with a fresh id
+      startHost();
+    } else if (t === "browser-incompatible") {
+      statusEl.textContent = "This browser can't run live play. Try Chrome, Edge, Safari or Firefox.";
+    } else {
+      setConn("waiting", "Connection trouble");
+    }
+  }
+
+  function startHost(){
+    role = "host"; myMark = "X"; oppMark = "O";
+    setConn("waiting", "Starting…");
+    resetGame("X");
+    peer = new Peer(null, PEER_OPTS);
+    peer.on("open", function(id){
+      hostId = id;
+      roomLink = location.origin + location.pathname + "?r=" + encodeURIComponent(id);
+      $("linkField").textContent = roomLink; $("linkField").title = roomLink;
+      setConn("waiting", "Waiting for your friend…");
+      maybeNativeShare(roomLink);
+      render();
+    });
+    peer.on("connection", bindConn);
+    peer.on("error", handlePeerError);
+  }
+  function startGuest(id){
+    role = "guest"; myMark = "O"; oppMark = "X"; hostId = id;
+    setConn("waiting", "Connecting…");
+    resetGame("X");
+    peer = new Peer(null, PEER_OPTS);
+    peer.on("open", function(){
+      var c = peer.connect(id, { reliable: true });
+      bindConn(c);
+    });
+    peer.on("error", handlePeerError);
+    render();
+  }
+
+  // ---------- Sharing / clipboard ----------
+  function copyText(text){
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(function(){ showToast(); }, function(){ legacyCopy(text); });
+    } else legacyCopy(text);
+  }
+  function legacyCopy(text){
+    var ta = document.createElement("textarea"); ta.value = text;
+    ta.style.position="fixed"; ta.style.opacity="0"; document.body.appendChild(ta); ta.select();
+    try { document.execCommand("copy"); showToast(); } catch(e){}
     document.body.removeChild(ta);
   }
   var toastTimer;
-  function showToast(msg) {
+  function showToast(msg){
     toastEl.textContent = msg || "Link copied";
-    toastEl.classList.add("show");
-    clearTimeout(toastTimer);
-    toastTimer = setTimeout(function () { toastEl.classList.remove("show"); }, 1600);
+    toastEl.classList.add("show"); clearTimeout(toastTimer);
+    toastTimer = setTimeout(function(){ toastEl.classList.remove("show"); }, 1600);
   }
-  function maybeShowNativeShare(btnId, link) {
-    var btn = document.getElementById(btnId);
+  function maybeNativeShare(link){
+    var btn = $("shareBtn");
     if (navigator.share) {
       btn.hidden = false;
-      btn.onclick = function () {
-        navigator.share({
-          title: "Tic Tac Toe",
-          text: "Your move in our tic-tac-toe game:",
-          url: link
-        }).catch(function () {});
+      btn.onclick = function(){
+        navigator.share({ title: "Tic Tac Toe", text: "Play tic-tac-toe with me:", url: link }).catch(function(){});
       };
-    } else {
-      btn.hidden = true;
-    }
+    } else btn.hidden = true;
   }
-
-  function escapeHtml(s) {
-    return String(s).replace(/[&<>"']/g, function (c) {
-      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+  function escapeHtml(s){
+    return String(s).replace(/[&<>"']/g, function(c){
+      return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];
     });
   }
 
   // ---------- Wire up ----------
-  document.getElementById("copyBtn").addEventListener("click", function () {
-    copyText(linkFor(state));
-  });
-  document.getElementById("resultCopyBtn").addEventListener("click", function () {
-    copyText(linkFor(state));
-  });
-  document.getElementById("rematchBtn").addEventListener("click", newGame);
+  var params = new URLSearchParams(location.search);
+  var joinId = params.get("r");
 
-  window.addEventListener("hashchange", function () {
-    boot();
+  $("primaryBtn").addEventListener("click", function(){
+    myName = $("name").value.trim();
+    if (joinId) startGuest(joinId); else startHost();
   });
+  $("copyBtn").addEventListener("click", function(){ if (roomLink) copyText(roomLink); });
+  $("rematchBtn").addEventListener("click", function(){
+    var next = G.start === "X" ? "O" : "X"; // alternate who starts
+    resetGame(next);
+    send({ t: "reset", start: next });
+  });
+  $("name").addEventListener("keydown", function(e){ if (e.key === "Enter") $("primaryBtn").click(); });
 
-  function boot() {
-    var parsed = parseHash();
-    if (parsed) {
-      state = parsed;
-    } else {
-      state = { board: "         ", turn: "X", last: -1, x: "", o: "" };
-    }
-    moved = false;
-    render();
+  // Tell the other player right away when this tab closes or navigates away.
+  window.addEventListener("pagehide", function(){ send({ t: "bye" }); });
+
+  // Lobby copy differs for host vs guest
+  if (joinId) {
+    $("lobbyTitle").textContent = "Join your friend's game";
+    $("primaryBtn").textContent = "Join game";
+    $("lobbyHint").textContent = "Enter your name and join. You'll play live — moves appear on both screens instantly.";
+    $("name").placeholder = "You";
   }
 
-  boot();
+  render();
 })();
 </script>
