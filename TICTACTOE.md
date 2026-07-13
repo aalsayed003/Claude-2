@@ -1,23 +1,40 @@
-# Tic Tac Toe
+# Tic Tac Toe — Oman Trip edition
 
-Two small, self-contained tic-tac-toe games you can play with a friend over the internet.
-No build step, no account, no game server of your own to run.
+Play tic-tac-toe live with a friend over one shared link. There are three
+versions, in decreasing order of setup:
 
-| File | What it is |
-| --- | --- |
-| `index.html` | **Live version.** You and your friend see moves appear on both screens in real time. |
-| `pass-and-play.html` | **Link-passing version.** Each move produces a link you send back and forth. Works on any network, even when live can't connect. |
-| `vendor/peerjs.min.js` | Bundled peer-to-peer library used by the live version (no CDN needed). |
+| File | What it is | Setup |
+| --- | --- | --- |
+| `index.html` | **Firebase version.** Live sync through Firebase + **push notifications even when the app is closed**. Installs as a phone app. | Needs a free Firebase project — see **[FIREBASE-SETUP.md](FIREBASE-SETUP.md)**. |
+| `p2p.html` | **Peer-to-peer version.** Live sync directly between browsers, no server, no account. Notifications only while the app is open/alive. | None. |
+| `pass-and-play.html` | **Link-passing version.** Each move makes a link you send back and forth. Works on any network. | None. |
 
-## How the live version works
+If you just want to play now with zero setup, use `p2p.html`. For the full
+installable app with real push notifications, set up `index.html` via
+FIREBASE-SETUP.md.
+
+## How the Firebase version works
+
+Moves are written to a Firebase **Realtime Database** room, so both players stay
+in sync and the state persists. When a player joins or moves, a **Cloud
+Function** (`functions/index.js`) sends a push via Firebase Cloud Messaging to
+the other player — which is what lets a notification arrive even when their app
+is fully closed.
+
+1. Take a seat (pick Ahmed/Hawah and X/O), which creates a room and a link.
+2. Send your friend the link. They take the open seat.
+3. Play live. Moves sync instantly; either player can rematch.
+
+See **[FIREBASE-SETUP.md](FIREBASE-SETUP.md)** for the one-time project setup.
+
+## How the peer-to-peer version (`p2p.html`) works
 
 It's **peer-to-peer** (WebRTC): the two browsers talk directly to each other.
-A free public signaling service (PeerJS Cloud) is only used to introduce the two
-browsers — the actual game moves never touch any server.
+A free public signaling service (PeerJS Cloud) only introduces the two browsers —
+the actual game moves never touch any server.
 
-1. You open the page and click **Create a game**.
-2. You get a link. Send it to your friend (WhatsApp, iMessage, anything).
-3. They open it, and you play live. Moves sync instantly; there's a rematch button.
+1. Take a seat — you get a link. Send it to your friend.
+2. They open it, and you play live. Moves sync instantly; there's a rematch button.
 
 Because it's peer-to-peer with no relay (TURN) server, a small number of very
 restrictive networks (some corporate/school firewalls) may block the direct
@@ -37,22 +54,20 @@ name, icon, and offline shell.
 ## Notifications
 
 When you take your seat the app asks for notification permission. After that it
-alerts you when:
+alerts you when your friend **joins** and when they **make a move**.
 
-- your friend **joins** the game, and
-- your friend **makes a move** (so you know it's your turn).
+- **`index.html` (Firebase):** pushes arrive **even when the app is fully
+  closed**, because moves go through the server and a Cloud Function sends the
+  push. This is the recommended setup — see FIREBASE-SETUP.md.
+- **`p2p.html` (peer-to-peer):** alerts only fire while the app is **open or
+  still running in the background**. If the app is fully closed there's nothing
+  running to receive your friend's move, so no notification can arrive.
 
-**Important limitation:** because the game is peer-to-peer with no server, these
-alerts only fire while the app is **open or still running in the background**.
-If the app is fully closed, nothing is running to receive your friend's move, so
-no notification can arrive. True "notify even when the app is closed" push
-requires a backend push server (e.g. Firebase Cloud Messaging), which would mean
-routing the game through a server instead of pure peer-to-peer. The service
-worker already has a `push` handler ready for that if it's added later.
+## Hosting the peer-to-peer / link versions (GitHub Pages)
 
-## Hosting it (GitHub Pages)
-
-The whole thing is static files, so GitHub Pages hosts it for free:
+`p2p.html` and `pass-and-play.html` are pure static files, so GitHub Pages hosts
+them for free (the Firebase version can also be hosted here, or on Firebase
+Hosting — see FIREBASE-SETUP.md):
 
 1. Push this branch to GitHub.
 2. In the repo: **Settings → Pages**.
