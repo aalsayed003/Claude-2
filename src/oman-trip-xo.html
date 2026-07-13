@@ -48,21 +48,22 @@
     display: flex;
     flex-direction: column;
     justify-content: space-around;
-    opacity: 0.5;
   }
   .bg-phrases .row {
     font-family: var(--ar);
     direction: rtl;
     white-space: nowrap;
     font-weight: 700;
-    font-size: clamp(2.6rem, 9vw, 6rem);
-    line-height: 1;
-    color: transparent;
-    -webkit-text-stroke: 1px rgba(231, 194, 125, 0.14);
+    font-size: clamp(2rem, 6.5vw, 4.4rem);
+    line-height: 1.2;
+    color: rgba(231, 194, 125, 0.12);
     text-align: center;
     transform: rotate(-4deg);
   }
-  .bg-phrases .row:nth-child(even) { transform: rotate(4deg); }
+  .bg-phrases .row:nth-child(even) {
+    transform: rotate(4deg);
+    color: rgba(231, 194, 125, 0.09);
+  }
 
   /* Keep everything above the watermark */
   .banners, header, .stage, footer { position: relative; z-index: 1; }
