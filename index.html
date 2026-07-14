@@ -82,6 +82,7 @@
   .page::before { content: ""; position: absolute; top: 0; bottom: 0;
     left: clamp(24px, 6vw, 42px); width: 1.5px; background: var(--margin); z-index: 2; }
   .page > *:not(.banners) { position: relative; z-index: 1; }
+  .page > .taunt { z-index: 8; } /* keep the tease menu above the board */
 
   /* background "banners" — road-trip catchphrases, kept faded behind everything */
   .banners { position: absolute; inset: 0; z-index: 0; overflow: hidden; pointer-events: none; }
@@ -242,6 +243,43 @@
     padding: 10px 16px; border-radius: 999px; opacity: 0; pointer-events: none; transition: opacity .2s ease, transform .2s ease;
     z-index: 5; box-shadow: 0 8px 24px var(--shadow); }
   .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  /* ---------- Tease dropdown ---------- */
+  .taunt { position: relative; display: flex; justify-content: center; margin-top: -6px; }
+  .taunt.hidden { display: none; }
+  .taunt-btn {
+    font-family: var(--serif); font-weight: 700; font-size: 14px; letter-spacing: .02em;
+    padding: 8px 18px; border-radius: 999px; border: 1.5px dashed var(--gold);
+    background: transparent; color: var(--ink); cursor: pointer;
+    transition: background .12s, transform .08s;
+  }
+  .taunt-btn:hover { background: rgba(217,154,23,.14); }
+  .taunt-btn:active { transform: translateY(1px); }
+  .taunt-btn:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+  .taunt-menu {
+    position: absolute; top: calc(100% + 8px); left: 50%; transform: translateX(-50%);
+    z-index: 6; min-width: 230px; max-width: 90vw;
+    background: var(--paper-2); border: 1px solid var(--line); border-radius: 12px;
+    box-shadow: 0 12px 32px var(--shadow); padding: 6px; display: flex; flex-direction: column; gap: 3px;
+  }
+  .taunt-menu[hidden] { display: none; }
+  .taunt-item {
+    font-family: var(--arabic); direction: rtl; font-size: 19px; font-weight: 700;
+    text-align: center; padding: 12px 14px; border: 0; border-radius: 8px;
+    background: transparent; color: var(--ink); cursor: pointer; transition: background .12s;
+  }
+  .taunt-item:hover { background: rgba(200,16,46,.1); }
+  .taunt-item:focus-visible { outline: 2px solid var(--red); outline-offset: -2px; }
+
+  .taunt-pop {
+    position: fixed; left: 50%; top: 7%; transform: translateX(-50%);
+    z-index: 20; max-width: 86vw; text-align: center; display: none;
+    background: var(--ink); color: var(--paper); border-radius: 16px; padding: 16px 22px;
+    box-shadow: 0 18px 48px var(--shadow); border: 2px solid var(--gold); pointer-events: none;
+  }
+  .taunt-pop .tp-text { font-family: var(--arabic); direction: rtl; font-size: clamp(22px, 7vw, 32px); font-weight: 700; line-height: 1.35; }
+  .taunt-pop .tp-from { display: block; margin-top: 8px; font-family: var(--label); font-size: 11px; letter-spacing: .1em; text-transform: uppercase; opacity: .8; }
+
   @media (prefers-reduced-motion: reduce) {
     .draw, .win-line line { animation: none; stroke-dashoffset: 0; }
     .conn.live .led { animation: none; } .spinner { animation-duration: 1.4s; } .taped, .flag-sticker { transform: none; }
@@ -289,6 +327,16 @@
 
   <div class="conn" id="conn"><span class="led"></span><span id="connText">Not connected</span></div>
   <div class="status" id="status">Take a seat to begin.</div>
+
+  <div class="taunt hidden" id="taunt">
+    <button class="taunt-btn" id="tauntToggle" type="button" aria-haspopup="true" aria-expanded="false">Tease 😏</button>
+    <div class="taunt-menu" id="tauntMenu" hidden>
+      <button class="taunt-item" type="button" data-i="0">كرمانجي هري غوري</button>
+      <button class="taunt-item" type="button" data-i="1">روح سو بوزات</button>
+      <button class="taunt-item" type="button" data-i="2">بحرق سترة !</button>
+      <button class="taunt-item" type="button" data-i="3">تحكييير !</button>
+    </div>
+  </div>
 
   <div class="board-wrap" id="boardWrap">
     <svg class="grid-lines" viewBox="0 0 300 300" preserveAspectRatio="none" aria-hidden="true">
@@ -339,6 +387,7 @@
 </main>
 
 <div class="toast" id="toast">Copied</div>
+<div class="taunt-pop" id="tauntPop" aria-live="polite"><span class="tp-text" id="tpText"></span><span class="tp-from" id="tpFrom"></span></div>
 
 <script src="firebase-config.js"></script>
 <script src="vendor/firebase/firebase-app-compat.js"></script>
@@ -492,6 +541,7 @@
     seatEl.classList.toggle("hidden", !seatVisible);
     shareEl.classList.toggle("hidden", !(role === "host" && !gameReady && mySeat && roomLink));
     rematchEl.classList.toggle("hidden", !(gameReady && G.over));
+    $("taunt").classList.toggle("hidden", !gameReady);
   }
   function setConn(kind, text){ connEl.className = "conn" + (kind ? " " + kind : ""); connText.textContent = text; }
   function updateConn(){
@@ -649,6 +699,7 @@
       }
       registerPush();
     }
+    handleTaunt(r);
     updateConn(); refreshSeatCard(); render();
   }
   function startHost(){
@@ -727,6 +778,70 @@
     return String(s).replace(/[&<>"']/g, function(c){ return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]; });
   }
 
+  // ---------- Tease dropdown ----------
+  var TAUNTS = ["كرمانجي هري غوري", "روح سو بوزات", "بحرق سترة !", "تحكييير !"];
+  var lastTauntId = null, audioCtx = null;
+  var reduceMotion = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  function ensureAudio(){
+    try {
+      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      if (audioCtx && audioCtx.state === "suspended") audioCtx.resume();
+    } catch (e) {}
+  }
+  function playTauntSound(){
+    ensureAudio(); if (!audioCtx) return;
+    try {
+      var t = audioCtx.currentTime;
+      var o = audioCtx.createOscillator(), g = audioCtx.createGain();
+      o.type = "triangle";
+      o.frequency.setValueAtTime(720, t);
+      o.frequency.exponentialRampToValueAtTime(240, t + 0.42);   // cheeky slide down
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(0.28, t + 0.03);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + 0.5);
+      o.connect(g); g.connect(audioCtx.destination);
+      o.start(t); o.stop(t + 0.52);
+    } catch (e) {}
+  }
+  var tauntTimer;
+  function showTauntPop(text, from){
+    var pop = $("tauntPop");
+    $("tpText").textContent = text;
+    $("tpFrom").textContent = "— from " + from;
+    pop.style.display = "block";
+    playTauntSound();
+    clearTimeout(tauntTimer);
+    if (reduceMotion || !pop.animate) {
+      pop.style.opacity = "1";
+      tauntTimer = setTimeout(function(){ pop.style.display = "none"; }, 2800);
+      return;
+    }
+    var anim = pop.animate([
+      { opacity: 0, transform: "translateX(-50%) translateY(-30px) scale(.9)" },
+      { opacity: 1, transform: "translateX(-50%) translateY(0) scale(1)", offset: .12 },
+      { opacity: 1, transform: "translateX(-50%) translateY(52vh) scale(1)", offset: .82 },
+      { opacity: 0, transform: "translateX(-50%) translateY(64vh) scale(1)" }
+    ], { duration: 3400, easing: "cubic-bezier(.2,.6,.3,1)" });
+    anim.onfinish = function(){ pop.style.display = "none"; };
+  }
+  function sendTaunt(i){
+    if (!roomRef || !gameReady) return;
+    var id = String(Date.now()) + "-" + Math.random().toString(36).slice(2, 6);
+    roomRef.child("taunt").set({ from: myMark, text: TAUNTS[i], id: id, at: firebase.database.ServerValue.TIMESTAMP });
+    closeTauntMenu();
+    showToast("Sent 😏");
+  }
+  function closeTauntMenu(){ $("tauntMenu").hidden = true; $("tauntToggle").setAttribute("aria-expanded", "false"); }
+  function handleTaunt(r){
+    var cur = (r && r.taunt && r.taunt.id) ? r.taunt.id : "";
+    if (lastTauntId === null) { lastTauntId = cur; return; } // first snapshot = baseline, don't pop
+    if (cur && cur !== lastTauntId) {
+      lastTauntId = cur;
+      if (r.taunt.from !== myMark) showTauntPop(r.taunt.text, nameFor(r.taunt.from));
+    }
+  }
+
   // ---------- Wire up ----------
   var joinId = new URLSearchParams(location.search).get("room");
   Array.prototype.forEach.call($("nameGroup").children, function(btn){
@@ -743,6 +858,20 @@
     roomRef.update({ board: EMPTY, turn: next, start: next, last: -1, over: false });
     roomRef.child("notify").set({ to: oppMark, title: nameFor(myMark) + " started a new round",
       body: "You're up first.", at: firebase.database.ServerValue.TIMESTAMP });
+  });
+  $("tauntToggle").addEventListener("click", function(){
+    ensureAudio();
+    var menu = $("tauntMenu"), willOpen = menu.hidden;
+    menu.hidden = !willOpen;
+    $("tauntToggle").setAttribute("aria-expanded", String(willOpen));
+  });
+  Array.prototype.forEach.call($("tauntMenu").children, function(btn){
+    btn.addEventListener("click", function(){ sendTaunt(parseInt(btn.getAttribute("data-i"), 10)); });
+  });
+  document.addEventListener("click", function(e){
+    ensureAudio();
+    var t = $("taunt");
+    if (t && !t.contains(e.target)) closeTauntMenu();
   });
 
   if (!configured) {
