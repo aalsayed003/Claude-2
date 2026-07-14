@@ -219,15 +219,18 @@
   .btn.block { width: 100%; }
   .btn:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
   .hint { font-size: 14px; color: var(--ink-soft); line-height: 1.5; margin: 0; font-style: italic; }
-  .leave-row { display: flex; justify-content: center; margin-top: -6px; }
+  .leave-row { display: flex; justify-content: center; margin-top: 4px; }
   .leave-row.hidden { display: none; }
   .leave-btn {
-    font-family: var(--label); font-size: 11px; letter-spacing: .1em; text-transform: uppercase;
-    color: var(--ink-soft); background: transparent; border: 0; cursor: pointer;
-    padding: 7px 12px; border-radius: 6px; transition: color .12s, background .12s;
+    font-family: var(--serif); font-weight: 700; font-size: 15px; letter-spacing: .01em;
+    color: #fff; background: var(--red); border: 1.5px solid var(--red); cursor: pointer;
+    padding: 11px 24px; border-radius: 999px; box-shadow: 0 4px 14px var(--shadow);
+    display: inline-flex; align-items: center; gap: 8px;
+    transition: opacity .12s, transform .08s;
   }
-  .leave-btn:hover { color: var(--red); background: rgba(200,16,46,.09); }
-  .leave-btn:focus-visible { outline: 2px solid var(--red); }
+  .leave-btn:hover { opacity: .9; }
+  .leave-btn:active { transform: translateY(1px); }
+  .leave-btn:focus-visible { outline: 2px solid var(--red); outline-offset: 2px; }
   .install-btn { margin-top: 2px; }
   .install-tip {
     font-size: 13.5px; line-height: 1.55; margin: 0; color: var(--ink);
@@ -407,7 +410,7 @@
   </div>
 
   <div class="leave-row hidden" id="leaveRow">
-    <button class="leave-btn" id="leaveBtn" type="button">Leave game</button>
+    <button class="leave-btn" id="leaveBtn" type="button">🚪 Leave game</button>
   </div>
 
   <section class="diary" aria-label="Game log">
