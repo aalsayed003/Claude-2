@@ -1,19 +1,47 @@
-/* Oman Trip — service worker: offline shell, notification handling, future push */
-var CACHE = "oman-ttt-v1";
+/* Oman Trip — service worker: offline shell + Firebase Cloud Messaging background push */
+var CACHE = "oman-ttt-v2";
 var ASSETS = [
   "./",
   "./index.html",
-  "./vendor/peerjs.min.js",
+  "./firebase-config.js",
+  "./vendor/firebase/firebase-app-compat.js",
+  "./vendor/firebase/firebase-database-compat.js",
+  "./vendor/firebase/firebase-messaging-compat.js",
   "./manifest.webmanifest",
   "./icons/icon-192.png",
   "./icons/icon-512.png",
   "./icons/maskable-512.png"
 ];
 
+/* Set up Firebase Messaging so pushes arrive when the app is closed.
+   No-ops until firebase-config.js is filled in. */
+try {
+  importScripts("firebase-config.js");
+  importScripts("vendor/firebase/firebase-app-compat.js");
+  importScripts("vendor/firebase/firebase-messaging-compat.js");
+  var cfg = self.FIREBASE_CONFIG;
+  if (cfg && cfg.apiKey && cfg.apiKey !== "PASTE_API_KEY" && self.firebase && !firebase.apps.length) {
+    firebase.initializeApp(cfg);
+    var messaging = firebase.messaging();
+    messaging.onBackgroundMessage(function (payload) {
+      var d = payload.data || payload.notification || {};
+      self.registration.showNotification(d.title || "Oman Trip", {
+        body: d.body || "",
+        icon: "./icons/icon-192.png",
+        badge: "./icons/icon-192.png",
+        tag: "oman-ttt",
+        renotify: true
+      });
+    });
+  }
+} catch (e) { /* messaging not available yet — fine */ }
+
 self.addEventListener("install", function (e) {
   e.waitUntil(
-    caches.open(CACHE).then(function (c) { return c.addAll(ASSETS); })
-      .then(function () { return self.skipWaiting(); })
+    caches.open(CACHE).then(function (c) {
+      // Cache best-effort; a single missing file shouldn't fail the whole install.
+      return Promise.all(ASSETS.map(function (a) { return c.add(a).catch(function () {}); }));
+    }).then(function () { return self.skipWaiting(); })
   );
 });
 
@@ -25,8 +53,7 @@ self.addEventListener("activate", function (e) {
   );
 });
 
-/* Network-first so players always get the latest build when online;
-   the cache is only a fallback when offline. */
+/* Network-first so players always get the latest build when online. */
 self.addEventListener("fetch", function (e) {
   var req = e.request;
   if (req.method !== "GET") return;
@@ -50,16 +77,4 @@ self.addEventListener("notificationclick", function (e) {
       if (self.clients.openWindow) return self.clients.openWindow("./");
     })
   );
-});
-
-/* Web Push — only fires if a backend push server is added later. */
-self.addEventListener("push", function (e) {
-  var data = { title: "Oman Trip", body: "It's your move." };
-  try { if (e.data) data = Object.assign(data, e.data.json()); } catch (_) {}
-  e.waitUntil(self.registration.showNotification(data.title, {
-    body: data.body,
-    icon: "./icons/icon-192.png",
-    badge: "./icons/icon-192.png",
-    tag: "oman-ttt"
-  }));
 });

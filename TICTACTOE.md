@@ -3,13 +3,27 @@
 Two small, self-contained tic-tac-toe games you can play with a friend over the internet.
 No build step, no account, no game server of your own to run.
 
-| File | What it is |
-| --- | --- |
-| `index.html` | **Live version** — a "game diary" layout: live play, a running **score by player** (Ahmed vs Hawah), and a **dated log of every finished game**. Score/log sync between both players and save locally. |
-| `pass-and-play.html` | **Link-passing version.** Each move produces a link you send back and forth. Works on any network, even when live can't connect. |
-| `vendor/peerjs.min.js` | Bundled peer-to-peer library used by the live version (no CDN needed). |
+| File | What it is | Setup |
+| --- | --- | --- |
+| `index.html` | **Firebase version** — the "game diary": live play synced through Firebase (reliable on mobile/cellular), **push notifications even when closed**, a running **score by player** (Ahmed vs Hawah), and a **dated log of every game** shared between both players. | Needs a free Firebase project — see **[FIREBASE-SETUP.md](FIREBASE-SETUP.md)**. |
+| `p2p.html` | **Peer-to-peer version** — same game/diary, no server or setup, but the direct connection can fail on some mobile networks. | None. |
+| `pass-and-play.html` | **Link-passing version.** Each move makes a link you send back and forth. Works on any network. | None. |
 
-## How the live version works
+Until `firebase-config.js` is filled in, `index.html` shows a "set up Firebase
+first" notice. If you want to play right now with zero setup, use `p2p.html`.
+
+## How the Firebase version works
+
+Moves are written to a Firebase **Realtime Database** room, so both phones stay
+in sync no matter their network — this is what fixes the "won't connect on
+cellular" problem of pure peer-to-peer. Finished games are saved to a shared
+diary in the database, so the **score and dated log are the same on both
+phones** and persist across sessions. A **Cloud Function** sends a push when a
+friend joins or moves, so you can be notified even when the app is closed.
+
+See **[FIREBASE-SETUP.md](FIREBASE-SETUP.md)** for the one-time project setup.
+
+## How the peer-to-peer version works
 
 It's **peer-to-peer** (WebRTC): the two browsers talk directly to each other.
 A free public signaling service (PeerJS Cloud) is only used to introduce the two

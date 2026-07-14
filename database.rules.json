@@ -1,0 +1,16 @@
+{
+  "rules": {
+    "rooms": {
+      "$roomId": {
+        ".read": true,
+        ".write": true
+      }
+    },
+    "diaries": {
+      "$pair": {
+        ".read": true,
+        ".write": true
+      }
+    }
+  }
+}
