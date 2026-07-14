@@ -348,9 +348,14 @@
   var WINS = [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
   var CENTERS = [50,150,250];
   function centerOf(i){ return { x: CENTERS[i%3], y: CENTERS[Math.floor(i/3)] }; }
+  // STUN finds your public address; TURN relays the game when a direct
+  // connection is blocked (common on mobile/cellular networks).
   var PEER_OPTS = { config: { iceServers: [
     { urls: "stun:stun.l.google.com:19302" },
-    { urls: "stun:stun1.l.google.com:19302" }
+    { urls: "stun:stun1.l.google.com:19302" },
+    { urls: "turn:openrelay.metered.ca:80", username: "openrelayproject", credential: "openrelayproject" },
+    { urls: "turn:openrelay.metered.ca:443", username: "openrelayproject", credential: "openrelayproject" },
+    { urls: "turn:openrelay.metered.ca:443?transport=tcp", username: "openrelayproject", credential: "openrelayproject" }
   ] } };
   var NAMES = ["Ahmed", "Hawah"];
   var MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
@@ -656,6 +661,14 @@
     setConn("waiting", role === "host" ? "Friend left — link still works" : "Disconnected");
     render();
   }
+  function attachReconnect(pr){
+    // The free signaling server drops idle sockets; reconnect keeps the room alive.
+    pr.on("disconnected", function(){
+      if (connected) return;
+      setConn("waiting", "Reconnecting…");
+      try { if (!pr.destroyed) pr.reconnect(); } catch (e) {}
+    });
+  }
   function handlePeerError(err){
     var t = err && err.type;
     if (t === "peer-unavailable") {
@@ -663,7 +676,11 @@
       statusEl.textContent = "This game has ended or the host closed the tab. Ask them for a fresh link.";
     } else if (t === "unavailable-id") { if (role === "host") startHost(); }
     else if (t === "browser-incompatible") { statusEl.textContent = "This browser can't run live play. Try Chrome, Edge, Safari or Firefox."; }
-    else { setConn("waiting", "Connection trouble"); }
+    else if (t === "disconnected" || t === "network" || t === "socket-error" || t === "socket-closed" || t === "server-error") {
+      // transient signaling hiccup — try to recover instead of alarming the player
+      setConn("waiting", "Reconnecting…");
+      try { if (peer && !peer.destroyed && peer.disconnected) peer.reconnect(); } catch (e) {}
+    } else { setConn("waiting", "Connection hiccup — retrying…"); }
   }
   function startHost(){
     role = "host"; setConn("waiting", "Starting…");
@@ -676,6 +693,7 @@
     });
     peer.on("connection", bindConn);
     peer.on("error", handlePeerError);
+    attachReconnect(peer);
     render();
   }
   function startGuest(id){
@@ -683,6 +701,7 @@
     peer = new Peer(null, PEER_OPTS);
     peer.on("open", function(){ bindConn(peer.connect(id, { reliable: true })); });
     peer.on("error", handlePeerError);
+    attachReconnect(peer);
     refreshSeatCard(); render();
   }
 
