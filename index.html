@@ -219,6 +219,15 @@
   .btn.block { width: 100%; }
   .btn:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
   .hint { font-size: 14px; color: var(--ink-soft); line-height: 1.5; margin: 0; font-style: italic; }
+  .leave-row { display: flex; justify-content: center; margin-top: -6px; }
+  .leave-row.hidden { display: none; }
+  .leave-btn {
+    font-family: var(--label); font-size: 11px; letter-spacing: .1em; text-transform: uppercase;
+    color: var(--ink-soft); background: transparent; border: 0; cursor: pointer;
+    padding: 7px 12px; border-radius: 6px; transition: color .12s, background .12s;
+  }
+  .leave-btn:hover { color: var(--red); background: rgba(200,16,46,.09); }
+  .leave-btn:focus-visible { outline: 2px solid var(--red); }
   .install-btn { margin-top: 2px; }
   .install-tip {
     font-size: 13.5px; line-height: 1.55; margin: 0; color: var(--ink);
@@ -391,6 +400,16 @@
     <p class="hint">Fresh round on both screens — the other player goes first this time.</p>
   </div>
 
+  <div class="panel hidden" id="ended">
+    <p class="panel-title">Game ended</p>
+    <p class="hint" id="endedMsg">Your friend left the game.</p>
+    <button class="btn block" id="newGameBtn">Start a new game</button>
+  </div>
+
+  <div class="leave-row hidden" id="leaveRow">
+    <button class="leave-btn" id="leaveBtn" type="button">Leave game</button>
+  </div>
+
   <section class="diary" aria-label="Game log">
     <div class="card-label">The log — every game, dated</div>
     <ul class="log" id="log"></ul>
@@ -442,6 +461,8 @@
   var mySeat = null, oppSeat = null, pending = { name: null, mark: null };
   var players = null, myMark = "X", oppMark = "O";
   var gameReady = false, oppPresent = false, pushRegistered = false;
+  var gameEnded = false, endedName = "", lastEndedId = null;
+  function baseUrl(){ return location.origin + location.pathname; }
   var G = { board: EMPTY, turn: "X", start: "X", over: false, last: -1 };
   var history = [], diaryRef = null;
   function pairKey(){ return NAMES.slice().sort().join("_"); }
@@ -488,7 +509,7 @@
     var full = G.board.indexOf(" ") === -1;
     G.over = gameReady && (!!winner || full);
     var myTurn = gameReady && !G.over && G.turn === myMark && oppPresent;
-    boardWrap.classList.toggle("hidden", !gameReady);
+    boardWrap.classList.toggle("hidden", !gameReady || gameEnded);
     boardWrap.classList.toggle("locked", !gameReady);
     boardEl.innerHTML = "";
     for (var i=0;i<9;i++){
@@ -529,6 +550,7 @@
   }
   function updateStatus(winner, full, myTurn){
     if (!configured) { statusEl.innerHTML = "⚙️ Firebase isn't set up yet — see FIREBASE&#8209;SETUP.md."; return; }
+    if (gameEnded) { statusEl.textContent = endedName + " left the game."; return; }
     if (!gameReady) {
       if (role === null) { statusEl.textContent = "Take a seat to begin."; return; }
       if (role === "host") {
@@ -550,15 +572,24 @@
     }
   }
   function updatePanels(){
+    if (gameEnded) {
+      seatEl.classList.add("hidden"); shareEl.classList.add("hidden"); rematchEl.classList.add("hidden");
+      $("taunt").classList.add("hidden"); $("leaveRow").classList.add("hidden");
+      $("ended").classList.remove("hidden");
+      return;
+    }
+    $("ended").classList.add("hidden");
     var seatVisible = configured && !gameReady && !(role === "host" && mySeat);
     seatEl.classList.toggle("hidden", !seatVisible);
     shareEl.classList.toggle("hidden", !(role === "host" && !gameReady && mySeat && roomLink));
     rematchEl.classList.toggle("hidden", !(gameReady && G.over));
     $("taunt").classList.toggle("hidden", !gameReady);
+    $("leaveRow").classList.toggle("hidden", !configured || role === null);
   }
   function setConn(kind, text){ connEl.className = "conn" + (kind ? " " + kind : ""); connText.textContent = text; }
   function updateConn(){
     if (!configured) { setConn("", "Not configured"); return; }
+    if (gameEnded) { setConn("waiting", "Game ended"); return; }
     if (gameReady && oppPresent) setConn("live", "Connected — " + (oppSeat ? oppSeat.name : "friend"));
     else if (oppPresent) setConn("waiting", "Friend connected");
     else setConn("waiting", role ? "Waiting for friend…" : "Not connected");
@@ -713,7 +744,33 @@
       registerPush();
     }
     handleTaunt(r);
+    handleEnded(r);
     updateConn(); refreshSeatCard(); render();
+  }
+  function handleEnded(r){
+    var cur = (r && r.ended && r.ended.id) ? r.ended.id : "";
+    if (lastEndedId === null) { lastEndedId = cur; return; } // baseline on first snapshot
+    if (cur && cur !== lastEndedId) {
+      lastEndedId = cur;
+      endedName = (r.ended && r.ended.name) || "Your friend";
+      gameEnded = true;
+      $("endedMsg").textContent = endedName + " left the game. Start a new one?";
+      updateConn(); render();
+    }
+  }
+  function leaveGame(){
+    if (!window.confirm("Leave this game?")) return;
+    var done = function(){ location.replace(baseUrl()); };
+    if (roomRef && role) {
+      try {
+        roomRef.child("present/" + role).set(false);
+        roomRef.child("ended").set({
+          name: (mySeat && mySeat.name) || "Your friend",
+          id: String(Date.now()) + "-" + Math.random().toString(36).slice(2, 6),
+          at: firebase.database.ServerValue.TIMESTAMP
+        }).then(done, done);
+      } catch (e) { done(); }
+    } else { done(); }
   }
   function startHost(){
     role = "host"; roomId = genRoomId();
@@ -886,6 +943,8 @@
     var t = $("taunt");
     if (t && !t.contains(e.target)) closeTauntMenu();
   });
+  $("leaveBtn").addEventListener("click", leaveGame);
+  $("newGameBtn").addEventListener("click", function(){ location.replace(baseUrl()); });
 
   // ---------- Install as an app (PWA) ----------
   var deferredPrompt = null;
