@@ -160,7 +160,8 @@
   .chip.x { color: var(--x); } .chip.o { color: var(--o); }
 
   /* ---------- Board ---------- */
-  .board-wrap { position: relative; width: 100%; max-width: 360px; margin: 2px auto; aspect-ratio: 1/1; }
+  .board-wrap { position: relative; width: 100%; max-width: min(340px, 74vh); margin: 2px auto; aspect-ratio: 1/1; }
+  .board-wrap.hidden { display: none; }
   .board-wrap.locked { opacity: .5; }
   .board { position: absolute; inset: 0; display: grid; grid-template-columns: repeat(3,1fr); grid-template-rows: repeat(3,1fr); }
   .cell { position: relative; background: transparent; border: 0; padding: 0; cursor: pointer;
@@ -411,6 +412,9 @@
     var full = G.board.indexOf(" ") === -1;
     G.over = gameReady && (!!winner || full);
     var myTurn = gameReady && connected && !G.over && G.turn === myMark;
+    // Hide the (empty, locked) board while people are still taking seats so the
+    // seat controls and their button stay on-screen; show it once play starts.
+    boardWrap.classList.toggle("hidden", !gameReady);
     boardWrap.classList.toggle("locked", !gameReady);
     boardEl.innerHTML = "";
     for (var i=0;i<9;i++){
