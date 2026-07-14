@@ -219,6 +219,16 @@
   .btn.block { width: 100%; }
   .btn:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
   .hint { font-size: 14px; color: var(--ink-soft); line-height: 1.5; margin: 0; font-style: italic; }
+  .install-btn { margin-top: 2px; }
+  .install-tip {
+    font-size: 13.5px; line-height: 1.55; margin: 0; color: var(--ink);
+    border: 1px dashed var(--gold); border-radius: 8px; padding: 11px 13px; background: var(--paper);
+  }
+  .install-tip strong { color: var(--green); }
+  .install-tip .ios-share {
+    display: inline-flex; align-items: center; justify-content: center; vertical-align: -3px;
+    width: 16px; height: 16px; margin: 0 1px;
+  }
   .spinner { width: 14px; height: 14px; border: 2px solid var(--line); border-top-color: var(--green); border-radius: 50%;
     animation: spin .7s linear infinite; display: inline-block; vertical-align: -2px; margin-right: 6px; }
   @keyframes spin { to { transform: rotate(360deg); } }
@@ -361,6 +371,8 @@
     </div>
     <button class="btn block" id="seatBtn" disabled>Start the trip</button>
     <p class="hint" id="seatHint">Pick who you are and your mark. Whoever takes ✕ makes the first move.</p>
+    <button class="btn ghost block install-btn" id="installBtn" type="button" hidden>📲 Install app — iOS &amp; Android</button>
+    <p class="install-tip" id="installTip" hidden></p>
   </div>
 
   <div class="panel hidden" id="share">
@@ -872,6 +884,34 @@
     ensureAudio();
     var t = $("taunt");
     if (t && !t.contains(e.target)) closeTauntMenu();
+  });
+
+  // ---------- Install as an app (PWA) ----------
+  var deferredPrompt = null;
+  var installBtn = $("installBtn"), installTip = $("installTip");
+  function isStandalone(){
+    return (window.matchMedia && window.matchMedia("(display-mode: standalone)").matches) || navigator.standalone === true;
+  }
+  function isIOS(){
+    return /iphone|ipad|ipod/i.test(navigator.userAgent) ||
+           (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  }
+  var IOS_SHARE = '<svg class="ios-share" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V3"/><path d="M8 7l4-4 4 4"/><path d="M5 12v7a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-7"/></svg>';
+  if (!isStandalone()) installBtn.hidden = false;
+  window.addEventListener("beforeinstallprompt", function(e){ e.preventDefault(); deferredPrompt = e; if (!isStandalone()) installBtn.hidden = false; });
+  window.addEventListener("appinstalled", function(){ installBtn.hidden = true; installTip.hidden = true; deferredPrompt = null; showToast("App installed 🎉"); });
+  installBtn.addEventListener("click", function(){
+    installTip.hidden = true;
+    if (deferredPrompt) {
+      deferredPrompt.prompt();
+      deferredPrompt.userChoice.then(function(c){ if (c && c.outcome === "accepted") installBtn.hidden = true; deferredPrompt = null; });
+    } else if (isIOS()) {
+      installTip.innerHTML = "On iPhone/iPad, open this in <strong>Safari</strong>, tap the Share button " + IOS_SHARE + " at the bottom, then choose <strong>Add to Home Screen</strong>.";
+      installTip.hidden = false;
+    } else {
+      installTip.innerHTML = "Open your browser menu and choose <strong>Install app</strong> (or <strong>Add to Home Screen</strong>). On desktop Chrome/Edge there's also an install icon in the address bar.";
+      installTip.hidden = false;
+    }
   });
 
   if (!configured) {
