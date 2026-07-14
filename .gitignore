@@ -10,17 +10,3 @@ token.json
 *.egg-info/
 .DS_Store
 report.html
-
-# Node
-node_modules/
-functions/node_modules/
-
-# Firebase local
-firebase-debug.log
-database-debug.log
-ui-debug.log
-firestore-debug.log
-pubsub-debug.log
-.firebase/
-test-*.html
-*.tgz
