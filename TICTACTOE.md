@@ -5,7 +5,7 @@ No build step, no account, no game server of your own to run.
 
 | File | What it is |
 | --- | --- |
-| `index.html` | **Live version.** You and your friend see moves appear on both screens in real time. |
+| `index.html` | **Live version** — a "game diary" layout: live play, a running **score by player** (Ahmed vs Hawah), and a **dated log of every finished game**. Score/log sync between both players and save locally. |
 | `pass-and-play.html` | **Link-passing version.** Each move produces a link you send back and forth. Works on any network, even when live can't connect. |
 | `vendor/peerjs.min.js` | Bundled peer-to-peer library used by the live version (no CDN needed). |
 

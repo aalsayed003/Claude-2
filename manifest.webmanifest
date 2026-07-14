@@ -1,13 +1,13 @@
 {
   "name": "Oman Trip — Tic Tac Toe",
   "short_name": "Oman Trip",
-  "description": "Play tic-tac-toe live with a friend over one shared link.",
+  "description": "A tic-tac-toe game diary — play live with a friend, keep score, log every game.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#e9e0cc",
-  "theme_color": "#e9e0cc",
+  "background_color": "#f2ecdc",
+  "theme_color": "#e7ddc6",
   "icons": [
     { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
     { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png" },

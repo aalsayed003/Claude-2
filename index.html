@@ -1,9 +1,9 @@
 <meta charset="utf-8" />
-<title>Oman Trip — X O for the road</title>
+<title>Oman Trip — a tic-tac-toe diary</title>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 <link rel="manifest" href="manifest.webmanifest" />
-<meta name="theme-color" content="#e9e0cc" media="(prefers-color-scheme: light)" />
-<meta name="theme-color" content="#16130d" media="(prefers-color-scheme: dark)" />
+<meta name="theme-color" content="#e7ddc6" media="(prefers-color-scheme: light)" />
+<meta name="theme-color" content="#17130d" media="(prefers-color-scheme: dark)" />
 <link rel="apple-touch-icon" href="icons/icon-180.png" />
 <link rel="icon" href="icons/icon-192.png" />
 <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -12,155 +12,207 @@
 <meta name="mobile-web-app-capable" content="yes" />
 <style>
   :root {
-    --paper: #e9e0cc;
-    --paper-2: #f3ecda;
-    --ink: #251d13;
-    --ink-soft: #766a54;
-    --grid: #cabd9f;
-    --x: #1f5fd0;
-    --o: #d1502a;
-    --x-tint: rgba(31,95,208,.10);
-    --o-tint: rgba(209,80,42,.10);
-    --line: #d8cbac;
-    --good: #3a8f4f;
+    --desk: #cdbf9f;
+    --paper: #f2ecdc;
+    --paper-2: #f8f3e6;
+    --rule: rgba(60,90,140,.07);
+    --margin: rgba(178,58,46,.35);
+    --ink: #2a2318;
+    --ink-soft: #8a7c63;
+    --x: #274a99;
+    --o: #b23a2e;
+    --gold: #a9822f;
+    --line: #ded1b4;
+    --good: #3f7d4e;
     --wait: #b5822a;
-    --shadow: rgba(37,29,19,.12);
-    --radius: 14px;
-    --mono: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, monospace;
-    --sans: "Helvetica Neue", Helvetica, Arial, system-ui, sans-serif;
-    --arabic: "Geeza Pro", "Noto Naskh Arabic", "Segoe UI", "Tahoma", system-ui, serif;
+    --shadow: rgba(60,45,25,.18);
+    --serif: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
+    --label: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    --arabic: "Geeza Pro", "Noto Naskh Arabic", "Segoe UI", "Tahoma", serif;
+    --radius: 10px;
   }
   @media (prefers-color-scheme: dark) {
     :root {
-      --paper: #16130d; --paper-2: #1f1a12; --ink: #f0e8d8; --ink-soft: #a99e88;
-      --grid: #393224; --x: #6a8dff; --o: #ff7a4d;
-      --x-tint: rgba(106,141,255,.13); --o-tint: rgba(255,122,77,.13);
-      --line: #322b1e; --good: #4bbf6a; --wait: #d8a13f; --shadow: rgba(0,0,0,.45);
+      --desk: #0d0b07; --paper: #1a150e; --paper-2: #221b12;
+      --rule: rgba(150,170,210,.05); --margin: rgba(255,120,100,.28);
+      --ink: #ede3cf; --ink-soft: #9d907a; --x: #7ea2ff; --o: #ff7d6a;
+      --gold: #d8ad5a; --line: #33291b; --good: #5cbf72; --wait: #d8a13f;
+      --shadow: rgba(0,0,0,.55);
     }
   }
   :root[data-theme="light"] {
-    --paper: #e9e0cc; --paper-2: #f3ecda; --ink: #251d13; --ink-soft: #766a54;
-    --grid: #cabd9f; --x: #1f5fd0; --o: #d1502a;
-    --x-tint: rgba(31,95,208,.10); --o-tint: rgba(209,80,42,.10);
-    --line: #d8cbac; --good: #3a8f4f; --wait: #b5822a; --shadow: rgba(37,29,19,.12);
+    --desk: #cdbf9f; --paper: #f2ecdc; --paper-2: #f8f3e6;
+    --rule: rgba(60,90,140,.07); --margin: rgba(178,58,46,.35);
+    --ink: #2a2318; --ink-soft: #8a7c63; --x: #274a99; --o: #b23a2e;
+    --gold: #a9822f; --line: #ded1b4; --good: #3f7d4e; --wait: #b5822a;
+    --shadow: rgba(60,45,25,.18);
   }
   :root[data-theme="dark"] {
-    --paper: #16130d; --paper-2: #1f1a12; --ink: #f0e8d8; --ink-soft: #a99e88;
-    --grid: #393224; --x: #6a8dff; --o: #ff7a4d;
-    --x-tint: rgba(106,141,255,.13); --o-tint: rgba(255,122,77,.13);
-    --line: #322b1e; --good: #4bbf6a; --wait: #d8a13f; --shadow: rgba(0,0,0,.45);
+    --desk: #0d0b07; --paper: #1a150e; --paper-2: #221b12;
+    --rule: rgba(150,170,210,.05); --margin: rgba(255,120,100,.28);
+    --ink: #ede3cf; --ink-soft: #9d907a; --x: #7ea2ff; --o: #ff7d6a;
+    --gold: #d8ad5a; --line: #33291b; --good: #5cbf72; --wait: #d8a13f;
+    --shadow: rgba(0,0,0,.55);
   }
 
   * { box-sizing: border-box; }
   html, body { margin: 0; padding: 0; }
   body {
-    background: var(--paper); color: var(--ink);
-    font-family: var(--sans); -webkit-font-smoothing: antialiased;
-    display: flex; justify-content: center; position: relative; overflow-x: hidden;
-    padding: clamp(20px, 5vw, 56px) 18px 40px; min-height: 100vh;
+    background: var(--desk);
+    color: var(--ink);
+    font-family: var(--serif);
+    -webkit-font-smoothing: antialiased;
+    display: flex; justify-content: center;
+    padding: clamp(12px, 4vw, 44px) clamp(10px, 3vw, 24px);
+    min-height: 100vh;
   }
 
-  /* --- Arabic road-trip scribbles in the background --- */
-  .bg { position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; }
-  .bg span {
-    position: absolute; font-family: var(--arabic); direction: rtl;
-    color: var(--ink); white-space: nowrap; font-weight: 700;
-    opacity: .055; user-select: none;
+  .page {
+    position: relative; overflow: hidden;
+    width: 100%; max-width: 540px;
+    display: flex; flex-direction: column; gap: 18px;
+    background-color: var(--paper);
+    background-image: repeating-linear-gradient(to bottom,
+      transparent 0, transparent 33px, var(--rule) 33px, var(--rule) 34px);
+    border-radius: 5px;
+    box-shadow: 0 18px 50px var(--shadow), 0 2px 5px var(--shadow);
+    padding: clamp(24px, 5vw, 40px) clamp(20px, 5vw, 34px) 30px clamp(38px, 8vw, 58px);
   }
-  @media (prefers-color-scheme: dark) { .bg span { opacity: .07; } }
-  :root[data-theme="dark"] .bg span { opacity: .07; }
-  :root[data-theme="light"] .bg span { opacity: .055; }
-  .bg .p1 { top: 6%;  left: -4%;  font-size: clamp(38px, 11vw, 96px); transform: rotate(-8deg); }
-  .bg .p2 { top: 30%; right: -8%; font-size: clamp(34px, 10vw, 84px); transform: rotate(6deg); color: var(--o); }
-  .bg .p3 { top: 54%; left: -6%;  font-size: clamp(40px, 12vw, 104px); transform: rotate(-5deg); color: var(--x); }
-  .bg .p4 { top: 78%; right: -4%; font-size: clamp(32px, 9vw, 76px);  transform: rotate(9deg); }
-  .bg .p5 { top: 90%; left: 2%;   font-size: clamp(28px, 8vw, 64px);  transform: rotate(-3deg); }
-  .bg .p6 { top: 16%; right: 4%;  font-size: clamp(24px, 6vw, 48px);  transform: rotate(4deg); }
-
-  .wrap { position: relative; z-index: 1; width: 100%; max-width: 480px;
-    display: flex; flex-direction: column; gap: 20px; }
-
-  header { text-align: center; display: flex; flex-direction: column; gap: 8px; }
-  .wordmark {
-    font-weight: 800; font-size: clamp(30px, 8.5vw, 46px);
-    letter-spacing: 0.1em; line-height: 0.95; text-transform: uppercase;
-    margin: 0; text-wrap: balance;
+  .page::before { /* margin line */
+    content: ""; position: absolute; top: 0; bottom: 0;
+    left: clamp(24px, 6vw, 42px); width: 1.5px; background: var(--margin);
   }
-  .tagline {
-    font-family: var(--mono); font-size: clamp(11px, 3vw, 13px); letter-spacing: 0.22em;
-    text-transform: uppercase; color: var(--ink-soft); margin: 0;
+  /* faint Arabic road-trip note bleeding through the paper */
+  .page::after {
+    content: "قوطي أناناس · صبر أيوب · نبي عمران";
+    position: absolute; right: -6%; bottom: 8%;
+    font-family: var(--arabic); direction: rtl; white-space: nowrap;
+    font-size: clamp(30px, 9vw, 62px); color: var(--ink);
+    opacity: .05; transform: rotate(-6deg); pointer-events: none;
   }
-  .tagline .b { color: var(--x); font-weight: 700; }
-  .tagline .dot { color: var(--o); font-weight: 700; }
+  .page > * { position: relative; z-index: 1; }
 
+  /* ---------- Masthead ---------- */
+  .mast { display: flex; flex-direction: column; gap: 4px; }
+  .mast-eyebrow {
+    font-family: var(--label); font-size: 11px; letter-spacing: .22em;
+    text-transform: uppercase; color: var(--ink-soft);
+  }
+  .mast-title {
+    margin: 0; font-size: clamp(34px, 10vw, 52px); font-weight: 700;
+    letter-spacing: .01em; line-height: .98; font-style: italic;
+  }
+  .mast-rule {
+    margin-top: 6px; height: 0; border-top: 2px solid var(--ink);
+    box-shadow: 0 3px 0 -1px var(--ink); opacity: .8;
+  }
+
+  /* ---------- Cards ---------- */
+  .card {
+    background: var(--paper-2);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    box-shadow: 0 4px 14px var(--shadow);
+    padding: 16px 18px;
+  }
+  .taped { transform: rotate(-.6deg); }
+  .taped::before {
+    content: ""; position: absolute; top: -9px; left: 50%;
+    width: 92px; height: 20px; transform: translateX(-50%) rotate(-2.2deg);
+    background: rgba(190,168,110,.35);
+    border-left: 1px dashed rgba(120,100,60,.25);
+    border-right: 1px dashed rgba(120,100,60,.25);
+  }
+  .card { position: relative; }
+  .card-label {
+    font-family: var(--label); font-size: 10px; letter-spacing: .2em;
+    text-transform: uppercase; color: var(--ink-soft); margin-bottom: 10px;
+  }
+
+  /* ---------- Tally / scoreboard ---------- */
+  .tally-grid { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; }
+  .t-player { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+  .t-name {
+    font-family: var(--label); font-size: 12px; letter-spacing: .1em;
+    text-transform: uppercase; color: var(--ink-soft);
+  }
+  .t-score { font-size: clamp(42px, 13vw, 60px); font-weight: 700; line-height: 1; font-variant-numeric: tabular-nums; }
+  .t-mid { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 0 8px; }
+  .t-dash { font-size: 26px; color: var(--ink-soft); line-height: 1; }
+  .t-draws {
+    font-family: var(--label); font-size: 10px; letter-spacing: .12em;
+    text-transform: uppercase; color: var(--ink-soft); white-space: nowrap;
+  }
+  .t-draws b { color: var(--ink); font-weight: 700; }
+
+  /* ---------- Connection + status ---------- */
   .conn {
     display: flex; align-items: center; justify-content: center; gap: 8px;
-    font-family: var(--mono); font-size: 11px; letter-spacing: 0.08em;
+    font-family: var(--label); font-size: 11px; letter-spacing: .1em;
     text-transform: uppercase; color: var(--ink-soft);
   }
   .conn .led { width: 8px; height: 8px; border-radius: 50%; background: var(--ink-soft); transition: background .2s; }
   .conn.live .led { background: var(--good); animation: pulse 2s infinite; }
   .conn.waiting .led { background: var(--wait); }
-  @keyframes pulse {
-    0% { box-shadow: 0 0 0 0 rgba(74,192,106,.5); }
-    70% { box-shadow: 0 0 0 7px transparent; }
-    100% { box-shadow: 0 0 0 0 transparent; }
-  }
+  @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(80,150,90,.5); } 70% { box-shadow: 0 0 0 7px transparent; } 100% { box-shadow: 0 0 0 0 transparent; } }
 
   .status {
-    font-family: var(--mono); font-size: 13px; text-align: center;
-    padding: 12px 14px; border: 1px solid var(--line); border-radius: var(--radius);
-    background: var(--paper-2); color: var(--ink); line-height: 1.5;
-    display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 46px;
+    font-size: 16px; text-align: center; font-style: italic;
+    color: var(--ink); line-height: 1.4; min-height: 30px;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
   }
-  .chip { display: inline-flex; align-items: center; gap: 6px; font-weight: 700; }
+  .chip { font-style: normal; font-weight: 700; }
   .chip.x { color: var(--x); }
   .chip.o { color: var(--o); }
 
-  .board-wrap { position: relative; width: 100%; aspect-ratio: 1 / 1; }
-  .board-wrap.locked { opacity: 0.5; }
-  .board { position: absolute; inset: 0; display: grid;
-    grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(3, 1fr); }
+  /* ---------- Board ---------- */
+  .board-wrap { position: relative; width: 100%; max-width: 380px; margin: 2px auto; aspect-ratio: 1/1; }
+  .board-wrap.locked { opacity: .5; }
+  .board { position: absolute; inset: 0; display: grid; grid-template-columns: repeat(3,1fr); grid-template-rows: repeat(3,1fr); }
   .cell {
     position: relative; background: transparent; border: 0; padding: 0; cursor: pointer;
     display: flex; align-items: center; justify-content: center; color: inherit;
     -webkit-tap-highlight-color: transparent; transition: background .15s ease; border-radius: 6px;
   }
   .cell:disabled { cursor: default; }
-  .cell.playable.x-turn:hover:not(:disabled) { background: var(--x-tint); }
-  .cell.playable.o-turn:hover:not(:disabled) { background: var(--o-tint); }
-  .cell svg { width: 62%; height: 62%; overflow: visible; }
+  .cell.playable.x-turn:hover:not(:disabled) { background: rgba(39,74,153,.09); }
+  .cell.playable.o-turn:hover:not(:disabled) { background: rgba(178,58,46,.09); }
+  .cell svg { width: 60%; height: 60%; overflow: visible; }
   .cell:focus-visible { outline: 2px solid var(--ink); outline-offset: -4px; }
   .mark-x { stroke: var(--x); }
   .mark-o { stroke: var(--o); }
-  .stroke { fill: none; stroke-width: 9; stroke-linecap: round; stroke-linejoin: round; }
+  .stroke { fill: none; stroke-width: 8.5; stroke-linecap: round; stroke-linejoin: round; }
   .draw { stroke-dasharray: var(--len); stroke-dashoffset: var(--len); animation: draw .42s ease forwards; }
   .draw.d2 { animation-delay: .16s; }
   @keyframes draw { to { stroke-dashoffset: 0; } }
   .grid-lines { position: absolute; inset: 0; pointer-events: none; }
-  .grid-lines line { stroke: var(--grid); stroke-width: 4; stroke-linecap: round; }
+  .grid-lines line { stroke: var(--ink); opacity: .5; stroke-width: 3.5; stroke-linecap: round; }
   .win-line { position: absolute; inset: 0; pointer-events: none; }
   .win-line line {
-    stroke: var(--ink); stroke-width: 6; stroke-linecap: round;
+    stroke: var(--o); stroke-width: 6; stroke-linecap: round;
     stroke-dasharray: var(--len); stroke-dashoffset: var(--len);
-    animation: draw .5s .25s ease forwards; opacity: .85;
+    animation: draw .5s .25s ease forwards; opacity: .8;
   }
 
+  /* ---------- Panels ---------- */
   .panel {
-    display: flex; flex-direction: column; gap: 12px; padding: 16px;
-    border: 1px solid var(--line); border-radius: var(--radius); background: var(--paper-2);
+    display: flex; flex-direction: column; gap: 12px;
+    background: var(--paper-2); border: 1px solid var(--line);
+    border-radius: var(--radius); box-shadow: 0 4px 14px var(--shadow); padding: 16px 18px;
   }
   .panel.hidden { display: none; }
   .panel-title {
-    font-family: var(--mono); font-size: 11px; letter-spacing: 0.16em;
+    font-family: var(--label); font-size: 10px; letter-spacing: .18em;
     text-transform: uppercase; color: var(--ink-soft); margin: 0;
   }
-
-  /* --- Take a seat --- */
+  .seat-sub {
+    font-family: var(--label); font-size: 10px; letter-spacing: .14em;
+    text-transform: uppercase; color: var(--ink-soft); margin: 4px 0 -4px;
+  }
   .seat-group { display: flex; gap: 10px; }
   .seat-btn {
-    flex: 1; font-family: var(--sans); font-weight: 700; font-size: 15px;
-    padding: 13px 10px; border-radius: 10px; border: 1.5px solid var(--line);
+    flex: 1; font-family: var(--serif); font-weight: 700; font-size: 16px;
+    padding: 12px 10px; border-radius: 8px; border: 1.5px solid var(--line);
     background: var(--paper); color: var(--ink); cursor: pointer;
     transition: border-color .12s, background .12s, color .12s, transform .08s;
     display: flex; align-items: center; justify-content: center; gap: 7px;
@@ -171,28 +223,20 @@
   .seat-btn.mk-x.active { border-color: var(--x); background: var(--x); color: #fff; }
   .seat-btn.mk-o.active { border-color: var(--o); background: var(--o); color: #fff; }
   .seat-btn:disabled { opacity: .4; cursor: not-allowed; }
-  .seat-btn .taken {
-    font-family: var(--mono); font-size: 9px; letter-spacing: .1em; text-transform: uppercase;
-    color: var(--ink-soft); font-weight: 600;
-  }
+  .seat-btn .taken { font-family: var(--label); font-size: 9px; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-soft); font-weight: 600; }
   .seat-btn .glyph { font-size: 18px; line-height: 1; }
-  .seat-btn.mk-x .glyph { color: var(--x); }
-  .seat-btn.mk-o .glyph { color: var(--o); }
+  .seat-btn.mk-x .glyph { color: var(--x); } .seat-btn.mk-o .glyph { color: var(--o); }
   .seat-btn.active .glyph { color: #fff; }
-  .seat-sub {
-    font-family: var(--mono); font-size: 10px; letter-spacing: .14em; text-transform: uppercase;
-    color: var(--ink-soft); margin: 4px 0 -4px;
-  }
 
   .link-row { display: flex; gap: 8px; }
   .link-field {
-    flex: 1; min-width: 0; font-family: var(--mono); font-size: 12px; padding: 11px 12px;
-    border: 1px solid var(--line); border-radius: 9px; background: var(--paper); color: var(--ink);
+    flex: 1; min-width: 0; font-family: var(--label); font-size: 12px; padding: 11px 12px;
+    border: 1px solid var(--line); border-radius: 8px; background: var(--paper); color: var(--ink);
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   }
   .btn {
-    font-family: var(--sans); font-weight: 700; font-size: 15px; letter-spacing: 0.02em;
-    padding: 12px 16px; border-radius: 9px; border: 1px solid var(--ink);
+    font-family: var(--serif); font-weight: 700; font-size: 16px;
+    padding: 12px 16px; border-radius: 8px; border: 1px solid var(--ink);
     background: var(--ink); color: var(--paper); cursor: pointer;
     transition: transform .08s ease, opacity .15s ease; white-space: nowrap;
   }
@@ -202,49 +246,68 @@
   .btn.ghost { background: transparent; color: var(--ink); }
   .btn.block { width: 100%; }
   .btn:focus-visible { outline: 2px solid var(--x); outline-offset: 2px; }
-  .hint { font-size: 12.5px; color: var(--ink-soft); line-height: 1.55; margin: 0; }
-  .spinner {
-    width: 15px; height: 15px; border: 2px solid var(--line); border-top-color: var(--ink);
-    border-radius: 50%; animation: spin .7s linear infinite; display: inline-block;
-    vertical-align: -3px; margin-right: 6px;
-  }
+  .hint { font-size: 14px; color: var(--ink-soft); line-height: 1.5; margin: 0; font-style: italic; }
+  .spinner { width: 14px; height: 14px; border: 2px solid var(--line); border-top-color: var(--ink); border-radius: 50%; animation: spin .7s linear infinite; display: inline-block; vertical-align: -2px; margin-right: 6px; }
   @keyframes spin { to { transform: rotate(360deg); } }
 
+  /* ---------- Diary / log ---------- */
+  .diary { display: flex; flex-direction: column; gap: 4px; }
+  .log { list-style: none; margin: 6px 0 0; padding: 0; display: flex; flex-direction: column; }
+  .entry {
+    display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap;
+    padding: 11px 2px; border-bottom: 1px solid var(--line);
+  }
+  .entry:first-child { border-top: 1px solid var(--line); }
+  .entry .when {
+    font-family: var(--label); font-size: 11px; letter-spacing: .04em;
+    color: var(--ink-soft); white-space: nowrap; font-variant-numeric: tabular-nums;
+  }
+  .entry .what { flex: 1; font-size: 15.5px; min-width: 120px; }
+  .entry .what b { font-weight: 700; }
+  .entry.empty { color: var(--ink-soft); font-style: italic; justify-content: center; border: 0; padding: 14px 2px; }
+  .stamp {
+    display: inline-block; font-family: var(--label); font-weight: 700;
+    font-size: 10px; letter-spacing: .12em; text-transform: uppercase;
+    border: 2px solid var(--o); color: var(--o);
+    padding: 2px 7px; border-radius: 3px; transform: rotate(-4deg); opacity: .82;
+  }
+  .stamp.draw { border-color: var(--ink-soft); color: var(--ink-soft); }
+
   footer {
-    text-align: center; font-family: var(--mono); font-size: 10.5px;
-    letter-spacing: 0.1em; color: var(--ink-soft); line-height: 1.7; text-transform: uppercase;
+    text-align: center; font-family: var(--label); font-size: 10px;
+    letter-spacing: .1em; color: var(--ink-soft); text-transform: uppercase; margin-top: 4px;
   }
   .toast {
     position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%) translateY(20px);
-    background: var(--ink); color: var(--paper); font-family: var(--mono); font-size: 12px;
-    letter-spacing: 0.04em; padding: 10px 16px; border-radius: 999px; opacity: 0;
+    background: var(--ink); color: var(--paper); font-family: var(--label); font-size: 12px;
+    letter-spacing: .04em; padding: 10px 16px; border-radius: 999px; opacity: 0;
     pointer-events: none; transition: opacity .2s ease, transform .2s ease; z-index: 5;
     box-shadow: 0 8px 24px var(--shadow);
   }
   .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
   @media (prefers-reduced-motion: reduce) {
     .draw, .win-line line { animation: none; stroke-dashoffset: 0; }
-    .conn.live .led { animation: none; } .spinner { animation-duration: 1.4s; }
+    .conn.live .led { animation: none; } .spinner { animation-duration: 1.4s; } .taped { transform: none; }
   }
 </style>
 
-<div class="bg" aria-hidden="true">
-  <span class="p1">قوطي أناناس</span>
-  <span class="p2">صبر أيوب</span>
-  <span class="p3">نبي عمران</span>
-  <span class="p4">قوطي أناناس</span>
-  <span class="p5">نبي عمران</span>
-  <span class="p6">صبر أيوب</span>
-</div>
-
-<div class="wrap">
-  <header>
-    <h1 class="wordmark">Oman Trip</h1>
-    <p class="tagline"><span class="b">X</span> <span class="dot">O</span> for the road</p>
+<main class="page">
+  <header class="mast">
+    <div class="mast-eyebrow">a tic-tac-toe game diary</div>
+    <h1 class="mast-title">Oman Trip</h1>
+    <div class="mast-rule"></div>
   </header>
 
-  <div class="conn" id="conn"><span class="led"></span><span id="connText">Not connected</span></div>
+  <section class="card taped tally" aria-label="Score tally">
+    <div class="card-label">The tally</div>
+    <div class="tally-grid">
+      <div class="t-player"><span class="t-name">Ahmed</span><span class="t-score" id="sAhmed">0</span></div>
+      <div class="t-mid"><span class="t-dash">–</span><span class="t-draws">draws <b id="sDraws">0</b></span></div>
+      <div class="t-player"><span class="t-name">Hawah</span><span class="t-score" id="sHawah">0</span></div>
+    </div>
+  </section>
 
+  <div class="conn" id="conn"><span class="led"></span><span id="connText">Not connected</span></div>
   <div class="status" id="status">Take a seat to begin.</div>
 
   <div class="board-wrap" id="boardWrap">
@@ -256,7 +319,6 @@
     <svg class="win-line" id="winLine" viewBox="0 0 300 300" preserveAspectRatio="none" aria-hidden="true"></svg>
   </div>
 
-  <!-- Take a seat -->
   <div class="panel" id="seat">
     <p class="panel-title" id="seatTitle">Take a seat</p>
     <p class="seat-sub">Who are you?</p>
@@ -273,9 +335,8 @@
     <p class="hint" id="seatHint">Pick who you are and your mark. Whoever takes ✕ makes the first move.</p>
   </div>
 
-  <!-- Host waiting: share the link -->
   <div class="panel hidden" id="share">
-    <p class="panel-title">Send this link to your friend</p>
+    <p class="panel-title">Send this page to your friend</p>
     <div class="link-row">
       <div class="link-field" id="linkField" title="">link…</div>
       <button class="btn" id="copyBtn">Copy</button>
@@ -284,14 +345,18 @@
     <p class="hint"><span class="spinner"></span>Waiting for your friend to take their seat…</p>
   </div>
 
-  <!-- Rematch -->
   <div class="panel hidden" id="rematch">
-    <button class="btn block" id="rematchBtn">Play again</button>
+    <button class="btn block" id="rematchBtn">Play another</button>
     <p class="hint">Fresh round on both screens — the other player goes first this time.</p>
   </div>
 
-  <footer>Peer&#8209;to&#8209;peer &middot; no account &middot; road&#8209;trip edition</footer>
-</div>
+  <section class="diary" aria-label="Game log">
+    <div class="card-label">The log — every game, dated</div>
+    <ul class="log" id="log"></ul>
+  </section>
+
+  <footer>Peer&#8209;to&#8209;peer · no account · a road&#8209;trip diary</footer>
+</main>
 
 <div class="toast" id="toast">Copied</div>
 
@@ -308,6 +373,7 @@
     { urls: "stun:stun1.l.google.com:19302" }
   ] } };
   var NAMES = ["Ahmed", "Hawah"];
+  var MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 
   var $ = function (id) { return document.getElementById(id); };
   var boardEl = $("board"), statusEl = $("status"), boardWrap = $("boardWrap");
@@ -316,19 +382,20 @@
   var seatEl = $("seat"), shareEl = $("share"), rematchEl = $("rematch");
 
   // Networking
-  var peer = null, conn = null, connected = false, role = null; // 'host' | 'guest'
+  var peer = null, conn = null, connected = false, role = null;
   var roomLink = "";
 
   // Seating
-  var mySeat = null;   // { name, mark }
-  var oppSeat = null;  // { name, mark }
-  var pending = { name: null, mark: null };
-  var players = null;  // { X: name, O: name }
-  var gameReady = false;
+  var mySeat = null, oppSeat = null, pending = { name: null, mark: null };
+  var players = null, gameReady = false;
 
   // Game
   var G = { board: "         ", turn: "X", start: "X", over: false, last: -1 };
   var myMark = "X", oppMark = "O";
+
+  // Diary / score ledger
+  var history = [];
+  function ledgerKey(){ return "oman-diary:" + NAMES.slice().sort().join("|"); }
 
   // ---------- Marks & board ----------
   function markSVG(mark, animate) {
@@ -359,6 +426,8 @@
     }
     return null;
   }
+  function otherName(n){ return n === NAMES[0] ? NAMES[1] : NAMES[0]; }
+  function otherMark(m){ return m === "X" ? "O" : "X"; }
   function nameFor(mark){
     if (players) return players[mark] || (mark === myMark ? "You" : "Friend");
     return mark === myMark ? "You" : "Friend";
@@ -371,7 +440,6 @@
     var myTurn = gameReady && connected && !G.over && G.turn === myMark;
 
     boardWrap.classList.toggle("locked", !gameReady);
-
     boardEl.innerHTML = "";
     for (var i=0;i<9;i++){
       var cell = document.createElement("button");
@@ -407,32 +475,27 @@
     l.style.setProperty("--len", mag+ext*2);
     winLineEl.appendChild(l);
   }
-
   function chip(mark){
-    return '<span class="chip '+mark.toLowerCase()+'">'+escapeHtml(nameFor(mark))+" ("+mark+")</span>";
+    return '<span class="chip '+mark.toLowerCase()+'">'+escapeHtml(nameFor(mark))+"</span>";
   }
   function updateStatus(winner, full, myTurn){
     if (!gameReady) {
       if (role === null) { statusEl.textContent = "Take a seat to begin."; return; }
       if (role === "host") {
-        statusEl.innerHTML = connected
-          ? "Waiting for your friend to take their seat…"
+        statusEl.innerHTML = connected ? "Waiting for your friend to take their seat…"
           : "Waiting for your friend to open the link…";
       } else {
-        statusEl.innerHTML = connected
-          ? "Take your seat to start."
+        statusEl.innerHTML = connected ? "Take your seat to start."
           : '<span class="spinner"></span>Connecting to your friend…';
       }
       return;
     }
     if (winner) {
-      statusEl.innerHTML = winner.mark === myMark
-        ? chip(winner.mark) + " — you win! 🎉"
-        : chip(winner.mark) + " wins.";
+      statusEl.innerHTML = winner.mark === myMark ? chip(winner.mark) + " wins it! 🎉" : chip(winner.mark) + " wins this one.";
     } else if (full) {
-      statusEl.innerHTML = "A draw — nobody wins this one.";
+      statusEl.innerHTML = "A draw — honours even.";
     } else if (myTurn) {
-      statusEl.innerHTML = chip(myMark) + " — your move.";
+      statusEl.innerHTML = chip(myMark) + ", your move.";
     } else {
       statusEl.innerHTML = "Waiting for " + chip(oppMark) + "…";
     }
@@ -443,24 +506,84 @@
     shareEl.classList.toggle("hidden", !(role === "host" && !gameReady && mySeat && roomLink));
     rematchEl.classList.toggle("hidden", !(gameReady && G.over));
   }
-  function setConn(kind, text){
-    connEl.className = "conn" + (kind ? " " + kind : "");
-    connText.textContent = text;
+  function setConn(kind, text){ connEl.className = "conn" + (kind ? " " + kind : ""); connText.textContent = text; }
+
+  // ---------- Diary / score ----------
+  function loadHistory(){
+    try { var raw = localStorage.getItem(ledgerKey()); history = raw ? JSON.parse(raw) : []; if (!Array.isArray(history)) history = []; }
+    catch (e) { history = []; }
+  }
+  function saveHistory(){
+    history.sort(function(a,b){ return a.date < b.date ? 1 : a.date > b.date ? -1 : 0; });
+    try { localStorage.setItem(ledgerKey(), JSON.stringify(history)); } catch (e) {}
+  }
+  function mergeHistory(incoming){
+    if (!Array.isArray(incoming)) return;
+    var map = {};
+    history.forEach(function(e){ if (e && e.id) map[e.id] = e; });
+    incoming.forEach(function(e){ if (e && e.id && !map[e.id]) map[e.id] = e; });
+    history = Object.keys(map).map(function(k){ return map[k]; });
+    saveHistory(); renderLedger();
+  }
+  function computeScore(){
+    var s = {}; NAMES.forEach(function(n){ s[n] = 0; }); s.draws = 0;
+    history.forEach(function(e){
+      if (!e) return;
+      if (e.winner && s[e.winner] !== undefined) s[e.winner]++;
+      else if (!e.winner) s.draws++;
+    });
+    return s;
+  }
+  function recordGame(winnerName){
+    var e = {
+      id: String(Date.now()) + "-" + Math.random().toString(36).slice(2, 8),
+      date: new Date().toISOString(),
+      xName: players.X, oName: players.O, winner: winnerName || null
+    };
+    history.push(e); saveHistory(); renderLedger();
+    send({ t: "ledger", history: history });
+  }
+  function fmtWhen(iso){
+    var d = new Date(iso); if (isNaN(d.getTime())) return "";
+    var hh = ("0"+d.getHours()).slice(-2), mm = ("0"+d.getMinutes()).slice(-2);
+    return hh + ":" + mm + " · " + d.getDate() + " " + MONTHS[d.getMonth()] + " " + d.getFullYear();
+  }
+  function renderLedger(){
+    var s = computeScore();
+    $("sAhmed").textContent = s[NAMES[0]];
+    $("sHawah").textContent = s[NAMES[1]];
+    $("sDraws").textContent = s.draws;
+    var log = $("log"); log.innerHTML = "";
+    if (!history.length) {
+      var li = document.createElement("li"); li.className = "entry empty";
+      li.textContent = "No games played yet — your first round will be logged here.";
+      log.appendChild(li); return;
+    }
+    history.forEach(function(e){
+      if (!e) return;
+      var li = document.createElement("li"); li.className = "entry";
+      var when = document.createElement("span"); when.className = "when"; when.textContent = fmtWhen(e.date);
+      var what = document.createElement("span"); what.className = "what";
+      if (e.winner) {
+        var loser = e.winner === e.xName ? e.oName : e.xName;
+        what.innerHTML = "<b>" + escapeHtml(e.winner) + "</b> beat " + escapeHtml(loser);
+      } else {
+        what.innerHTML = "Draw — " + escapeHtml(e.xName || "?") + " vs " + escapeHtml(e.oName || "?");
+      }
+      var stamp = document.createElement("span"); stamp.className = "stamp " + (e.winner ? "win" : "draw");
+      stamp.textContent = e.winner ? "win" : "draw";
+      li.appendChild(when); li.appendChild(what); li.appendChild(stamp);
+      log.appendChild(li);
+    });
   }
 
   // ---------- Seat selection UI ----------
-  function otherName(n){ return n === NAMES[0] ? NAMES[1] : NAMES[0]; }
-  function otherMark(m){ return m === "X" ? "O" : "X"; }
-
   function refreshSeatCard(){
     var takenName = oppSeat ? oppSeat.name : null;
     var takenMark = oppSeat ? oppSeat.mark : null;
-    // Guest can't act until it knows what the host took.
     var guestWaiting = (role === "guest" && !oppSeat);
-
     Array.prototype.forEach.call($("nameGroup").children, function(btn){
-      var n = btn.getAttribute("data-name");
-      var taken = (n === takenName);
+      var n = btn.getAttribute("data-name"); var taken = (n === takenName);
       btn.disabled = taken || guestWaiting;
       btn.classList.toggle("active", pending.name === n && !taken);
       var tag = btn.querySelector(".taken");
@@ -468,51 +591,38 @@
       else if (!taken && tag) { tag.remove(); }
     });
     Array.prototype.forEach.call($("markGroup").children, function(btn){
-      var m = btn.getAttribute("data-mark");
-      var taken = (m === takenMark);
+      var m = btn.getAttribute("data-mark"); var taken = (m === takenMark);
       btn.disabled = taken || guestWaiting;
       btn.classList.toggle("active", pending.mark === m && !taken);
     });
-
     if (guestWaiting) {
       $("seatTitle").textContent = "Take a seat";
       $("seatHint").innerHTML = '<span class="spinner"></span>Connecting… we\'ll show which seat is open.';
     } else if (role === "guest") {
       $("seatTitle").textContent = oppSeat.name + " is in — take the open seat";
-      $("seatHint").textContent = oppSeat.name + " is playing " + oppSeat.mark + ". You're " +
-        pending.name + " (" + pending.mark + ").";
+      $("seatHint").textContent = oppSeat.name + " is playing " + oppSeat.mark + ". You're " + pending.name + " (" + pending.mark + ").";
     }
     $("seatBtn").disabled = guestWaiting || !pending.name || !pending.mark;
   }
-
   function pickName(n){ if (pending.name === n) return; pending.name = n; refreshSeatCard(); }
   function pickMark(m){ if (pending.mark === m) return; pending.mark = m; refreshSeatCard(); }
 
   function commitSeat(){
     if (!pending.name || !pending.mark) return;
-    askNotify(); // taking a seat is a user gesture — a good moment to ask
+    askNotify();
     mySeat = { name: pending.name, mark: pending.mark };
-    if (role === "guest") {
-      send({ t: "seat", seat: mySeat });
-      trySeatBoth();
-      render();
-    } else {
-      startHost(); // host: now create the game and get a link
-    }
+    if (role === "guest") { send({ t: "seat", seat: mySeat }); trySeatBoth(); render(); }
+    else { startHost(); }
   }
-
   function trySeatBoth(){
     if (mySeat && oppSeat && !gameReady) {
       players = {}; players[mySeat.mark] = mySeat.name; players[oppSeat.mark] = oppSeat.name;
       myMark = mySeat.mark; oppMark = otherMark(myMark);
-      resetGame("X"); // X always makes the first move of a game
+      resetGame("X");
       gameReady = true;
       setConn("live", "Connected — " + oppSeat.name);
-      // The host was the one waiting, so let them know their friend arrived.
-      if (role === "host") {
-        notify(oppSeat.name + " joined the game",
-          G.turn === myMark ? "Your move — good luck!" : oppSeat.name + " goes first.");
-      }
+      if (role === "host") notify(oppSeat.name + " joined the game",
+        G.turn === myMark ? "Your move — good luck!" : oppSeat.name + " goes first.");
       render();
     }
   }
@@ -522,6 +632,7 @@
     if (!gameReady || !connected || G.over || G.turn !== myMark || G.board[i] !== " ") return;
     applyMove(i, myMark);
     send({ t: "move", i: i });
+    if (G.over) { var w = getWinner(G.board); recordGame(w ? nameFor(w.mark) : null); }
   }
   function applyMove(i, mark){
     if (G.board[i] !== " ") return;
@@ -529,25 +640,17 @@
     G.last = i; G.turn = otherMark(mark);
     render();
   }
-  function resetGame(startMark){
-    G = { board: "         ", turn: startMark, start: startMark, over: false, last: -1 };
-  }
+  function resetGame(startMark){ G = { board: "         ", turn: startMark, start: startMark, over: false, last: -1 }; }
 
   // ---------- Networking ----------
   function send(msg){ if (conn && conn.open) { try { conn.send(msg); } catch (e) {} } }
-
   function onData(msg){
     if (!msg || typeof msg !== "object") return;
     if (msg.t === "seat") {
       if (msg.seat && msg.seat.name && msg.seat.mark) {
         oppSeat = { name: msg.seat.name, mark: msg.seat.mark };
-        if (role === "guest" && !mySeat) {
-          pending.name = otherName(oppSeat.name);
-          pending.mark = otherMark(oppSeat.mark);
-        }
-        refreshSeatCard();
-        trySeatBoth();
-        render();
+        if (role === "guest" && !mySeat) { pending.name = otherName(oppSeat.name); pending.mark = otherMark(oppSeat.mark); }
+        refreshSeatCard(); trySeatBoth(); render();
       }
     } else if (msg.t === "move") {
       if (gameReady && typeof msg.i === "number" && G.turn === oppMark) {
@@ -555,27 +658,27 @@
         if (!G.over && G.turn === myMark) notify(nameFor(oppMark) + " made a move", "Your turn on the board.");
       }
     } else if (msg.t === "reset") {
-      resetGame(msg.start === "O" ? "O" : "X");
-      render();
+      resetGame(msg.start === "O" ? "O" : "X"); render();
+    } else if (msg.t === "ledger") {
+      mergeHistory(msg.history);
     } else if (msg.t === "bye") {
       handleDrop();
     }
   }
-
   function bindConn(c){
     if (conn && conn.open) { try { c.close(); } catch (e) {} return; }
     conn = c;
     c.on("open", function(){
       connected = true;
-      if (mySeat) send({ t: "seat", seat: mySeat }); // host announces its seat right away
+      if (mySeat) send({ t: "seat", seat: mySeat });
+      send({ t: "ledger", history: history });
       if (!gameReady) setConn("waiting", "Friend connected");
       var pc = c.peerConnection;
       if (pc) pc.oniceconnectionstatechange = function(){
         var s = pc.iceConnectionState;
         if (s === "disconnected" || s === "failed" || s === "closed") handleDrop();
       };
-      refreshSeatCard();
-      render();
+      refreshSeatCard(); render();
     });
     c.on("data", onData);
     c.on("close", function(){ handleDrop(); });
@@ -591,41 +694,29 @@
     if (t === "peer-unavailable") {
       setConn("waiting", "Game not found");
       statusEl.textContent = "This game has ended or the host closed the tab. Ask them for a fresh link.";
-    } else if (t === "unavailable-id") {
-      if (role === "host") startHost();
-    } else if (t === "browser-incompatible") {
-      statusEl.textContent = "This browser can't run live play. Try Chrome, Edge, Safari or Firefox.";
-    } else {
-      setConn("waiting", "Connection trouble");
-    }
+    } else if (t === "unavailable-id") { if (role === "host") startHost(); }
+    else if (t === "browser-incompatible") { statusEl.textContent = "This browser can't run live play. Try Chrome, Edge, Safari or Firefox."; }
+    else { setConn("waiting", "Connection trouble"); }
   }
-
   function startHost(){
-    role = "host";
-    setConn("waiting", "Starting…");
+    role = "host"; setConn("waiting", "Starting…");
     peer = new Peer(null, PEER_OPTS);
     peer.on("open", function(id){
       roomLink = location.origin + location.pathname + "?r=" + encodeURIComponent(id);
       $("linkField").textContent = roomLink; $("linkField").title = roomLink;
       setConn("waiting", "Waiting for your friend…");
-      maybeNativeShare(roomLink);
-      render();
+      maybeNativeShare(roomLink); render();
     });
     peer.on("connection", bindConn);
     peer.on("error", handlePeerError);
     render();
   }
   function startGuest(id){
-    role = "guest";
-    setConn("waiting", "Connecting…");
+    role = "guest"; setConn("waiting", "Connecting…");
     peer = new Peer(null, PEER_OPTS);
-    peer.on("open", function(){
-      var c = peer.connect(id, { reliable: true });
-      bindConn(c);
-    });
+    peer.on("open", function(){ bindConn(peer.connect(id, { reliable: true })); });
     peer.on("error", handlePeerError);
-    refreshSeatCard();
-    render();
+    refreshSeatCard(); render();
   }
 
   // ---------- Sharing / clipboard ----------
@@ -650,26 +741,18 @@
     var btn = $("shareBtn");
     if (navigator.share) {
       btn.hidden = false;
-      btn.onclick = function(){
-        navigator.share({ title: "Oman Trip — Tic Tac Toe", text: "Play tic-tac-toe with me:", url: link }).catch(function(){});
-      };
+      btn.onclick = function(){ navigator.share({ title: "Oman Trip — Tic Tac Toe", text: "Play tic-tac-toe with me:", url: link }).catch(function(){}); };
     } else btn.hidden = true;
   }
   function escapeHtml(s){
-    return String(s).replace(/[&<>"']/g, function(c){
-      return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];
-    });
+    return String(s).replace(/[&<>"']/g, function(c){ return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]; });
   }
 
   // ---------- Notifications ----------
   function askNotify(){
     if (!("Notification" in window)) return;
-    if (Notification.permission === "default") {
-      try { Notification.requestPermission(); } catch (e) {}
-    }
+    if (Notification.permission === "default") { try { Notification.requestPermission(); } catch (e) {} }
   }
-  // Alert the player when the app isn't in focus (open in the background,
-  // on another tab, or freshly reopened). Closed-app push needs a server.
   function notify(title, body){
     if (!("Notification" in window) || Notification.permission !== "granted") return;
     if (document.visibilityState === "visible") return;
@@ -677,14 +760,11 @@
     if (navigator.serviceWorker && navigator.serviceWorker.ready) {
       navigator.serviceWorker.ready.then(function(reg){ reg.showNotification(title, opts); })
         .catch(function(){ try { new Notification(title, opts); } catch (e) {} });
-    } else {
-      try { new Notification(title, opts); } catch (e) {}
-    }
+    } else { try { new Notification(title, opts); } catch (e) {} }
   }
 
   // ---------- Wire up ----------
   var joinId = new URLSearchParams(location.search).get("r");
-
   Array.prototype.forEach.call($("nameGroup").children, function(btn){
     btn.addEventListener("click", function(){ pickName(btn.getAttribute("data-name")); });
   });
@@ -694,26 +774,21 @@
   $("seatBtn").addEventListener("click", commitSeat);
   $("copyBtn").addEventListener("click", function(){ if (roomLink) copyText(roomLink); });
   $("rematchBtn").addEventListener("click", function(){
-    var next = otherMark(G.start); // the other player goes first next round
+    var next = otherMark(G.start);
     resetGame(next); send({ t: "reset", start: next }); render();
   });
   window.addEventListener("pagehide", function(){ send({ t: "bye" }); });
 
-  if (joinId) {
-    $("seatBtn").textContent = "Take my seat";
-    startGuest(joinId); // connect straight away so we can show the open seat
-  } else {
-    $("seatBtn").textContent = "Start the trip";
-  }
+  if (joinId) { $("seatBtn").textContent = "Take my seat"; startGuest(joinId); }
+  else { $("seatBtn").textContent = "Start the trip"; }
 
+  loadHistory();
+  renderLedger();
   refreshSeatCard();
   render();
 
-  // Register the service worker so the game installs as an app and can show alerts.
   if ("serviceWorker" in navigator) {
-    window.addEventListener("load", function(){
-      navigator.serviceWorker.register("sw.js").catch(function(){});
-    });
+    window.addEventListener("load", function(){ navigator.serviceWorker.register("sw.js").catch(function(){}); });
   }
 })();
 </script>
