@@ -169,11 +169,10 @@
     display: flex; align-items: center; justify-content: center; color: inherit;
     -webkit-tap-highlight-color: transparent; transition: background .15s ease; border-radius: 6px; }
   .cell:disabled { cursor: default; }
-  .cell.playable.x-turn:hover:not(:disabled) { background: rgba(10,125,67,.11); }
-  .cell.playable.o-turn:hover:not(:disabled) { background: rgba(200,16,46,.11); }
+  .cell.playable:hover:not(:disabled) { background: rgba(217,154,23,.16); }
   .cell svg { width: 60%; height: 60%; overflow: visible; }
   .cell:focus-visible { outline: 2px solid var(--ink); outline-offset: -4px; }
-  .mark-x { stroke: var(--x); } .mark-o { stroke: var(--o); }
+  .mark-x, .mark-o { stroke: var(--ink); }   /* same colour — tell them apart by shape */
   .stroke { fill: none; stroke-width: 9; stroke-linecap: round; stroke-linejoin: round; }
   .draw { stroke-dasharray: var(--len); stroke-dashoffset: var(--len); animation: draw .42s ease forwards; }
   .draw.d2 { animation-delay: .16s; }
@@ -198,13 +197,11 @@
   .seat-btn:hover:not(:disabled) { border-color: var(--ink-soft); }
   .seat-btn:active:not(:disabled) { transform: translateY(1px); }
   .seat-btn.active { border-color: var(--ink); background: var(--ink); color: var(--paper); }
-  .seat-btn.mk-x.active { border-color: var(--green); background: var(--green); color: #fff; }
-  .seat-btn.mk-o.active { border-color: var(--red); background: var(--red); color: #fff; }
+  .seat-btn.mk-x.active, .seat-btn.mk-o.active { border-color: var(--ink); background: var(--ink); color: var(--paper); }
   .seat-btn:disabled { opacity: .4; cursor: not-allowed; }
   .seat-btn .taken { font-family: var(--label); font-size: 9px; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-soft); font-weight: 600; }
-  .seat-btn .glyph { font-size: 18px; line-height: 1; }
-  .seat-btn.mk-x .glyph { color: var(--green); } .seat-btn.mk-o .glyph { color: var(--red); }
-  .seat-btn.active .glyph { color: #fff; }
+  .seat-btn .glyph { font-size: 18px; line-height: 1; color: var(--ink); }
+  .seat-btn.active .glyph { color: var(--paper); }
   .link-row { display: flex; gap: 8px; }
   .link-field { flex: 1; min-width: 0; font-family: var(--label); font-size: 12px; padding: 11px 12px;
     border: 1px solid var(--line); border-radius: 8px; background: var(--paper); color: var(--ink);
@@ -549,7 +546,8 @@
     winLineEl.appendChild(l);
   }
   function chip(mark){
-    return '<span class="chip '+mark.toLowerCase()+'">'+escapeHtml(nameFor(mark))+"</span>";
+    var nm = nameFor(mark);
+    return '<span class="chip" style="color:' + teamVar(nm) + '">' + escapeHtml(nm) + "</span>";
   }
   function updateStatus(winner, full, myTurn){
     if (!configured) { statusEl.innerHTML = "⚙️ Firebase isn't set up yet — see FIREBASE&#8209;SETUP.md."; return; }
