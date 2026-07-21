@@ -1,0 +1,111 @@
+<?php
+namespace App\Core;
+
+use PDO;
+use PDOException;
+
+/**
+ * Thin PDO wrapper. Supports mysql / sqlsrv / pgsql so the app DB and the
+ * biometric source DB can be different engines.
+ */
+class Database
+{
+    private PDO $pdo;
+    private static ?Database $app = null;
+
+    public function __construct(array $cfg)
+    {
+        $this->pdo = new PDO(
+            self::dsn($cfg),
+            $cfg['username'] ?? null,
+            $cfg['password'] ?? null,
+            [
+                PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
+                PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+                PDO::ATTR_EMULATE_PREPARES   => false,
+            ]
+        );
+    }
+
+    /** Shared application-database instance. */
+    public static function app(): Database
+    {
+        if (self::$app === null) {
+            $cfg = Config::get('db');
+            self::$app = new self($cfg);
+        }
+        return self::$app;
+    }
+
+    private static function dsn(array $cfg): string
+    {
+        $driver = $cfg['driver'] ?? 'mysql';
+        $host   = $cfg['host'] ?? '127.0.0.1';
+        $port   = $cfg['port'] ?? null;
+        $db     = $cfg['database'] ?? '';
+        switch ($driver) {
+            case 'sqlite':
+                return 'sqlite:' . $db;   // $db is a file path (or :memory:)
+            case 'sqlsrv':
+                $p = $port ? ",{$port}" : '';
+                return "sqlsrv:Server={$host}{$p};Database={$db};TrustServerCertificate=true";
+            case 'pgsql':
+                $p = $port ?: 5432;
+                return "pgsql:host={$host};port={$p};dbname={$db}";
+            case 'mysql':
+            default:
+                $p = $port ?: 3306;
+                $charset = $cfg['charset'] ?? 'utf8mb4';
+                return "mysql:host={$host};port={$p};dbname={$db};charset={$charset}";
+        }
+    }
+
+    public function pdo(): PDO
+    {
+        return $this->pdo;
+    }
+
+    public function run(string $sql, array $params = []): \PDOStatement
+    {
+        $stmt = $this->pdo->prepare($sql);
+        $stmt->execute($params);
+        return $stmt;
+    }
+
+    public function all(string $sql, array $params = []): array
+    {
+        return $this->run($sql, $params)->fetchAll();
+    }
+
+    public function one(string $sql, array $params = []): ?array
+    {
+        $row = $this->run($sql, $params)->fetch();
+        return $row === false ? null : $row;
+    }
+
+    public function value(string $sql, array $params = [])
+    {
+        $row = $this->run($sql, $params)->fetch(PDO::FETCH_NUM);
+        return $row === false ? null : $row[0];
+    }
+
+    public function insert(string $table, array $data): int
+    {
+        $cols = array_keys($data);
+        $ph   = array_map(fn($c) => ':' . $c, $cols);
+        $sql  = "INSERT INTO {$table} (" . implode(',', $cols) . ") VALUES (" . implode(',', $ph) . ")";
+        $this->run($sql, $data);
+        return (int) $this->pdo->lastInsertId();
+    }
+
+    public function update(string $table, array $data, string $where, array $whereParams = []): int
+    {
+        $set = implode(', ', array_map(fn($c) => "{$c} = :{$c}", array_keys($data)));
+        $sql = "UPDATE {$table} SET {$set} WHERE {$where}";
+        return $this->run($sql, array_merge($data, $whereParams))->rowCount();
+    }
+
+    public function begin(): void  { $this->pdo->beginTransaction(); }
+    public function commit(): void { $this->pdo->commit(); }
+    public function rollback(): void { if ($this->pdo->inTransaction()) $this->pdo->rollBack(); }
+}

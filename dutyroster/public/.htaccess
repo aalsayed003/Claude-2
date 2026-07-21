@@ -1,0 +1,13 @@
+# Apache front-controller routing. Point the vhost DocumentRoot at this folder.
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteBase /
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteRule ^ index.php [QSA,L]
+</IfModule>
+
+# Never serve dotfiles or config from the web.
+<FilesMatch "^\.">
+    Require all denied
+</FilesMatch>
