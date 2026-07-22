@@ -60,6 +60,14 @@ return [
         'leave_app'    => 'LeaveApplication',
         'leave_bal'    => 'leavebalance',
         'sys_users'    => 'RA_SystemUsers',
+
+        // attendancehistory.Status is a char(1). Map each code to an app status
+        // (present|absent|day_off|holiday|leave). Confirm the real codes from the
+        // data: SELECT DISTINCT Status, COUNT(*) FROM attendancehistory GROUP BY Status.
+        'status_map' => [
+            'P' => 'present', 'A' => 'absent', 'H' => 'holiday',
+            'O' => 'day_off', 'W' => 'day_off', 'L' => 'leave',
+        ],
     ],
 
     // The biometric source: the SQL Server DB that the ZKTeco auto-sync script
