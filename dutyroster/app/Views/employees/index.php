@@ -1,6 +1,11 @@
 <div class="page-head">
     <div><h1>Employees</h1><p class="subtle">Master list, mapped to biometric PINs.</p></div>
-    <?php if (\App\Core\Auth::isAdmin()): ?><a class="btn" href="<?= url('employees/new') ?>">+ New Employee</a><?php endif; ?>
+    <?php if (\App\Core\Auth::isAdmin()): ?>
+    <div class="actions">
+        <a class="btn btn-muted" href="<?= url('employees/import') ?>">Import CSV/Excel</a>
+        <a class="btn" href="<?= url('employees/new') ?>">+ New Employee</a>
+    </div>
+    <?php endif; ?>
 </div>
 <form method="get" action="<?= url('employees') ?>" class="inline" style="margin-bottom:14px">
     <div class="field" style="flex:1"><input name="q" value="<?= e($q) ?>" placeholder="Search name, ID or PIN…"></div>
