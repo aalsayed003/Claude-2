@@ -24,24 +24,27 @@ class ApprovalController extends Controller
         $from = $this->input('from', date('Y-m-01', strtotime('-1 month')));
         $to   = $this->input('to', date('Y-m-d'));
 
-        $subs = $this->db->all(
-            "SELECT rs.*, d.name AS dept_name, sec.name AS section_name,
-                    u.full_name AS submitted_name
-               FROM roster_submissions rs
-               LEFT JOIN departments d ON d.id = rs.department_id
-               LEFT JOIN sections sec ON sec.id = rs.section_id
-               LEFT JOIN users u ON u.id = rs.submitted_by
-              WHERE rs.submitted_at BETWEEN :a AND :b
-              ORDER BY rs.submitted_at DESC",
-            [':a' => $from . ' 00:00:00', ':b' => $to . ' 23:59:59']
-        );
-
-        // Which submissions can the current user act on next?
-        foreach ($subs as &$s) {
-            $step = self::CHAIN[$s['status']] ?? null;
-            $s['can_act'] = $step && Auth::atLeast($step['role']);
+        if (legacy_mode()) {
+            $subs = (new \App\Repositories\ScheduleRequestRepository($this->db))->list($from, $to);
+        } else {
+            $subs = $this->db->all(
+                "SELECT rs.*, d.name AS dept_name, sec.name AS section_name,
+                        u.full_name AS submitted_name
+                   FROM roster_submissions rs
+                   LEFT JOIN departments d ON d.id = rs.department_id
+                   LEFT JOIN sections sec ON sec.id = rs.section_id
+                   LEFT JOIN users u ON u.id = rs.submitted_by
+                  WHERE rs.submitted_at BETWEEN :a AND :b
+                  ORDER BY rs.submitted_at DESC",
+                [':a' => $from . ' 00:00:00', ':b' => $to . ' 23:59:59']
+            );
+            // Which submissions can the current user act on next?
+            foreach ($subs as &$s) {
+                $step = self::CHAIN[$s['status']] ?? null;
+                $s['can_act'] = $step && Auth::atLeast($step['role']);
+            }
+            unset($s);
         }
-        unset($s);
 
         $this->view('approvals/index', [
             'title' => 'Approve Request',

@@ -32,7 +32,7 @@ $statusChip = [
             <td><?= e($s['section_name']) ?></td>
             <td><?= e($s['submitted_name']) ?></td>
             <td class="subtle"><?= $s['submitted_at']?date('d M Y', strtotime($s['submitted_at'])):'' ?></td>
-            <td><span class="chip <?= $statusChip[$s['status']]??'pending' ?>"><?= strtoupper(str_replace('_',' ',$s['status'])) ?></span></td>
+            <td><span class="chip <?= e($s['status_class'] ?? ($statusChip[$s['status']]??'pending')) ?>"><?= strtoupper(str_replace('_',' ',$s['status'])) ?></span></td>
             <td>
                 <?php if ($s['can_act']): ?>
                 <form method="post" action="<?= url('approvals/act') ?>" class="actions">
