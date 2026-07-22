@@ -10,6 +10,55 @@ Required PHP extensions:
 
 ---
 
+## 0. Confirmed target stack (Windows + XAMPP + SQL Server)
+
+This is the intended on-prem setup:
+
+- **Web + app runtime:** XAMPP (Apache + PHP) on Windows Server.
+- **App database:** MySQL/MariaDB — bundled with XAMPP, so no extra install.
+  The rebuilt app lives here and never writes to your production SQL Server.
+- **Punch source:** your existing **SQL Server** `checkinout` table, read
+  **read-only** by the 5-minute ingest job via `pdo_sqlsrv`.
+
+### 0.1 Install the SQL Server PHP driver into XAMPP
+XAMPP does not ship `pdo_sqlsrv`. Add it once:
+
+1. Install Microsoft's **ODBC Driver 18 for SQL Server** (Windows MSI).
+2. Download the **Microsoft Drivers for PHP for SQL Server** matching your
+   XAMPP PHP version (`php -v`) and thread-safety (XAMPP is **TS/Thread-Safe**,
+   x64). You need `php_pdo_sqlsrv_XX_ts_x64.dll`.
+3. Copy that DLL into `C:\xampp\php\ext\`.
+4. In `C:\xampp\php\php.ini` add:
+   ```ini
+   extension=pdo_sqlsrv
+   ```
+5. Restart Apache from the XAMPP control panel, then verify:
+   ```
+   C:\xampp\php\php.exe -m | findstr sqlsrv
+   ```
+   You should see `pdo_sqlsrv`.
+
+### 0.2 Create the app database (MySQL via XAMPP)
+Open **phpMyAdmin** (`http://localhost/phpmyadmin`) → create database
+`duty_roster` (utf8mb4), or from a shell:
+```
+C:\xampp\mysql\bin\mysql -u root -e "CREATE DATABASE duty_roster CHARACTER SET utf8mb4;"
+```
+
+### 0.3 Configure, install, deploy
+```
+copy config\config.example.php config\config.php
+:: edit config\config.php -> db (mysql, root/your-pass), and punch_source (sqlsrv)
+C:\xampp\php\php.exe ingest\install.php --admin-pass=CHOOSE-A-STRONG-ONE
+```
+Point an Apache vhost's DocumentRoot at `...\dutyroster\public` (see §4), then
+browse to it. Schedule the ingest job per §3 (Windows Task Scheduler).
+
+> The generic engine-agnostic steps below still apply — §0 is the fast path for
+> your confirmed XAMPP + SQL Server environment.
+
+---
+
 ## 1. Get the database ready
 
 Create the app database and a user, then run the installer.
