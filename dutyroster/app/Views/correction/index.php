@@ -54,8 +54,14 @@
             </div>
             <div class="field"><label>Reason</label>
                 <select name="reason">
-                    <option>Forgot to punch</option><option>Official duty</option>
-                    <option>Appointment</option><option>Device error</option><option>Others</option>
+                    <?php if (!empty($reasons)): ?>
+                        <?php foreach ($reasons as $rn): ?>
+                            <option value="<?= e($rn['id']) ?>"><?= e($rn['name']) ?></option>
+                        <?php endforeach; ?>
+                    <?php else: ?>
+                        <option>Forgot to punch</option><option>Official duty</option>
+                        <option>Appointment</option><option>Device error</option><option>Others</option>
+                    <?php endif; ?>
                 </select></div>
             <div class="field"><label>Remarks</label><textarea name="remarks" rows="2"></textarea></div>
             <button type="submit">Submit Correction</button>

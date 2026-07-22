@@ -45,7 +45,18 @@
                 <select name="ot_type"><option value="in">OT In-time</option><option value="out">OT Out-time</option></select></div>
         </div>
         <label class="checkbox"><input type="checkbox" name="is_split_day" value="1"> Split day</label>
-        <div class="field"><label>Reason</label><input name="reason"></div>
+        <div class="field"><label>Reason</label>
+            <?php if (!empty($reasons)): ?>
+                <select name="reason">
+                    <?php foreach ($reasons as $rn): ?>
+                        <option value="<?= e($rn['id']) ?>"><?= e($rn['name']) ?>
+                            <?= $rn['limit_nursing'] ? '(max '.$rn['limit_nursing'].')' : '' ?></option>
+                    <?php endforeach; ?>
+                </select>
+            <?php else: ?>
+                <input name="reason">
+            <?php endif; ?>
+        </div>
         <div class="field"><label>Remark</label><textarea name="remark" rows="2"></textarea></div>
         <button type="submit">Submit OT</button>
     </form>

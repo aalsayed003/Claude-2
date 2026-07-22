@@ -16,32 +16,41 @@ class OvertimeController extends Controller
         $period = $this->input('period', period_of(date('Y-m-d')));
         [$cutFrom, $cutTo] = period_bounds($period);
 
-        $emp = $empId ? $this->db->one("SELECT * FROM employees WHERE id=:id", [':id'=>$empId]) : null;
-
-        // Eligible OT from computed attendance (early-in / late-out beyond threshold).
-        $eligible = $empId ? $this->db->all(
-            "SELECT work_date, ot_early_min, ot_late_min FROM attendance
-              WHERE employee_id = :e AND work_date BETWEEN :a AND :b
-                AND (ot_early_min > 0 OR ot_late_min > 0)
-              ORDER BY work_date",
-            [':e'=>$empId, ':a'=>$cutFrom, ':b'=>$cutTo]
-        ) : [];
-
-        $requests = $empId ? $this->db->all(
-            $this->db->limit(
-                "SELECT * FROM overtime_requests WHERE employee_id = :e
-                  ORDER BY requested_at DESC", 50),
-            [':e'=>$empId]
-        ) : [];
+        $reasons = [];
+        if (legacy_mode()) {
+            $empRepo = new \App\Repositories\EmployeeRepository($this->db);
+            $emp = $empId ? $empRepo->find($empId) : null;
+            $eligible = [];   // legacy OT-eligibility derivation: next iteration
+            $requests = [];   // legacy DR_OverTime request list: next iteration
+            $employees = Auth::atLeast('dept_head') ? $empRepo->search('') : [];
+            $reasons = (new \App\Repositories\ReasonRepository($this->db))->overtime();
+        } else {
+            $emp = $empId ? $this->db->one("SELECT * FROM employees WHERE id=:id", [':id'=>$empId]) : null;
+            $eligible = $empId ? $this->db->all(
+                "SELECT work_date, ot_early_min, ot_late_min FROM attendance
+                  WHERE employee_id = :e AND work_date BETWEEN :a AND :b
+                    AND (ot_early_min > 0 OR ot_late_min > 0)
+                  ORDER BY work_date",
+                [':e'=>$empId, ':a'=>$cutFrom, ':b'=>$cutTo]
+            ) : [];
+            $requests = $empId ? $this->db->all(
+                $this->db->limit(
+                    "SELECT * FROM overtime_requests WHERE employee_id = :e
+                      ORDER BY requested_at DESC", 50),
+                [':e'=>$empId]
+            ) : [];
+            $employees = Auth::atLeast('dept_head')
+                ? $this->db->all("SELECT id, emp_id, full_name FROM employees WHERE active=1 ORDER BY full_name") : [];
+        }
 
         $this->view('overtime/index', [
             'title'     => 'Overtime',
-            'employees' => Auth::atLeast('dept_head')
-                ? $this->db->all("SELECT id, emp_id, full_name FROM employees WHERE active=1 ORDER BY full_name") : [],
+            'employees' => $employees,
             'emp'       => $emp,
             'period'    => $period,
             'eligible'  => $eligible,
             'requests'  => $requests,
+            'reasons'   => $reasons,
         ]);
     }
 
