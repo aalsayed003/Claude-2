@@ -74,10 +74,21 @@ function legacy_mode(): bool
     return (bool) Config::get('legacy.enabled', false);
 }
 
-/** Resolve a legacy table name by mapping key, e.g. lt('employee') -> 'Employee'. */
+/** Resolve a legacy table name by mapping key, e.g. lt('employee') -> 'Employee'.
+ *  Config may override any key; otherwise the correct legacy default is used. */
 function lt(string $key): string
 {
-    return Config::get('legacy.' . $key, $key);
+    static $def = [
+        'employee' => 'Employee', 'department' => 'Department', 'designation' => 'Designation',
+        'shift' => 'Shift', 'roster_hdr' => 'AllotShift', 'roster_dtl' => 'AllotShiftDetail',
+        'att_history' => 'attendancehistory', 'punch_daily' => 'empPunchingDetails',
+        'dashboard' => 'DRMainDashBoard', 'sched_req' => 'Schedule_Request',
+        'sched_act' => 'Schedule_RequestActions', 'sched_status' => 'ScheduleStatus',
+        'ot' => 'DR_OverTime', 'ot_reason' => 'DR_OvertimeReason', 'change_sched' => 'DR_ChangeSchedule',
+        'leave' => 'leave', 'leave_app' => 'LeaveApplication', 'leave_bal' => 'leavebalance',
+        'sys_users' => 'RA_SystemUsers',
+    ];
+    return Config::get('legacy.' . $key, $def[$key] ?? $key);
 }
 
 /** Derive the 9-digit biometric PIN from an employee code (e.g. 01732 -> 000001732). */

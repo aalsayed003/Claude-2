@@ -11,16 +11,26 @@ class RosterController extends Controller
     {
         Auth::requireRole('dept_head');
         $period = $this->input('period', period_of(date('Y-m-d')));
-        $rows = $this->db->all(
-            "SELECT e.id, e.emp_id, e.full_name,
-                    SUM(CASE WHEN r.id IS NOT NULL THEN 1 ELSE 0 END) AS assigned_days
-               FROM employees e
-               LEFT JOIN roster r ON r.employee_id = e.id AND r.period_key = :p
-              WHERE e.active = 1
-              GROUP BY e.id, e.emp_id, e.full_name
-              ORDER BY e.full_name",
-            [':p' => $period]
-        );
+        if (legacy_mode()) {
+            [$start, $end] = period_bounds($period);
+            $emps  = (new \App\Repositories\EmployeeRepository($this->db))->search('');
+            $counts = (new \App\Repositories\RosterRepository($this->db))->assignedDaysByEmployee($start, $end);
+            $rows = array_map(fn($e) => [
+                'id' => $e['id'], 'emp_id' => $e['emp_id'], 'full_name' => $e['full_name'],
+                'assigned_days' => $counts[$e['id']] ?? 0,
+            ], $emps);
+        } else {
+            $rows = $this->db->all(
+                "SELECT e.id, e.emp_id, e.full_name,
+                        SUM(CASE WHEN r.id IS NOT NULL THEN 1 ELSE 0 END) AS assigned_days
+                   FROM employees e
+                   LEFT JOIN roster r ON r.employee_id = e.id AND r.period_key = :p
+                  WHERE e.active = 1
+                  GROUP BY e.id, e.emp_id, e.full_name
+                  ORDER BY e.full_name",
+                [':p' => $period]
+            );
+        }
         $this->view('roster/index', [
             'title'  => 'Duty Roster',
             'period' => $period,
@@ -36,20 +46,30 @@ class RosterController extends Controller
         $period = $this->input('period', period_of(date('Y-m-d')));
         [$start, $end] = period_bounds($period);
 
-        $emp = $empId ? $this->db->one("SELECT * FROM employees WHERE id = :id", [':id' => $empId]) : null;
-        $shifts = $this->db->all("SELECT * FROM shifts WHERE active = 1 ORDER BY is_day_off DESC, code");
-
-        $assigned = [];
-        if ($emp) {
-            foreach ($this->db->all(
-                "SELECT r.work_date, r.shift_id, s.code, s.name, s.first_in, s.first_out,
-                        s.second_in, s.second_out, s.total_hours
-                   FROM roster r JOIN shifts s ON s.id = r.shift_id
-                  WHERE r.employee_id = :e AND r.work_date BETWEEN :a AND :b",
-                [':e' => $empId, ':a' => $start, ':b' => $end]
-            ) as $r) {
-                $assigned[$r['work_date']] = $r;
+        if (legacy_mode()) {
+            $empRepo = new \App\Repositories\EmployeeRepository($this->db);
+            $emp     = $empId ? $empRepo->find($empId) : null;
+            $shifts  = (new \App\Repositories\ShiftRepository($this->db))->all();
+            $assigned = $emp
+                ? (new \App\Repositories\RosterRepository($this->db))->forEmployeeRange($empId, $start, $end)
+                : [];
+            $employees = $empRepo->search('');
+        } else {
+            $emp = $empId ? $this->db->one("SELECT * FROM employees WHERE id = :id", [':id' => $empId]) : null;
+            $shifts = $this->db->all("SELECT * FROM shifts WHERE active = 1 ORDER BY is_day_off DESC, code");
+            $assigned = [];
+            if ($emp) {
+                foreach ($this->db->all(
+                    "SELECT r.work_date, r.shift_id, s.code, s.name, s.first_in, s.first_out,
+                            s.second_in, s.second_out, s.total_hours
+                       FROM roster r JOIN shifts s ON s.id = r.shift_id
+                      WHERE r.employee_id = :e AND r.work_date BETWEEN :a AND :b",
+                    [':e' => $empId, ':a' => $start, ':b' => $end]
+                ) as $r) {
+                    $assigned[$r['work_date']] = $r;
+                }
             }
+            $employees = $this->db->all("SELECT id, emp_id, full_name FROM employees WHERE active = 1 ORDER BY full_name");
         }
 
         $days = [];
@@ -59,7 +79,7 @@ class RosterController extends Controller
 
         $this->view('roster/allot', [
             'title'    => 'Duty Roster — Allot Shift',
-            'employees'=> $this->db->all("SELECT id, emp_id, full_name FROM employees WHERE active = 1 ORDER BY full_name"),
+            'employees'=> $employees,
             'emp'      => $emp,
             'period'   => $period,
             'shifts'   => $shifts,
