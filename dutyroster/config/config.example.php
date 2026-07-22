@@ -82,8 +82,23 @@ return [
         'schedule_pending_codes' => [1, 2],
 
         // The roster is prepared per CALENDAR month; attendance/correction use
-        // the 16->15 cutoff (attendance.cutoff_day). Keep these distinct.
+        // a cutoff cycle. The real cutoff day is PCoff.PCoffDay + 1 (read it from
+        // the DB rather than hardcoding attendance.cutoff_day).
         'roster_calendar_month' => true,
+        'cutoff_source_table'   => 'PCoff',   // PCoffDay + 1
+
+        // Overtime is DERIVED (not stored): early-in (LateIn) + late-out
+        // (UnderTime) between scheduled (AllotShiftDetail) and actual (Atten_).
+        // Per-category floor MinOverTimeLimit comes from HRCategory.
+        'ot_exclude_shift_ids' => [103],   // + shifts listed in the Leave table
+        'ot_state_expired'     => 10,       // DR_OverTime.StateID 10 = Expired
+
+        // Companion database. Corrections and working-hours targets live here,
+        // NOT in ASSH. Set to the real DB name (or a TestDB_ASSH copy for dev).
+        'companion_db'          => 'DB_ASSH',
+        'correction_table'      => 'DR_CorrectionRequest', // EmployeeID, DayFor, StateID, TypeID
+        'working_hours_table'   => 'EmployeeWorkingHours',
+        // DR_CorrectionRequest.TypeID: 0,2 = late-in; 1,3 = early-out.
     ],
 
     // The biometric source: the SQL Server DB that the ZKTeco auto-sync script
