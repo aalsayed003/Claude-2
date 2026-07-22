@@ -5,10 +5,13 @@ use App\Core\Database;
 use App\Core\Config;
 
 /**
- * Reads daily attendance from the legacy `attendancehistory` table, keyed by
- * EmpCode (varchar) and ToDate. Status is a char(1) whose meaning is mapped
- * via config 'legacy.status_map' (kept configurable until the real codes are
- * confirmed from the data).
+ * Reads daily attendance from the legacy monthly attendance tables
+ * (Atten_MMYYYY, e.g. Atten_092023), keyed by EmpCode (Empid). Each has the
+ * full four punches: Intime/Outtime + Intime1/Outtime1. A date range may span
+ * several month tables, which are queried in turn (missing months skipped).
+ *
+ * Note: `attendancehistory` is the correction AUDIT log (Status = M/I/D +
+ * Prev* values), not the daily source, so it is used only for corrections.
  */
 class AttendanceRepository
 {
@@ -17,45 +20,61 @@ class AttendanceRepository
     /** Actual attendance for one employee (by EmpCode) over a date range, keyed by 'Y-m-d'. */
     public function forEmployee(string $empCode, string $start, string $end): array
     {
-        $att = lt('att_history');
-        $rows = $this->db->all(
-            "SELECT ToDate AS work_date, FirstIn, FirstOut, SecondIn, SecondOut, Status
-               FROM {$att}
-              WHERE EmpId = :c AND ToDate BETWEEN :a AND :b
-              ORDER BY ToDate",
-            [':c' => $empCode, ':a' => $start, ':b' => $end . ' 23:59:59']
-        );
-
+        $prefix = Config::get('legacy.att_month_prefix', 'Atten_');
         $map = [];
-        foreach ($rows as $r) {
-            $date = substr((string) $r['work_date'], 0, 10);
-            $punches = array_filter([
-                $r['FirstIn'], $r['FirstOut'], $r['SecondIn'], $r['SecondOut'],
-            ], fn($v) => $v !== null && $v !== '');
-            $map[$date] = [
-                'act_first_in'   => $r['FirstIn']   ?: null,
-                'act_first_out'  => $r['FirstOut']  ?: null,
-                'act_second_in'  => $r['SecondIn']  ?: null,
-                'act_second_out' => $r['SecondOut'] ?: null,
-                'punch_count'    => count($punches),
-                'is_odd_punch'   => (count($punches) % 2 === 1) ? 1 : 0,
-                'status_code'    => trim((string) ($r['Status'] ?? '')),
-            ];
+        $mStart = strtotime(date('Y-m-01', strtotime($start)));
+        $mEnd   = strtotime(date('Y-m-01', strtotime($end)));
+
+        for ($ts = $mStart; $ts <= $mEnd; $ts = strtotime('+1 month', $ts)) {
+            $tbl = $prefix . date('mY', $ts);   // e.g. Atten_092023
+            try {
+                $rows = $this->db->all(
+                    "SELECT Todate AS work_date, Intime, Outtime, Intime1, Outtime1
+                       FROM {$tbl}
+                      WHERE Empid = :c AND Todate BETWEEN :a AND :b
+                      ORDER BY Todate",
+                    [':c' => $empCode, ':a' => $start, ':b' => $end . ' 23:59:59']
+                );
+            } catch (\Throwable $e) {
+                continue; // month table may not exist yet
+            }
+            foreach ($rows as $r) {
+                $date = substr((string) $r['work_date'], 0, 10);
+                $punches = array_filter([
+                    $r['Intime'], $r['Outtime'], $r['Intime1'], $r['Outtime1'],
+                ], fn($v) => $v !== null && $v !== '');
+                $map[$date] = [
+                    'act_first_in'   => $r['Intime']   ?: null,
+                    'act_first_out'  => $r['Outtime']  ?: null,
+                    'act_second_in'  => $r['Intime1']  ?: null,
+                    'act_second_out' => $r['Outtime1'] ?: null,
+                    'punch_count'    => count($punches),
+                    'is_odd_punch'   => (count($punches) % 2 === 1) ? 1 : 0,
+                    'status_code'    => '',
+                ];
+            }
         }
         return $map;
     }
 
-    /** Map the legacy char(1) Status to the app's status keyword. */
+    /**
+     * Derive a day's status from punch count and the scheduled shift.
+     * (Atten_MMYYYY has no status letter; status comes from roster + punches.)
+     */
+    public static function deriveStatus(int $punchCount, ?array $sched): string
+    {
+        if ($sched && strtoupper((string) ($sched['code'] ?? '')) === 'DAY OFF') {
+            return 'day_off';
+        }
+        if ($punchCount > 0) {
+            return 'present';
+        }
+        return $sched ? 'absent' : 'no_punch';
+    }
+
+    /** Back-compat shim used by screens still passing a status code. */
     public static function mapStatus(string $code, int $punchCount): string
     {
-        $code = strtoupper(trim($code));
-        $map = Config::get('legacy.status_map', [
-            'P' => 'present', 'A' => 'absent', 'H' => 'holiday',
-            'O' => 'day_off', 'W' => 'day_off', 'L' => 'leave',
-        ]);
-        if ($code !== '' && isset($map[$code])) {
-            return $map[$code];
-        }
         return $punchCount > 0 ? 'present' : 'no_punch';
     }
 }

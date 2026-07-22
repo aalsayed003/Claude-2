@@ -62,13 +62,11 @@ return [
         'leave_bal'    => 'leavebalance',
         'sys_users'    => 'RA_SystemUsers',
 
-        // attendancehistory.Status is a char(1). Map each code to an app status
-        // (present|absent|day_off|holiday|leave). Confirm the real codes from the
-        // data: SELECT DISTINCT Status, COUNT(*) FROM attendancehistory GROUP BY Status.
-        'status_map' => [
-            'P' => 'present', 'A' => 'absent', 'H' => 'holiday',
-            'O' => 'day_off', 'W' => 'day_off', 'L' => 'leave',
-        ],
+        // Daily attendance lives in monthly tables named <prefix>MMYYYY,
+        // e.g. Atten_092023. Status is derived from roster + punches (these
+        // tables have no status letter). `attendancehistory` is the correction
+        // audit log (Status M/I/D + Prev* values), used only for corrections.
+        'att_month_prefix' => 'Atten_',
     ],
 
     // The biometric source: the SQL Server DB that the ZKTeco auto-sync script

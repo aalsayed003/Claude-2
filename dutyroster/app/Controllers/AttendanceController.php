@@ -81,9 +81,7 @@ class AttendanceController extends Controller
             }
 
             $punchCount = $a['punch_count'] ?? 0;
-            $status = $s && strtoupper($s['code']) === 'DAY OFF' ? 'day_off'
-                : ($a ? \App\Repositories\AttendanceRepository::mapStatus($a['status_code'] ?? '', $punchCount)
-                      : ($s ? 'absent' : 'no_punch'));
+            $status = \App\Repositories\AttendanceRepository::deriveStatus($punchCount, $s);
 
             $late = $early = 0;
             if ($s && $a && $status === 'present') {
