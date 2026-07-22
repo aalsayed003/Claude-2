@@ -67,3 +67,22 @@ function can(string $role): bool
 {
     return Auth::atLeast($role);
 }
+
+/** True when the app is mapped onto the legacy ASSH tables. */
+function legacy_mode(): bool
+{
+    return (bool) Config::get('legacy.enabled', false);
+}
+
+/** Resolve a legacy table name by mapping key, e.g. lt('employee') -> 'Employee'. */
+function lt(string $key): string
+{
+    return Config::get('legacy.' . $key, $key);
+}
+
+/** Derive the 9-digit biometric PIN from an employee code (e.g. 01732 -> 000001732). */
+function pin_from_code(string $empCode): string
+{
+    $digits = preg_replace('/\D/', '', $empCode);
+    return $digits === '' ? '' : str_pad($digits, 9, '0', STR_PAD_LEFT);
+}

@@ -10,22 +10,26 @@ class EmployeeController extends Controller
     {
         Auth::requireRole('dept_head');
         $q = $this->input('q', '');
-        $params = [];
-        $where = '1=1';
-        if ($q !== '') {
-            $where .= " AND (e.full_name LIKE :q OR e.emp_id LIKE :q OR e.pin LIKE :q)";
-            $params[':q'] = "%{$q}%";
+        if (legacy_mode()) {
+            $emps = (new \App\Repositories\EmployeeRepository($this->db))->search($q);
+        } else {
+            $params = [];
+            $where = '1=1';
+            if ($q !== '') {
+                $where .= " AND (e.full_name LIKE :q OR e.emp_id LIKE :q OR e.pin LIKE :q)";
+                $params[':q'] = "%{$q}%";
+            }
+            $emps = $this->db->all(
+                $this->db->limit(
+                    "SELECT e.*, d.name AS dept_name, s.name AS section_name
+                       FROM employees e
+                       LEFT JOIN departments d ON d.id = e.department_id
+                       LEFT JOIN sections s ON s.id = e.section_id
+                      WHERE {$where}
+                      ORDER BY e.full_name", 500),
+                $params
+            );
         }
-        $emps = $this->db->all(
-            $this->db->limit(
-                "SELECT e.*, d.name AS dept_name, s.name AS section_name
-                   FROM employees e
-                   LEFT JOIN departments d ON d.id = e.department_id
-                   LEFT JOIN sections s ON s.id = e.section_id
-                  WHERE {$where}
-                  ORDER BY e.full_name", 500),
-            $params
-        );
         $this->view('employees/index', [
             'title' => 'Employees',
             'emps'  => $emps,

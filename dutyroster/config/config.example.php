@@ -22,16 +22,44 @@ return [
         'week_off_days'     => [5, 6], // 0=Sun..6=Sat  -> Fri & Sat (informational)
     ],
 
-    // The application's own database (SQL Server). Create an empty database
-    // named `duty_roster` first; the installer builds all tables into it.
+    // The application database. In "legacy" mode this points at the existing
+    // ASSH schema (use TestASSH for development). See 'legacy' below.
     'db' => [
         'driver'   => 'sqlsrv',       // sqlsrv | mysql | pgsql
         'host'     => '127.0.0.1',    // SQL Server host, or  HOST\INSTANCE
         'port'     => 1433,           // omit/ignore when using a named instance
-        'database' => 'duty_roster',
+        'database' => 'TestASSH',     // TestASSH for dev; ASSH for production
         'username' => 'duty_app',
         'password' => 'change-me',
         'charset'  => 'utf8mb4',      // used by mysql only
+    ],
+
+    // Legacy-table mapping. When 'enabled' => true, the app reads/writes the
+    // existing ASSH duty-roster tables instead of its own clean schema, so it
+    // is a drop-in for the old desktop app. Paired-table choices (Employee vs
+    // EmployeeNew, Department vs DepartmentNew) are set here — flip a value to
+    // switch. Defaults reflect the tables the live system references.
+    'legacy' => [
+        'enabled'      => true,
+        'employee'     => 'Employee',        // or 'EmployeeNew'
+        'department'   => 'Department',       // or 'DepartmentNew'
+        'designation'  => 'Designation',
+        'shift'        => 'Shift',
+        'roster_hdr'   => 'AllotShift',       // header: one per employee per month
+        'roster_dtl'   => 'AllotShiftDetail', // detail: one per day
+        'att_history'  => 'attendancehistory',
+        'punch_daily'  => 'empPunchingDetails',
+        'dashboard'    => 'DRMainDashBoard',
+        'sched_req'    => 'Schedule_Request',
+        'sched_act'    => 'Schedule_RequestActions',
+        'sched_status' => 'ScheduleStatus',
+        'ot'           => 'DR_OverTime',
+        'ot_reason'    => 'DR_OvertimeReason',
+        'change_sched' => 'DR_ChangeSchedule',
+        'leave'        => 'leave',
+        'leave_app'    => 'LeaveApplication',
+        'leave_bal'    => 'leavebalance',
+        'sys_users'    => 'RA_SystemUsers',
     ],
 
     // The biometric source: the SQL Server DB that the ZKTeco auto-sync script

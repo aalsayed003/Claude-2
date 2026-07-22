@@ -9,7 +9,12 @@ class ShiftController extends Controller
     public function index(): void
     {
         Auth::requireRole('dept_head');
-        $shifts = $this->db->all("SELECT * FROM shifts ORDER BY is_day_off DESC, is_holiday DESC, code");
+        if (legacy_mode()) {
+            $shifts = (new \App\Repositories\ShiftRepository($this->db))->all();
+            usort($shifts, fn($a, $b) => [$b['is_day_off'], $b['is_holiday'], $a['code']] <=> [$a['is_day_off'], $a['is_holiday'], $b['code']]);
+        } else {
+            $shifts = $this->db->all("SELECT * FROM shifts ORDER BY is_day_off DESC, is_holiday DESC, code");
+        }
         $this->view('shifts/index', ['title' => 'Duty Roster Master — Shifts', 'shifts' => $shifts]);
     }
 
