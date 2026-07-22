@@ -91,22 +91,25 @@ In `config/config.php`, set `punch_source`:
 ```php
 'punch_source' => [
     'enabled'  => true,
-    'driver'   => 'sqlsrv',        // or mysql / pgsql, matching BioTime
-    'host'     => '10.0.0.5',
+    'driver'   => 'sqlsrv',
+    'host'     => '10.0.0.5',      // SQL Server host running zkteco_biotime
     'port'     => 1433,
-    'database' => 'biotime',
+    'database' => 'zkteco_biotime',
     'username' => 'reader',        // read-only login is enough
     'password' => '...',
     'query'    => "SELECT id AS source_id, pin, checktime AS punch_time,
-                          checktype AS check_type, sn_name AS device_name,
-                          SN AS device_sn, area_name AS area_name
+                          checktype AS check_type,
+                          sn   AS device_name,      -- floor / location
+                          sn_name AS device_sn,     -- device code (BRCP...)
+                          area_name AS area_name
                    FROM checkinout
                    WHERE id > :last_id
                    ORDER BY id ASC",
 ],
 ```
-Adjust the column names in the `query` to match your actual `checkinout`
-schema. The importer is **idempotent** — it tracks the highest imported id.
+`checktype` is always `1` on these devices, so IN/OUT is inferred from punch
+order (handled by the attendance engine) — do not rely on `checktype`. The
+importer is **idempotent**: it tracks the highest imported `id`.
 
 Test it once by hand:
 ```bash

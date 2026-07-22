@@ -33,22 +33,29 @@ return [
         'charset'  => 'utf8mb4',
     ],
 
-    // The biometric source that BioTime / ZKTeco writes into.
-    // The ingest job reads NEW rows from here into `punches`.
-    // Set 'enabled' => false until you have the real connection details.
+    // The biometric source: the SQL Server DB that the ZKTeco auto-sync script
+    // writes into (database `zkteco_biotime`, table `checkinout`). The ingest
+    // job reads NEW rows from here into `punches` (read-only login is enough).
+    //
+    // Column mapping (confirmed against the live insert):
+    //   sn        -> floor / location   (e.g. "10th Floor")   => device_name
+    //   sn_name   -> device code        (e.g. "BRCP174860007")=> device_sn
+    //   checktype -> always 1, so IN/OUT is inferred by punch order, not this.
     'punch_source' => [
-        'enabled'  => false,
-        'driver'   => 'sqlsrv',       // sqlsrv | mysql | pgsql
-        'host'     => '127.0.0.1',
+        'enabled'  => false,          // set true once credentials are filled in
+        'driver'   => 'sqlsrv',
+        'host'     => '127.0.0.1',    // SQL Server host / instance
         'port'     => 1433,
-        'database' => 'biotime',
+        'database' => 'zkteco_biotime',
         'username' => 'reader',
         'password' => 'change-me',
-        // Query used to pull new punches. Must return the aliased columns below.
-        // `:last_id` is bound to the highest source_id already imported.
+        // Must return these aliased columns. `:last_id` is bound to the highest
+        // source_id already imported (idempotent incremental load).
         'query'    => "SELECT id AS source_id, pin, checktime AS punch_time,
-                              checktype AS check_type, sn_name AS device_name,
-                              SN AS device_sn, area_name AS area_name
+                              checktype AS check_type,
+                              sn   AS device_name,
+                              sn_name AS device_sn,
+                              area_name AS area_name
                        FROM checkinout
                        WHERE id > :last_id
                        ORDER BY id ASC",

@@ -162,7 +162,7 @@ CREATE TABLE IF NOT EXISTS punches (
     pin           VARCHAR(30) NOT NULL,
     employee_id   INT NULL,
     punch_time    DATETIME NOT NULL,
-    check_type    VARCHAR(10) NULL,            -- device-reported in/out code
+    check_type    VARCHAR(10) NULL,            -- always '1' on these devices; IN/OUT is inferred by punch order, not this
     device_name   VARCHAR(100) NULL,           -- sn_name (e.g. "10th Floor")
     device_sn     VARCHAR(60) NULL,
     area_name     VARCHAR(100) NULL,
