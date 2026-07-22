@@ -36,13 +36,14 @@ return [
 
     // Legacy-table mapping. When 'enabled' => true, the app reads/writes the
     // existing ASSH duty-roster tables instead of its own clean schema, so it
-    // is a drop-in for the old desktop app. Paired-table choices (Employee vs
-    // EmployeeNew, Department vs DepartmentNew) are set here — flip a value to
-    // switch. Defaults reflect the tables the live system references.
+    // is a drop-in for the old desktop app.
+    // NOTE: the live employee/department masters are `Employee` and `Department`.
+    // `EmployeeNew` / `DepartmentNew` / `ScheduleStatus` belong to other systems
+    // and are NOT used here.
     'legacy' => [
         'enabled'      => true,
-        'employee'     => 'Employee',        // or 'EmployeeNew'
-        'department'   => 'Department',       // or 'DepartmentNew'
+        'employee'     => 'Employee',
+        'department'   => 'Department',
         'designation'  => 'Designation',
         'shift'        => 'Shift',
         'roster_hdr'   => 'AllotShift',       // header: one per employee per month
