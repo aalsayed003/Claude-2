@@ -46,8 +46,10 @@ return [
         'department'   => 'Department',
         'designation'  => 'Designation',
         'shift'        => 'Shift',
-        'roster_hdr'   => 'AllotShift',       // header: one per employee per month
-        'roster_dtl'   => 'AllotShiftDetail', // detail: one per day
+        'roster_hdr'   => 'AllotShift',       // FINAL uploaded roster header (per employee/month)
+        'roster_dtl'   => 'AllotShiftDetail', // FINAL detail, keyed by ShiftDate
+        'roster_draft_hdr' => 'Allot_Shift',       // DRAFT roster pending approval
+        'roster_draft_dtl' => 'Allot_ShiftDetails',// DRAFT detail, keyed by ShiftDay + RequestId
         'att_history'  => 'attendancehistory',
         'punch_daily'  => 'empPunchingDetails',
         'dashboard'    => 'DRMainDashBoard',
@@ -67,6 +69,21 @@ return [
         // tables have no status letter). `attendancehistory` is the correction
         // audit log (Status M/I/D + Prev* values), used only for corrections.
         'att_month_prefix' => 'Atten_',
+
+        // Schedule_Request approval states, decoded from
+        // sp_wDREmployeeScheduleRequest. Chain: Submitted -> Dept Head -> MD/COO/CNO,
+        // then Uploaded=1 applies it to the final AllotShift roster.
+        'schedule_states' => [
+            1 => 'Submitted',
+            2 => 'Department Head Approved',
+            3 => 'MD/COO/CNO Approved',
+        ],
+        // Dashboard "pending" schedules = Uploaded=0 AND Approved IN (these).
+        'schedule_pending_codes' => [1, 2],
+
+        // The roster is prepared per CALENDAR month; attendance/correction use
+        // the 16->15 cutoff (attendance.cutoff_day). Keep these distinct.
+        'roster_calendar_month' => true,
     ],
 
     // The biometric source: the SQL Server DB that the ZKTeco auto-sync script
