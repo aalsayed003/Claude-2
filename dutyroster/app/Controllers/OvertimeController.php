@@ -28,8 +28,9 @@ class OvertimeController extends Controller
         ) : [];
 
         $requests = $empId ? $this->db->all(
-            "SELECT * FROM overtime_requests WHERE employee_id = :e
-              ORDER BY requested_at DESC LIMIT 50",
+            $this->db->limit(
+                "SELECT * FROM overtime_requests WHERE employee_id = :e
+                  ORDER BY requested_at DESC", 50),
             [':e'=>$empId]
         ) : [];
 

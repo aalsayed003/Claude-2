@@ -17,12 +17,13 @@ class EmployeeController extends Controller
             $params[':q'] = "%{$q}%";
         }
         $emps = $this->db->all(
-            "SELECT e.*, d.name AS dept_name, s.name AS section_name
-               FROM employees e
-               LEFT JOIN departments d ON d.id = e.department_id
-               LEFT JOIN sections s ON s.id = e.section_id
-              WHERE {$where}
-              ORDER BY e.full_name LIMIT 500",
+            $this->db->limit(
+                "SELECT e.*, d.name AS dept_name, s.name AS section_name
+                   FROM employees e
+                   LEFT JOIN departments d ON d.id = e.department_id
+                   LEFT JOIN sections s ON s.id = e.section_id
+                  WHERE {$where}
+                  ORDER BY e.full_name", 500),
             $params
         );
         $this->view('employees/index', [

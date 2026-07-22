@@ -18,12 +18,17 @@ $opts = getopt('', ['no-seed', 'admin-pass::']);
 $db   = Database::app();
 $dir  = dirname(__DIR__) . '/database';
 
+// Pick the SQL dialect matching the configured app-database driver.
+$driver = Config::get('db.driver', 'mysql');
+$suffix = $driver === 'sqlsrv' ? '.sqlserver' : '';
+echo "→ Driver: {$driver}\n";
+
 echo "→ Applying schema...\n";
-run_sql_file($db, "{$dir}/schema.sql");
+run_sql_file($db, "{$dir}/schema{$suffix}.sql");
 
 if (!isset($opts['no-seed'])) {
     echo "→ Loading seed data...\n";
-    run_sql_file($db, "{$dir}/seed.sql");
+    run_sql_file($db, "{$dir}/seed{$suffix}.sql");
 }
 
 if (!empty($opts['admin-pass'])) {

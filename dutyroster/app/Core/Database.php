@@ -11,10 +11,12 @@ use PDOException;
 class Database
 {
     private PDO $pdo;
+    private string $driver;
     private static ?Database $app = null;
 
     public function __construct(array $cfg)
     {
+        $this->driver = $cfg['driver'] ?? 'mysql';
         $this->pdo = new PDO(
             self::dsn($cfg),
             $cfg['username'] ?? null,
@@ -104,6 +106,20 @@ class Database
         $sql = "UPDATE {$table} SET {$set} WHERE {$where}";
         return $this->run($sql, array_merge($data, $whereParams))->rowCount();
     }
+
+    /**
+     * Append a driver-appropriate row limit to a query that already ends with
+     * an ORDER BY. SQL Server uses OFFSET/FETCH; everything else uses LIMIT.
+     */
+    public function limit(string $sql, int $n, int $offset = 0): string
+    {
+        if ($this->driver === 'sqlsrv') {
+            return $sql . " OFFSET {$offset} ROWS FETCH NEXT {$n} ROWS ONLY";
+        }
+        return $sql . " LIMIT {$n} OFFSET {$offset}";
+    }
+
+    public function driver(): string { return $this->driver; }
 
     public function begin(): void  { $this->pdo->beginTransaction(); }
     public function commit(): void { $this->pdo->commit(); }

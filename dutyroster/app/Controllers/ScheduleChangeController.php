@@ -16,11 +16,12 @@ class ScheduleChangeController extends Controller
 
         $emp = $empId ? $this->db->one("SELECT * FROM employees WHERE id=:id", [':id'=>$empId]) : null;
         $requests = $empId ? $this->db->all(
-            "SELECT sc.*, os.code AS old_code, ns.code AS new_code
-               FROM schedule_change_requests sc
-               LEFT JOIN shifts os ON os.id = sc.old_shift_id
-               LEFT JOIN shifts ns ON ns.id = sc.new_shift_id
-              WHERE sc.employee_id = :e ORDER BY sc.requested_at DESC LIMIT 50",
+            $this->db->limit(
+                "SELECT sc.*, os.code AS old_code, ns.code AS new_code
+                   FROM schedule_change_requests sc
+                   LEFT JOIN shifts os ON os.id = sc.old_shift_id
+                   LEFT JOIN shifts ns ON ns.id = sc.new_shift_id
+                  WHERE sc.employee_id = :e ORDER BY sc.requested_at DESC", 50),
             [':e'=>$empId]
         ) : [];
 

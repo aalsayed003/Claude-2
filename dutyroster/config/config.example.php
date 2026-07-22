@@ -22,15 +22,16 @@ return [
         'week_off_days'     => [5, 6], // 0=Sun..6=Sat  -> Fri & Sat (informational)
     ],
 
-    // The application's own database.
+    // The application's own database (SQL Server). Create an empty database
+    // named `duty_roster` first; the installer builds all tables into it.
     'db' => [
-        'driver'   => 'mysql',        // mysql | sqlsrv | pgsql
-        'host'     => '127.0.0.1',
-        'port'     => 3306,
+        'driver'   => 'sqlsrv',       // sqlsrv | mysql | pgsql
+        'host'     => '127.0.0.1',    // SQL Server host, or  HOST\INSTANCE
+        'port'     => 1433,           // omit/ignore when using a named instance
         'database' => 'duty_roster',
-        'username' => 'duty_roster',
+        'username' => 'duty_app',
         'password' => 'change-me',
-        'charset'  => 'utf8mb4',
+        'charset'  => 'utf8mb4',      // used by mysql only
     ],
 
     // The biometric source: the SQL Server DB that the ZKTeco auto-sync script

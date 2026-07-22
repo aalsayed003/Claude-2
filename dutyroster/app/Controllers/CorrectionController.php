@@ -26,9 +26,10 @@ class CorrectionController extends Controller
         ) : [];
 
         $requests = $empId ? $this->db->all(
-            "SELECT cr.*, (SELECT COUNT(*) FROM correction_details cd WHERE cd.request_id=cr.id) AS lines
-               FROM correction_requests cr
-              WHERE cr.employee_id = :e ORDER BY cr.requested_at DESC LIMIT 50",
+            $this->db->limit(
+                "SELECT cr.*, (SELECT COUNT(*) FROM correction_details cd WHERE cd.request_id=cr.id) AS lines
+                   FROM correction_requests cr
+                  WHERE cr.employee_id = :e ORDER BY cr.requested_at DESC", 50),
             [':e'=>$empId]
         ) : [];
 
