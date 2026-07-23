@@ -1,0 +1,6 @@
+# Local configuration holds DB credentials — never commit it.
+config/config.php
+
+# Logs & temp
+*.log
+.DS_Store
