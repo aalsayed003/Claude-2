@@ -30,7 +30,7 @@ class EmployeeRepository
 
         // EmployeeId (not EmpCode) is the biometric/UI code that Atten_/attendance
         // rows join on (C.EmployeeID = D.EmpID in the legacy procs).
-        $sql = "SELECT e.ID AS id, e.EmployeeId AS emp_id, e.Name AS full_name,
+        $sql = "SELECT e.ID AS id, e.EmployeeId AS emp_id, e.EmpCode AS emp_code, e.Name AS full_name,
                        e.DepartmentId AS department_id, d.Name AS dept_name,
                        des.Name AS designation, e.IsHead AS is_head
                   FROM {$emp} e
@@ -46,7 +46,7 @@ class EmployeeRepository
     {
         $emp = lt('employee'); $dep = lt('department'); $des = lt('designation');
         $row = $this->db->one(
-            "SELECT e.ID AS id, e.EmployeeId AS emp_id, e.Name AS full_name,
+            "SELECT e.ID AS id, e.EmployeeId AS emp_id, e.EmpCode AS emp_code, e.Name AS full_name,
                     e.DepartmentId AS department_id, d.Name AS dept_name,
                     des.Name AS designation, e.IsHead AS is_head
                FROM {$emp} e
@@ -84,6 +84,7 @@ class EmployeeRepository
         return [
             'id'            => (int) $r['id'],
             'emp_id'        => $code,
+            'emp_code'      => trim((string) ($r['emp_code'] ?? '')),
             'pin'           => pin_from_code($code),
             'full_name'     => trim((string) ($r['full_name'] ?? '')),
             'department_id' => $r['department_id'] !== null ? (int) $r['department_id'] : null,

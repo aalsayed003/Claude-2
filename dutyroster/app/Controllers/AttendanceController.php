@@ -68,7 +68,8 @@ class AttendanceController extends Controller
      */
     private function legacyAttendance(array $emp, int $empId, string $from, string $to): array
     {
-        $actual    = (new \App\Repositories\AttendanceRepository($this->db))->forEmployee($emp['emp_id'], $from, $to);
+        $keys      = [$emp['emp_id'] ?? null, $emp['emp_code'] ?? null];
+        $actual    = (new \App\Repositories\AttendanceRepository($this->db))->forEmployee($keys, $from, $to);
         $scheduled = (new \App\Repositories\RosterRepository($this->db))->forEmployeeRange($empId, $from, $to);
 
         $rows = [];
