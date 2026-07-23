@@ -91,7 +91,25 @@ return [
         // (UnderTime) between scheduled (AllotShiftDetail) and actual (Atten_).
         // Per-category floor MinOverTimeLimit comes from HRCategory.
         'ot_exclude_shift_ids' => [103],   // + shifts listed in the Leave table
-        'ot_state_expired'     => 10,       // DR_OverTime.StateID 10 = Expired
+
+        // Shared DR request state enum (DR_ChangeSchedule, DR_OverTime,
+        // DR_CorrectionRequest). CONFIRMED: 10 = Expired (nightly batch).
+        // The rest are PROVISIONAL (from data distribution + storyboard legend) —
+        // confirm from the approve proc's CASE before wiring approve/reject writes.
+        'dr_states' => [
+            1  => 'Pending',
+            3  => 'Approved (L1)',
+            4  => 'Approved (L2)',
+            5  => 'Approved (final)',
+            6  => 'Approved (6)',
+            10 => 'Expired',            // confirmed
+            11 => 'Rejected?',
+            13 => 'Applied?',
+            14 => 'Applied',
+            15 => 'Rejected/Cancelled?',
+        ],
+        'dr_pending_states' => [1, 3, 4, 5, 6],  // provisional: counted as pending
+        'ot_state_expired'  => 10,                // DR_OverTime.StateID 10 = Expired
 
         // Single-database deployment: the DB_ASSH duty-roster tables
         // (DR_CorrectionRequest, EmployeeWorkingHours) are consolidated INTO the
