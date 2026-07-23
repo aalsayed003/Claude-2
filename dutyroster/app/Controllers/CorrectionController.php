@@ -21,7 +21,7 @@ class CorrectionController extends Controller
             $empRepo = new \App\Repositories\EmployeeRepository($this->db);
             $emp = $empId ? $empRepo->find($empId) : null;
             $attendance = ($empId && $emp)
-                ? $this->legacyAttendanceRows($emp['emp_id'], $cutFrom, $cutTo)
+                ? $this->legacyAttendanceRows([$emp['emp_id'] ?? null, $emp['emp_code'] ?? null], $cutFrom, $cutTo)
                 : [];
             $requests = ($empId && $emp)
                 ? (new \App\Repositories\CorrectionRepository($this->db))->forEmployee($empId, $cutFrom, $cutTo)
@@ -62,9 +62,9 @@ class CorrectionController extends Controller
     }
 
     /** Shape legacy actual attendance into the rows the correction view expects. */
-    private function legacyAttendanceRows(string $empCode, string $from, string $to): array
+    private function legacyAttendanceRows($keys, string $from, string $to): array
     {
-        $actual = (new \App\Repositories\AttendanceRepository($this->db))->forEmployee($empCode, $from, $to);
+        $actual = (new \App\Repositories\AttendanceRepository($this->db))->forEmployee($keys, $from, $to);
         $rows = [];
         foreach ($actual as $date => $a) {
             $rows[] = [

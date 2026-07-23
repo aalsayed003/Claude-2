@@ -17,42 +17,54 @@ class AttendanceRepository
 {
     public function __construct(private Database $db) {}
 
-    /** Actual attendance for one employee (by EmpCode) over a date range, keyed by 'Y-m-d'. */
-    public function forEmployee(string $empCode, string $start, string $end): array
+    /**
+     * Actual attendance for one employee over a date range, keyed by 'Y-m-d',
+     * read from the live daily punch table (empPunchingDetails: empid, todate,
+     * intime, outtime). `$keys` are the employee's candidate punch codes
+     * (EmployeeId and/or EmpCode) — matched with IN so it works regardless of
+     * which column the punches are keyed on.
+     */
+    public function forEmployee($keys, string $start, string $end): array
     {
-        $prefix = Config::get('legacy.att_month_prefix', 'Atten_');
-        $map = [];
-        $mStart = strtotime(date('Y-m-01', strtotime($start)));
-        $mEnd   = strtotime(date('Y-m-01', strtotime($end)));
+        $keys = array_values(array_unique(array_filter(
+            is_array($keys) ? $keys : [$keys],
+            fn($v) => $v !== null && $v !== ''
+        )));
+        if (!$keys) {
+            return [];
+        }
+        $tbl = lt('punch_daily');   // empPunchingDetails
+        $ph = [];
+        $params = [':a' => $start, ':b' => $end . ' 23:59:59'];
+        foreach ($keys as $i => $k) {
+            $ph[] = ":k{$i}";
+            $params[":k{$i}"] = $k;
+        }
+        $in = implode(',', $ph);
 
-        for ($ts = $mStart; $ts <= $mEnd; $ts = strtotime('+1 month', $ts)) {
-            $tbl = $prefix . date('mY', $ts);   // e.g. Atten_092023
-            try {
-                $rows = $this->db->all(
-                    "SELECT Todate AS work_date, Intime, Outtime, Intime1, Outtime1
-                       FROM {$tbl}
-                      WHERE Empid = :c AND Todate BETWEEN :a AND :b
-                      ORDER BY Todate",
-                    [':c' => $empCode, ':a' => $start, ':b' => $end . ' 23:59:59']
-                );
-            } catch (\Throwable $e) {
-                continue; // month table may not exist yet
-            }
-            foreach ($rows as $r) {
-                $date = substr((string) $r['work_date'], 0, 10);
-                $punches = array_filter([
-                    $r['Intime'], $r['Outtime'], $r['Intime1'], $r['Outtime1'],
-                ], fn($v) => $v !== null && $v !== '');
-                $map[$date] = [
-                    'act_first_in'   => $r['Intime']   ?: null,
-                    'act_first_out'  => $r['Outtime']  ?: null,
-                    'act_second_in'  => $r['Intime1']  ?: null,
-                    'act_second_out' => $r['Outtime1'] ?: null,
-                    'punch_count'    => count($punches),
-                    'is_odd_punch'   => (count($punches) % 2 === 1) ? 1 : 0,
-                    'status_code'    => '',
-                ];
-            }
+        $rows = $this->db->all(
+            "SELECT todate AS work_date, intime, outtime
+               FROM {$tbl}
+              WHERE empid IN ({$in}) AND todate BETWEEN :a AND :b
+              ORDER BY todate",
+            $params
+        );
+
+        $map = [];
+        foreach ($rows as $r) {
+            $date = substr((string) $r['work_date'], 0, 10);
+            $in1  = $r['intime']  ?: null;
+            $out1 = $r['outtime'] ?: null;
+            $count = ($in1 ? 1 : 0) + ($out1 ? 1 : 0);
+            $map[$date] = [
+                'act_first_in'   => $in1,
+                'act_first_out'  => $out1,
+                'act_second_in'  => null,
+                'act_second_out' => null,
+                'punch_count'    => $count,
+                'is_odd_punch'   => ($count % 2 === 1) ? 1 : 0,
+                'status_code'    => '',
+            ];
         }
         return $map;
     }

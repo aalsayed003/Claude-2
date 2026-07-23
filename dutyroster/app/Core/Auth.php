@@ -26,10 +26,12 @@ class Auth
         session_start();
     }
 
-    /** App-users table name (configurable so it never collides with a legacy `users` table). */
+    /** App-users table name (configurable so it never collides with a legacy `users` table).
+     *  In legacy mode the default is dr_app_users, since the ASSH schema has no app `users` table. */
     public static function usersTable(): string
     {
-        return Config::get('security.users_table', 'users');
+        $default = \legacy_mode() ? 'dr_app_users' : 'users';
+        return Config::get('security.users_table', $default);
     }
 
     public static function attempt(string $username, string $password): bool
