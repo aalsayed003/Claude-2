@@ -33,25 +33,85 @@ class AttendanceRepository
         if (!$keys) {
             return [];
         }
-        $tbl = lt('punch_daily');   // empPunchingDetails
+        // Prefer the properly-paired monthly Atten_ tables; fall back to the
+        // daily punch table for any day Atten_ doesn't cover.
+        $map = $this->fromDaily($keys, $start, $end);
+        foreach ($this->fromAtten($keys, $start, $end) as $date => $row) {
+            $map[$date] = $row;
+        }
+        ksort($map);
+        return $map;
+    }
+
+    /** Build the IN(...) placeholder list + params for the candidate keys. */
+    private function keyIn(array $keys, array $extra): array
+    {
         $ph = [];
-        $params = [':a' => $start, ':b' => $end . ' 23:59:59'];
+        $params = $extra;
         foreach ($keys as $i => $k) {
             $ph[] = ":k{$i}";
             $params[":k{$i}"] = $k;
         }
-        $in = implode(',', $ph);
+        return [implode(',', $ph), $params];
+    }
 
-        $rows = $this->db->all(
-            "SELECT todate AS work_date, intime, outtime
-               FROM {$tbl}
-              WHERE empid IN ({$in}) AND todate BETWEEN :a AND :b
-              ORDER BY todate",
-            $params
-        );
+    /** Properly-paired attendance from the monthly Atten_MMYYYY tables. */
+    private function fromAtten(array $keys, string $start, string $end): array
+    {
+        $prefix = Config::get('legacy.att_month_prefix', 'Atten_');
+        $map = [];
+        $mStart = strtotime(date('Y-m-01', strtotime($start)));
+        $mEnd   = strtotime(date('Y-m-01', strtotime($end)));
 
-        // empPunchingDetails can have several rows per employee/day (each punch a
-        // row, in and out separate). Aggregate to earliest IN and latest OUT.
+        for ($ts = $mStart; $ts <= $mEnd; $ts = strtotime('+1 month', $ts)) {
+            $tbl = $prefix . date('mY', $ts);
+            [$in, $params] = $this->keyIn($keys, [':a' => $start, ':b' => $end . ' 23:59:59']);
+            try {
+                $rows = $this->db->all(
+                    "SELECT Todate AS work_date, Intime, Outtime, Intime1, Outtime1
+                       FROM {$tbl}
+                      WHERE Empid IN ({$in}) AND Todate BETWEEN :a AND :b
+                      ORDER BY Todate",
+                    $params
+                );
+            } catch (\Throwable $e) {
+                continue; // month table absent
+            }
+            foreach ($rows as $r) {
+                $date = substr((string) $r['work_date'], 0, 10);
+                $punches = array_filter([$r['Intime'], $r['Outtime'], $r['Intime1'], $r['Outtime1']],
+                    fn($v) => $v !== null && $v !== '');
+                $map[$date] = [
+                    'act_first_in'   => $r['Intime']   ?: null,
+                    'act_first_out'  => $r['Outtime']  ?: null,
+                    'act_second_in'  => $r['Intime1']  ?: null,
+                    'act_second_out' => $r['Outtime1'] ?: null,
+                    'punch_count'    => count($punches),
+                    'is_odd_punch'   => (count($punches) % 2 === 1) ? 1 : 0,
+                    'status_code'    => '',
+                ];
+            }
+        }
+        return $map;
+    }
+
+    /** Fallback: aggregate the daily punch table (empPunchingDetails). */
+    private function fromDaily(array $keys, string $start, string $end): array
+    {
+        $tbl = lt('punch_daily');
+        [$in, $params] = $this->keyIn($keys, [':a' => $start, ':b' => $end . ' 23:59:59']);
+        try {
+            $rows = $this->db->all(
+                "SELECT todate AS work_date, intime, outtime
+                   FROM {$tbl}
+                  WHERE empid IN ({$in}) AND todate BETWEEN :a AND :b
+                  ORDER BY todate",
+                $params
+            );
+        } catch (\Throwable $e) {
+            return [];
+        }
+
         $agg = [];
         foreach ($rows as $r) {
             $date = substr((string) $r['work_date'], 0, 10);
