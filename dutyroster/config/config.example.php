@@ -153,5 +153,8 @@ return [
     'security' => [
         'session_name' => 'DUTYROSTER_SID',
         'session_ttl'  => 3600 * 8,   // seconds
+        // App login table. In legacy mode the app lives in the ASSH schema, so
+        // use a prefixed name that can't collide with any legacy table.
+        'users_table'  => 'dr_app_users',
     ],
 ];

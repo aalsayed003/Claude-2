@@ -26,11 +26,18 @@ class Auth
         session_start();
     }
 
+    /** App-users table name (configurable so it never collides with a legacy `users` table). */
+    public static function usersTable(): string
+    {
+        return Config::get('security.users_table', 'users');
+    }
+
     public static function attempt(string $username, string $password): bool
     {
         $db = Database::app();
+        $t  = self::usersTable();
         $u = $db->one(
-            "SELECT * FROM users WHERE username = :u AND active = 1",
+            "SELECT * FROM {$t} WHERE username = :u AND active = 1",
             [':u' => $username]
         );
         if (!$u || !password_verify($password, $u['password_hash'])) {
@@ -45,7 +52,7 @@ class Auth
             'employee_id'   => $u['employee_id'] !== null ? (int) $u['employee_id'] : null,
             'department_id' => $u['department_id'] !== null ? (int) $u['department_id'] : null,
         ];
-        $db->update('users', ['last_login' => date('Y-m-d H:i:s')], 'id = :id', [':id' => $u['id']]);
+        $db->update(self::usersTable(), ['last_login' => date('Y-m-d H:i:s')], 'id = :id', [':id' => $u['id']]);
         return true;
     }
 
