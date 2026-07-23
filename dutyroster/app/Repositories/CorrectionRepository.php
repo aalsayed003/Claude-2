@@ -44,6 +44,35 @@ class CorrectionRepository
         );
     }
 
+    /**
+     * Insert a new correction request. RequestID is assumed to be an identity
+     * column (as in the legacy design), so it is not supplied. Times are
+     * combined with the correction date; empty ones are stored NULL. Returns
+     * the new RequestID.
+     */
+    public function create(array $d): int
+    {
+        $t = lt('correction_table') ?: 'DR_CorrectionRequest';
+        $date = $d['work_date'];
+        $mk = fn($time) => ($time ? $date . ' ' . $time . ':00' : null);
+
+        $row = [
+            'RequestDate' => date('Y-m-d H:i:s'),
+            'EmployeeID'  => (int) $d['employee_id'],
+            'MonthFor'    => date('Y-m-01', strtotime($date)),
+            'DayFor'      => $date,
+            'FirstIn'     => $mk($d['first_in']  ?? null),
+            'FirstOut'    => $mk($d['first_out'] ?? null),
+            'SecondIn'    => $mk($d['second_in'] ?? null),
+            'SecondOut'   => $mk($d['second_out']?? null),
+            'ReasonID'    => $d['reason_id'] !== '' ? (int) $d['reason_id'] : null,
+            'TypeId'      => (int) ($d['type_id'] ?? 0),
+            'Remarks'     => $d['remarks'] ?? '',
+            'StateID'     => (int) Config::get('legacy.dr_initial_state', 1),
+        ];
+        return $this->db->insert($t, $row);
+    }
+
     private function shape(array $r): array
     {
         $states = Config::get('legacy.dr_states', [10 => 'Expired']);
