@@ -172,6 +172,27 @@ class RosterController extends Controller
             $this->flash('error', 'Period and department are required.');
             $this->redirect('roster/submit');
         }
+
+        if (legacy_mode()) {
+            // Create a Schedule_Request (Approved = dr_initial_state, Uploaded = 0).
+            [$y, $m] = explode('-', $period);
+            try {
+                $this->db->insert(lt('sched_req'), [
+                    'DateTime'      => date('Y-m-d H:i:s'),
+                    'DepartmentId'  => $deptId,
+                    'ScheduleMonth' => sprintf('%04d-%02d-01', $y, $m),
+                    'OperatorId'    => Auth::user()['employee_id'] ?? null,
+                    'Approved'      => (int) \App\Core\Config::get('legacy.dr_initial_state', 1),
+                    'Uploaded'      => 0,
+                    'Comments'      => null,
+                ]);
+                $this->flash('success', 'Duty roster submitted for approval.');
+            } catch (\Throwable $e) {
+                $this->flash('error', 'Could not submit: ' . $e->getMessage());
+            }
+            $this->redirect('approvals');
+        }
+
         $this->db->insert('roster_submissions', [
             'period_key'    => $period,
             'department_id' => $deptId,
