@@ -24,11 +24,13 @@ class EmployeeRepository
         $where  = 'e.Deleted = 0';
         $params = [];
         if ($q !== '') {
-            $where .= ' AND (e.Name LIKE :q OR e.EmpCode LIKE :q)';
+            $where .= ' AND (e.Name LIKE :q OR e.EmployeeId LIKE :q)';
             $params[':q'] = "%{$q}%";
         }
 
-        $sql = "SELECT e.ID AS id, e.EmpCode AS emp_id, e.Name AS full_name,
+        // EmployeeId (not EmpCode) is the biometric/UI code that Atten_/attendance
+        // rows join on (C.EmployeeID = D.EmpID in the legacy procs).
+        $sql = "SELECT e.ID AS id, e.EmployeeId AS emp_id, e.Name AS full_name,
                        e.DepartmentId AS department_id, d.Name AS dept_name,
                        des.Name AS designation, e.IsHead AS is_head
                   FROM {$emp} e
@@ -44,7 +46,7 @@ class EmployeeRepository
     {
         $emp = lt('employee'); $dep = lt('department'); $des = lt('designation');
         $row = $this->db->one(
-            "SELECT e.ID AS id, e.EmpCode AS emp_id, e.Name AS full_name,
+            "SELECT e.ID AS id, e.EmployeeId AS emp_id, e.Name AS full_name,
                     e.DepartmentId AS department_id, d.Name AS dept_name,
                     des.Name AS designation, e.IsHead AS is_head
                FROM {$emp} e
@@ -61,9 +63,9 @@ class EmployeeRepository
     {
         $emp = lt('employee');
         $row = $this->db->one(
-            "SELECT ID AS id, EmpCode AS emp_id, Name AS full_name,
+            "SELECT ID AS id, EmployeeId AS emp_id, Name AS full_name,
                     DepartmentId AS department_id, IsHead AS is_head
-               FROM {$emp} WHERE EmpCode = :c AND Deleted = 0",
+               FROM {$emp} WHERE EmployeeId = :c AND Deleted = 0",
             [':c' => $empCode]
         );
         return $row ? $this->shape($row) : null;

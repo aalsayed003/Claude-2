@@ -109,6 +109,7 @@ return [
             15 => 'Rejected/Cancelled?',
         ],
         'dr_pending_states' => [1, 3, 4, 5, 6],  // provisional: counted as pending
+        'dr_initial_state'  => 1,                 // StateID for a newly-submitted request
         'ot_state_expired'  => 10,                // DR_OverTime.StateID 10 = Expired
 
         // Single-database deployment: the DB_ASSH duty-roster tables
@@ -153,5 +154,8 @@ return [
     'security' => [
         'session_name' => 'DUTYROSTER_SID',
         'session_ttl'  => 3600 * 8,   // seconds
+        // App login table. In legacy mode the app lives in the ASSH schema, so
+        // use a prefixed name that can't collide with any legacy table.
+        'users_table'  => 'dr_app_users',
     ],
 ];

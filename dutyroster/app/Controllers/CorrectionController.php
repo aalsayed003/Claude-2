@@ -91,6 +91,32 @@ class CorrectionController extends Controller
             $this->flash('error', 'Employee and date are required.');
             $this->redirect('correction');
         }
+
+        $firstIn  = $this->input('first_in')  ?: null;
+        $firstOut = $this->input('first_out') ?: null;
+        $secondIn = $this->input('second_in') ?: null;
+        $secondOut= $this->input('second_out')?: null;
+
+        if (legacy_mode()) {
+            // TypeId: 0/2 = late-in (In times), 1/3 = early-out (Out times).
+            $typeId = ($firstIn || $secondIn) ? 0 : (($firstOut || $secondOut) ? 1 : 0);
+            try {
+                (new \App\Repositories\CorrectionRepository($this->db))->create([
+                    'employee_id' => $empId,
+                    'work_date'   => $date,
+                    'first_in'    => $firstIn,  'first_out'  => $firstOut,
+                    'second_in'   => $secondIn, 'second_out' => $secondOut,
+                    'reason_id'   => $this->input('reason', ''),
+                    'type_id'     => $typeId,
+                    'remarks'     => $this->input('remarks') ?: '',
+                ]);
+                $this->flash('success', 'Correction request submitted.');
+            } catch (\Throwable $e) {
+                $this->flash('error', 'Could not save correction: ' . $e->getMessage());
+            }
+            $this->redirect('correction?employee_id=' . $empId . '&period=' . $period);
+        }
+
         $reqId = $this->db->insert('correction_requests', [
             'employee_id' => $empId,
             'period_key'  => $period,
@@ -100,10 +126,10 @@ class CorrectionController extends Controller
         $this->db->insert('correction_details', [
             'request_id' => $reqId,
             'work_date'  => $date,
-            'first_in'   => $this->input('first_in') ?: null,
-            'first_out'  => $this->input('first_out') ?: null,
-            'second_in'  => $this->input('second_in') ?: null,
-            'second_out' => $this->input('second_out') ?: null,
+            'first_in'   => $firstIn,
+            'first_out'  => $firstOut,
+            'second_in'  => $secondIn,
+            'second_out' => $secondOut,
             'reason'     => $this->input('reason') ?: null,
             'remarks'    => $this->input('remarks') ?: null,
         ]);

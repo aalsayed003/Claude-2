@@ -14,23 +14,35 @@ class ScheduleChangeController extends Controller
             ? (int) $this->input('employee_id', $user['employee_id'] ?? 0)
             : (int) ($user['employee_id'] ?? 0);
 
-        $emp = $empId ? $this->db->one("SELECT * FROM employees WHERE id=:id", [':id'=>$empId]) : null;
-        $requests = $empId ? $this->db->all(
-            $this->db->limit(
-                "SELECT sc.*, os.code AS old_code, ns.code AS new_code
-                   FROM schedule_change_requests sc
-                   LEFT JOIN shifts os ON os.id = sc.old_shift_id
-                   LEFT JOIN shifts ns ON ns.id = sc.new_shift_id
-                  WHERE sc.employee_id = :e ORDER BY sc.requested_at DESC", 50),
-            [':e'=>$empId]
-        ) : [];
+        if (legacy_mode()) {
+            $empRepo   = new \App\Repositories\EmployeeRepository($this->db);
+            $emp       = $empId ? $empRepo->find($empId) : null;
+            $requests  = ($empId && $emp)
+                ? (new \App\Repositories\ScheduleChangeRepository($this->db))->forEmployee($empId)
+                : [];
+            $employees = Auth::atLeast('dept_head') ? $empRepo->search('') : [];
+            $shifts    = (new \App\Repositories\ShiftRepository($this->db))->all();
+        } else {
+            $emp = $empId ? $this->db->one("SELECT * FROM employees WHERE id=:id", [':id'=>$empId]) : null;
+            $requests = $empId ? $this->db->all(
+                $this->db->limit(
+                    "SELECT sc.*, os.code AS old_code, ns.code AS new_code
+                       FROM schedule_change_requests sc
+                       LEFT JOIN shifts os ON os.id = sc.old_shift_id
+                       LEFT JOIN shifts ns ON ns.id = sc.new_shift_id
+                      WHERE sc.employee_id = :e ORDER BY sc.requested_at DESC", 50),
+                [':e'=>$empId]
+            ) : [];
+            $employees = Auth::atLeast('dept_head')
+                ? $this->db->all("SELECT id, emp_id, full_name FROM employees WHERE active=1 ORDER BY full_name") : [];
+            $shifts = $this->db->all("SELECT * FROM shifts WHERE active=1 ORDER BY code");
+        }
 
         $this->view('schedule_change/index', [
             'title'     => 'Change Schedule',
-            'employees' => Auth::atLeast('dept_head')
-                ? $this->db->all("SELECT id, emp_id, full_name FROM employees WHERE active=1 ORDER BY full_name") : [],
+            'employees' => $employees,
             'emp'       => $emp,
-            'shifts'    => $this->db->all("SELECT * FROM shifts WHERE active=1 ORDER BY code"),
+            'shifts'    => $shifts,
             'requests'  => $requests,
         ]);
     }

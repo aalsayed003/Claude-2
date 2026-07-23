@@ -87,6 +87,7 @@ function lt(string $key): string
         'ot' => 'DR_OverTime', 'ot_reason' => 'DR_OvertimeReason', 'change_sched' => 'DR_ChangeSchedule',
         'leave' => 'leave', 'leave_app' => 'LeaveApplication', 'leave_bal' => 'leavebalance',
         'sys_users' => 'RA_SystemUsers',
+        'correction_table' => 'DR_CorrectionRequest', 'working_hours_table' => 'EmployeeWorkingHours',
     ];
     return Config::get('legacy.' . $key, $def[$key] ?? $key);
 }
