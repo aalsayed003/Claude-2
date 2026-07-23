@@ -71,10 +71,15 @@ class DashboardController extends Controller
 
         return [
             'schedules' => $safe(fn() => (new \App\Repositories\ScheduleRequestRepository($this->db))->pendingCount()),
-            // Corrections live in the companion DB (DB_ASSH..DR_CorrectionRequest) — wired once DB_ASSH is available.
-            'corrections' => 0,
-            // Change-schedule pending needs the confirmed StateID — wired once decoded.
-            'schedule_changes' => 0,
+            'corrections' => $safe(fn() => (new \App\Repositories\CorrectionRepository($this->db))->pendingCount($start, $end)),
+            'schedule_changes' => $safe(function () use ($start, $end) {
+                $cs = lt('change_sched');
+                $pending = implode(',', array_map('intval', \App\Core\Config::get('legacy.dr_pending_states', [1, 3, 4, 5, 6])));
+                return $this->db->value(
+                    "SELECT COUNT(*) FROM {$cs} WHERE StateID IN ({$pending}) AND RequestDate BETWEEN :a AND :b",
+                    [':a' => $start . ' 00:00:00', ':b' => $end . ' 23:59:59']
+                );
+            }),
             'odd_punch' => $safe(fn() => $this->db->value(
                 "SELECT COUNT(*) FROM {$dash} WHERE OddPunch = 1 AND AttendanceDate BETWEEN :a AND :b",
                 [':a' => $start, ':b' => $end . ' 23:59:59']

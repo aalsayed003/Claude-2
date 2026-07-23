@@ -23,7 +23,9 @@ class CorrectionController extends Controller
             $attendance = ($empId && $emp)
                 ? $this->legacyAttendanceRows($emp['emp_id'], $cutFrom, $cutTo)
                 : [];
-            $requests = [];   // legacy correction request store: next iteration
+            $requests = ($empId && $emp)
+                ? (new \App\Repositories\CorrectionRepository($this->db))->forEmployee($empId, $cutFrom, $cutTo)
+                : [];
             $employees = Auth::atLeast('dept_head') ? $empRepo->search('') : [];
             $reasons = (new \App\Repositories\ReasonRepository($this->db))->all();
         } else {

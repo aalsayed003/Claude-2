@@ -71,12 +71,18 @@
 
 <div class="card">
     <h2 style="margin-top:0">Recent Requests</h2>
-    <table class="tbl"><thead><tr><th>#</th><th>Requested</th><th>Lines</th><th>Status</th></tr></thead><tbody>
+    <table class="tbl"><thead><tr><th>#</th><th>Requested</th><th>Day</th><th>Type</th><th>Reason</th><th>Status</th></tr></thead><tbody>
         <?php foreach ($requests as $r): ?>
-            <tr><td><?= $r['id'] ?></td><td class="subtle"><?= date('d M Y', strtotime($r['requested_at'])) ?></td>
-                <td><?= $r['lines'] ?></td><td><span class="chip <?= $r['status'] ?>"><?= ucfirst($r['status']) ?></span></td></tr>
+            <tr>
+                <td><?= e($r['id']) ?></td>
+                <td class="subtle"><?= $r['requested_at'] ? date('d M Y', strtotime($r['requested_at'])) : '' ?></td>
+                <td><?= !empty($r['work_date']) ? date('d M', strtotime($r['work_date'])) : '' ?></td>
+                <td><?= e($r['type_label'] ?? '') ?></td>
+                <td><?= e($r['reason'] ?? '') ?></td>
+                <td><span class="chip pending"><?= e($r['status']) ?></span></td>
+            </tr>
         <?php endforeach; ?>
-        <?php if (!$requests): ?><tr><td colspan="4" class="subtle center">No requests yet.</td></tr><?php endif; ?>
+        <?php if (!$requests): ?><tr><td colspan="6" class="subtle center">No requests yet.</td></tr><?php endif; ?>
     </tbody></table>
 </div>
 <?php endif; ?>
