@@ -146,11 +146,18 @@ class RosterController extends Controller
     {
         Auth::requireRole('dept_head');
         $period = $this->input('period', period_of(date('Y-m-d')));
+        if (legacy_mode()) {
+            $depts = (new \App\Repositories\DepartmentRepository($this->db))->all();
+            $sections = [];
+        } else {
+            $depts = $this->db->all("SELECT * FROM departments ORDER BY name");
+            $sections = $this->db->all("SELECT * FROM sections ORDER BY name");
+        }
         $this->view('roster/submit', [
             'title'  => 'Submit Duty Roster',
             'period' => $period,
-            'depts'  => $this->db->all("SELECT * FROM departments ORDER BY name"),
-            'sections' => $this->db->all("SELECT * FROM sections ORDER BY name"),
+            'depts'  => $depts,
+            'sections' => $sections,
         ]);
     }
 

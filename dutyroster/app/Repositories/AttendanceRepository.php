@@ -50,15 +50,30 @@ class AttendanceRepository
             $params
         );
 
-        $map = [];
+        // empPunchingDetails can have several rows per employee/day (each punch a
+        // row, in and out separate). Aggregate to earliest IN and latest OUT.
+        $agg = [];
         foreach ($rows as $r) {
             $date = substr((string) $r['work_date'], 0, 10);
             $in1  = $r['intime']  ?: null;
             $out1 = $r['outtime'] ?: null;
-            $count = ($in1 ? 1 : 0) + ($out1 ? 1 : 0);
+            if (!isset($agg[$date])) {
+                $agg[$date] = ['in' => null, 'out' => null];
+            }
+            if ($in1 !== null && ($agg[$date]['in'] === null || $in1 < $agg[$date]['in'])) {
+                $agg[$date]['in'] = $in1;
+            }
+            if ($out1 !== null && ($agg[$date]['out'] === null || $out1 > $agg[$date]['out'])) {
+                $agg[$date]['out'] = $out1;
+            }
+        }
+
+        $map = [];
+        foreach ($agg as $date => $v) {
+            $count = ($v['in'] ? 1 : 0) + ($v['out'] ? 1 : 0);
             $map[$date] = [
-                'act_first_in'   => $in1,
-                'act_first_out'  => $out1,
+                'act_first_in'   => $v['in'],
+                'act_first_out'  => $v['out'],
                 'act_second_in'  => null,
                 'act_second_out' => null,
                 'punch_count'    => $count,
