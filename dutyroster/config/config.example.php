@@ -93,9 +93,12 @@ return [
         'ot_exclude_shift_ids' => [103],   // + shifts listed in the Leave table
         'ot_state_expired'     => 10,       // DR_OverTime.StateID 10 = Expired
 
-        // Companion database. Corrections and working-hours targets live here,
-        // NOT in ASSH. Set to the real DB name (or a TestDB_ASSH copy for dev).
-        'companion_db'          => 'DB_ASSH',
+        // Single-database deployment: the DB_ASSH duty-roster tables
+        // (DR_CorrectionRequest, EmployeeWorkingHours) are consolidated INTO the
+        // app database via Consolidate_DB_ASSH_into_TestASSH.sql, so there is no
+        // cross-database dependency. Leave companion_db empty to resolve these
+        // tables inside the main `db` database.
+        'companion_db'          => '',   // '' = same database as `db`
         'correction_table'      => 'DR_CorrectionRequest', // EmployeeID, DayFor, StateID, TypeID
         'working_hours_table'   => 'EmployeeWorkingHours',
         // DR_CorrectionRequest.TypeID: 0,2 = late-in; 1,3 = early-out.
