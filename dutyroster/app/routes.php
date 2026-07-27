@@ -49,6 +49,8 @@ $r->get('roster/allot',      [RosterController::class, 'allot']);
 $r->post('roster/save',      [RosterController::class, 'save']);
 $r->get('roster/submit',     [RosterController::class, 'submitForm']);
 $r->post('roster/submit',    [RosterController::class, 'submit']);
+$r->get('roster/template',   [RosterController::class, 'template']);
+$r->post('roster/import',    [RosterController::class, 'import']);
 
 // Approvals
 $r->get('approvals',         [ApprovalController::class, 'index']);

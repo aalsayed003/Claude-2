@@ -84,17 +84,20 @@ class AttendanceController extends Controller
             $punchCount = $a['punch_count'] ?? 0;
             $status = \App\Repositories\AttendanceRepository::deriveStatus($punchCount, $s);
 
+            // Grace: late-in counts only when > grace_late_min (default 15 -> 16+).
+            $graceLate  = (int) \App\Core\Config::get('attendance.grace_late_min', 15);
+            $graceEarly = (int) \App\Core\Config::get('attendance.grace_early_min', 15);
             $late = $early = 0;
             if ($s && $a && $status === 'present') {
                 if ($s['first_in'] && $a['act_first_in']) {
                     $d = (strtotime($a['act_first_in']) - strtotime($date . ' ' . $s['first_in'])) / 60;
-                    if ($d > 0) $late = (int) round($d);
+                    if ($d > $graceLate) $late = (int) round($d);
                 }
                 $schedOut = $s['second_out'] ?: $s['first_out'];
                 $actOut   = $a['act_second_out'] ?: $a['act_first_out'];
                 if ($schedOut && $actOut) {
                     $d = (strtotime($date . ' ' . $schedOut) - strtotime($actOut)) / 60;
-                    if ($d > 0) $early = (int) round($d);
+                    if ($d > $graceEarly) $early = (int) round($d);
                 }
             }
 

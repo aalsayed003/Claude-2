@@ -35,7 +35,9 @@
                         <?php foreach ($shifts as $s): ?><option value="<?= $s['id'] ?>"><?= e($s['code']) ?></option><?php endforeach; ?>
                     </select>
                 </label>
-                <button type="button" class="btn btn-sm btn-muted" onclick="fillAll()">Apply to all</button>
+                <button type="button" class="btn btn-sm btn-muted" onclick="applyToSelected()"
+                        title="Applies to the days checked below; if none are checked, applies to all days">
+                    Apply to selected</button>
                 <span class="subtle">Scheduled: <strong id="schedHrs"><?= number_format((float)$scheduled_hours,1) ?></strong> hrs</span>
             </div>
         </div>
@@ -43,7 +45,7 @@
 
     <div class="tbl-wrap">
     <table class="tbl">
-        <thead><tr><th>Day</th><th>Date</th><th>Shift</th><th>First In</th><th>First Out</th><th>Second In</th><th>Second Out</th><th class="num">Hrs</th></tr></thead>
+        <thead><tr><th><input type="checkbox" id="selAll" onclick="toggleAll(this)" title="Select / deselect all"></th><th>Day</th><th>Date</th><th>Shift</th><th>First In</th><th>First Out</th><th>Second In</th><th>Second Out</th><th class="num">Hrs</th></tr></thead>
         <tbody>
         <?php foreach ($days as $d):
             $a = $assigned[$d] ?? null;
@@ -51,6 +53,7 @@
             $weekend = in_array($dow, [5,6], true);
         ?>
             <tr class="<?= $weekend?'row-day_off':'' ?>">
+                <td><input type="checkbox" class="rowChk"></td>
                 <td><strong><?= date('D', strtotime($d)) ?></strong></td>
                 <td><?= date('d M', strtotime($d)) ?></td>
                 <td>
@@ -79,8 +82,8 @@
     </table>
     </div>
     <div style="margin-top:14px" class="actions">
-        <button type="submit">Save Roster</button>
-        <a class="btn btn-muted" href="<?= url('roster/submit?period='.$period) ?>">Submit for Approval →</a>
+        <button type="submit">Save &amp; Submit for Approval</button>
+        <a class="btn btn-muted" href="<?= url('roster/submit?period='.$period) ?>" title="Use this to submit a whole department/section at once, or re-submit after a rejection">Submit a Department Manually →</a>
     </div>
 </form>
 
@@ -100,9 +103,17 @@ function recalc(){
   });
   document.getElementById('schedHrs').textContent=total.toFixed(1);
 }
-function fillAll(){
+function toggleAll(cb){
+  document.querySelectorAll('.rowChk').forEach(c=>c.checked=cb.checked);
+}
+function applyToSelected(){
   const v=document.getElementById('quickShift').value; if(!v) return;
-  document.querySelectorAll('.shiftSel').forEach(s=>s.value=v);
+  const checked=[...document.querySelectorAll('.rowChk:checked')];
+  const targets = checked.length ? checked : [...document.querySelectorAll('.rowChk')];
+  targets.forEach(c=>{
+    const sel=c.closest('tr').querySelector('.shiftSel');
+    if(sel) sel.value=v;
+  });
   recalc();
 }
 </script>

@@ -63,6 +63,20 @@ function period_label(string $periodKey): string
     return date('M Y', mktime(0, 0, 0, (int) $m, 1, (int) $y));
 }
 
+/**
+ * First and last day of the CALENDAR month for a "YYYY-MM" key.
+ * The duty roster is prepared per calendar month (config:
+ * legacy.roster_calendar_month), unlike attendance/correction which run on
+ * the payroll cutoff cycle (period_bounds() above, cutoff_day-based).
+ */
+function month_bounds(string $periodKey): array
+{
+    [$y, $m] = array_map('intval', explode('-', $periodKey));
+    $start = sprintf('%04d-%02d-01', $y, $m);
+    $end   = date('Y-m-t', strtotime($start));
+    return [$start, $end];
+}
+
 function can(string $role): bool
 {
     return Auth::atLeast($role);

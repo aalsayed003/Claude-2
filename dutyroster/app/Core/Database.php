@@ -121,6 +121,28 @@ class Database
 
     public function driver(): string { return $this->driver; }
 
+    /** True if the column is an IDENTITY column (SQL Server). Other drivers: false. */
+    public function isIdentity(string $table, string $col): bool
+    {
+        if ($this->driver === 'sqlsrv') {
+            try {
+                return (int) $this->value(
+                    "SELECT COLUMNPROPERTY(OBJECT_ID(:t), :c, 'IsIdentity')",
+                    [':t' => $table, ':c' => $col]
+                ) === 1;
+            } catch (\Throwable $e) {
+                return false;
+            }
+        }
+        return false; // mysql/sqlite tolerate an explicit id
+    }
+
+    /** Next id for a non-identity key column: MAX(col)+1. */
+    public function nextId(string $table, string $col): int
+    {
+        return (int) $this->value("SELECT COALESCE(MAX({$col}), 0) + 1 FROM {$table}");
+    }
+
     public function begin(): void  { $this->pdo->beginTransaction(); }
     public function commit(): void { $this->pdo->commit(); }
     public function rollback(): void { if ($this->pdo->inTransaction()) $this->pdo->rollBack(); }

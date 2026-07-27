@@ -70,7 +70,12 @@ class CorrectionRepository
             'Remarks'     => $d['remarks'] ?? '',
             'StateID'     => (int) Config::get('legacy.dr_initial_state', 1),
         ];
-        return $this->db->insert($t, $row);
+        // RequestID is not an identity column here — supply the next id.
+        if (!$this->db->isIdentity($t, 'RequestID')) {
+            $row = ['RequestID' => $this->db->nextId($t, 'RequestID')] + $row;
+        }
+        $this->db->insert($t, $row);
+        return (int) ($row['RequestID'] ?? 0);
     }
 
     private function shape(array $r): array

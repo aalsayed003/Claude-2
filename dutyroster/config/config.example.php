@@ -16,9 +16,9 @@ return [
     // A day belongs to the period whose cutoff start is on/before it.
     'attendance' => [
         'cutoff_day'        => 16,
-        'grace_late_min'    => 0,   // minutes of grace before "late in" is counted
-        'grace_early_min'   => 0,   // minutes of grace before "early out" is counted
-        'ot_min_threshold'  => 30,  // ignore OT shorter than this many minutes
+        'grace_late_min'    => 15,  // late-in counts only when > this (so 16 min and above)
+        'grace_early_min'   => 15,  // early-out counts only when > this
+        'ot_min_threshold'  => 60,  // overtime counts only from this many minutes
         'week_off_days'     => [5, 6], // 0=Sun..6=Sat  -> Fri & Sat (informational)
     ],
 
@@ -110,6 +110,18 @@ return [
         ],
         'dr_pending_states' => [1, 3, 4, 5, 6],  // provisional: counted as pending
         'dr_initial_state'  => 1,                 // StateID for a newly-submitted request
+
+        // Approval routing by employee category (request/roster approvals):
+        //   nurse : Dept Head -> CNO -> HR apply
+        //   doctor: Dept Head -> COO/MD -> HR apply
+        //   other : Dept Head -> HR apply
+        // Category is derived from the employee (CategoryID / Designation) -
+        // confirm the nurse/doctor category ids.
+        'approval_chains' => [
+            'nurse'   => ['dept_head', 'cno', 'hr'],
+            'doctor'  => ['dept_head', 'coo_md', 'hr'],
+            'default' => ['dept_head', 'hr'],
+        ],
         'ot_state_expired'  => 10,                // DR_OverTime.StateID 10 = Expired
 
         // Single-database deployment: the DB_ASSH duty-roster tables
