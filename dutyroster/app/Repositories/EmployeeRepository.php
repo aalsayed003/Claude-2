@@ -58,6 +58,44 @@ class EmployeeRepository
         return $row ? $this->shape($row) : null;
     }
 
+    /** Active employees of one department, shaped like search(). */
+    public function byDepartment(int $deptId): array
+    {
+        $emp = lt('employee'); $dep = lt('department'); $des = lt('designation');
+        $sql = "SELECT e.ID AS id, e.EmployeeId AS emp_id, e.EmpCode AS emp_code, e.Name AS full_name,
+                       e.DepartmentId AS department_id, d.Name AS dept_name,
+                       des.Name AS designation, e.IsHead AS is_head
+                  FROM {$emp} e
+                  LEFT JOIN {$dep} d   ON d.Id  = e.DepartmentId
+                  LEFT JOIN {$des} des ON des.ID = e.DesignationId
+                 WHERE e.Deleted = 0 AND e.DepartmentId = :d
+                 ORDER BY e.Name";
+        return array_map([$this, 'shape'], $this->db->all($sql, [':d' => $deptId]));
+    }
+
+    /**
+     * Map every active employee's UI/biometric code to its id + department:
+     *   [ '01732' => ['id' => 42, 'department_id' => 7], ... ]
+     * Used by the roster import to resolve Employee IDs and flag unknown ones.
+     */
+    public function codeMap(): array
+    {
+        $emp = lt('employee');
+        $map = [];
+        foreach ($this->db->all(
+            "SELECT ID AS id, EmployeeId AS emp_id, DepartmentId AS department_id
+               FROM {$emp} WHERE Deleted = 0"
+        ) as $r) {
+            $code = trim((string) ($r['emp_id'] ?? ''));
+            if ($code === '') continue;
+            $map[$code] = [
+                'id'            => (int) $r['id'],
+                'department_id' => $r['department_id'] !== null ? (int) $r['department_id'] : null,
+            ];
+        }
+        return $map;
+    }
+
     /** Lookup by the biometric code (EmpCode). Used to link punches. */
     public function findByCode(string $empCode): ?array
     {

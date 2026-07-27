@@ -3,6 +3,12 @@ namespace App\Controllers;
 
 use App\Core\Controller;
 use App\Core\Auth;
+use App\Services\XlsxWriter;
+use App\Services\SpreadsheetReader;
+use App\Repositories\EmployeeRepository;
+use App\Repositories\DepartmentRepository;
+use App\Repositories\ShiftRepository;
+use App\Repositories\RosterRepository;
 
 class RosterController extends Controller
 {
@@ -162,7 +168,12 @@ class RosterController extends Controller
         if (!$deptId) {
             return false; // employee has no department on file — can't route for approval
         }
+        return $this->ensureLegacySubmissionByDept((int) $deptId, $period);
+    }
 
+    /** Dept-level variant used by both the per-employee save and the bulk import. */
+    private function ensureLegacySubmissionByDept(int $deptId, string $period): bool
+    {
         $t = lt('sched_req'); // Schedule_Request
         [$y, $m] = array_map('intval', explode('-', $period));
         $monthStart = sprintf('%04d-%02d-01', $y, $m);
@@ -327,20 +338,7 @@ class RosterController extends Controller
     public function submitForm(): void
     {
         Auth::requireRole('dept_head');
-        $period = $this->input('period', period_of(date('Y-m-d')));
-        if (legacy_mode()) {
-            $depts    = (new \App\Repositories\DepartmentRepository($this->db))->all();
-            $sections = [];   // no distinct legacy section master; department is the unit here
-        } else {
-            $depts    = $this->db->all("SELECT * FROM departments ORDER BY name");
-            $sections = $this->db->all("SELECT * FROM sections ORDER BY name");
-        }
-        $this->view('roster/submit', [
-            'title'  => 'Submit Duty Roster',
-            'period' => $period,
-            'depts'  => $depts,
-            'sections' => $sections,
-        ]);
+        $this->renderSubmit($this->input('period', period_of(date('Y-m-d'))));
     }
 
     public function submit(): void
@@ -382,5 +380,340 @@ class RosterController extends Controller
 
         $this->flash('success', 'Duty roster submitted for approval.');
         $this->redirect('approvals');
+    }
+
+    // === Excel template + bulk upload ==================================
+
+    /**
+     * Stream a ready-to-fill .xlsx duty-roster template for one department and
+     * month. Rows = the department's employees (ID + name locked-looking), one
+     * column per calendar day, every day-cell a dropdown of the valid shift
+     * codes. Any existing roster for the month is pre-filled so the file can be
+     * edited and re-uploaded. A hidden Meta sheet records the dept + month so
+     * the upload knows exactly what it's importing.
+     */
+    public function template(): void
+    {
+        Auth::requireRole('dept_head');
+        $deptId = (int) $this->input('department_id', 0);
+        $period = $this->input('period', period_of(date('Y-m-d')));
+        if (!$deptId) {
+            $this->flash('error', 'Choose a department before downloading the template.');
+            $this->redirect('roster/submit?period=' . $period);
+        }
+
+        $dept      = (new DepartmentRepository($this->db))->find($deptId);
+        $deptName  = $dept['name'] ?? ('Department ' . $deptId);
+        $employees = (new EmployeeRepository($this->db))->byDepartment($deptId);
+        $shifts    = (new ShiftRepository($this->db))->all();
+        $roster    = new RosterRepository($this->db);
+
+        $codes = [];
+        foreach ($shifts as $s) {
+            $c = trim((string) $s['code']);
+            if ($c !== '' && !in_array($c, $codes, true)) $codes[] = $c;
+        }
+
+        [$start, $end] = month_bounds($period);
+        $days = [];
+        for ($ts = strtotime($start); $ts <= strtotime($end); $ts = strtotime('+1 day', $ts)) {
+            $days[] = date('Y-m-d', $ts);
+        }
+
+        $xlsx = new XlsxWriter();
+        $R = $xlsx->addSheet('Roster');
+        $L = $xlsx->addSheet('Lists', true);
+        $M = $xlsx->addSheet('Meta', true);
+
+        $lastCol      = 2 + count($days);
+        $lastColL     = XlsxWriter::colLetter($lastCol);
+        $headerRow    = 4;
+        $firstDataRow = $headerRow + 1;
+
+        $xlsx->setCols($R, [[1, 1, 12], [2, 2, 34], [3, $lastCol, 6]]);
+        $xlsx->setFreeze($R, 2, $headerRow);
+
+        $xlsx->addMerge($R, 'A1:' . $lastColL . '1');
+        $xlsx->addMerge($R, 'A2:' . $lastColL . '2');
+        $xlsx->setCell($R, 1, 1, 'DUTY ROSTER   —   ' . $deptName . '   —   ' . period_label($period), 1);
+        $xlsx->setCell($R, 2, 1,
+            'Pick a shift for each day from the dropdown. Leave a day blank for no duty. '
+            . 'Do NOT change the Employee ID / Name columns or the day headings.', 0);
+
+        $xlsx->setCell($R, $headerRow, 1, 'Employee ID', 2);
+        $xlsx->setCell($R, $headerRow, 2, 'Employee Name', 2);
+        foreach ($days as $k => $d) {
+            $xlsx->setCell($R, $headerRow, 3 + $k,
+                sprintf('%02d %s', (int) date('j', strtotime($d)), date('D', strtotime($d))), 2);
+        }
+
+        $row = $firstDataRow;
+        foreach ($employees as $emp) {
+            $assigned = $roster->forEmployeeRange((int) $emp['id'], $start, $end);
+            $xlsx->setCell($R, $row, 1, $emp['emp_id'], 5, 's');
+            $xlsx->setCell($R, $row, 2, $emp['full_name'], 5, 's');
+            foreach ($days as $k => $d) {
+                $code = isset($assigned[$d]) ? trim((string) $assigned[$d]['code']) : '';
+                $xlsx->setCell($R, $row, 3 + $k, $code, 4, 's');
+            }
+            $row++;
+        }
+        $lastDataRow = $row - 1;
+
+        if ($employees && $codes) {
+            $xlsx->addValidationList(
+                $R,
+                'C' . $firstDataRow . ':' . $lastColL . $lastDataRow,
+                'Lists!$A$2:$A$' . (count($codes) + 1)
+            );
+        }
+
+        $xlsx->setCell($L, 1, 1, 'Shifts', 2);
+        foreach ($codes as $i => $c) {
+            $xlsx->setCell($L, 2 + $i, 1, $c, 0, 's');
+        }
+
+        $xlsx->setCell($M, 1, 1, 'DepartmentId');   $xlsx->setCell($M, 1, 2, $deptId, 0, 'n');
+        $xlsx->setCell($M, 2, 1, 'DepartmentName'); $xlsx->setCell($M, 2, 2, $deptName, 0, 's');
+        $xlsx->setCell($M, 3, 1, 'Period');         $xlsx->setCell($M, 3, 2, $period, 0, 's');
+        $xlsx->setCell($M, 4, 1, 'Version');        $xlsx->setCell($M, 4, 2, 1, 0, 'n');
+
+        $safe = preg_replace('/[^A-Za-z0-9]+/', '_', $deptName);
+        $xlsx->stream('DutyRoster_' . trim($safe, '_') . '_' . $period . '.xlsx');
+    }
+
+    /**
+     * Receive a filled-in template, validate every row/cell (unknown employee
+     * IDs, bad day headings, unknown shift codes, duplicates, wrong dept/month),
+     * and — only if there are zero blocking errors — write the whole department's
+     * month into AllotShift/AllotShiftDetail and raise one Schedule_Request. On
+     * any error nothing is written and a cell-referenced report is shown.
+     */
+    public function import(): void
+    {
+        Auth::requireRole('dept_head');
+        $this->verifyCsrf();
+
+        $formDept   = (int) $this->input('department_id', 0);
+        $formPeriod = $this->input('period', period_of(date('Y-m-d')));
+
+        $file = $_FILES['file'] ?? null;
+        if (!$file || $file['error'] !== UPLOAD_ERR_OK) {
+            $this->flash('error', 'Please choose a filled-in roster file to upload.');
+            $this->redirect('roster/submit?period=' . $formPeriod . ($formDept ? '&department_id=' . $formDept : ''));
+        }
+        $ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
+        if (!in_array($ext, ['xlsx', 'csv'], true)) {
+            $this->flash('error', 'Unsupported file type. Upload the .xlsx template (or a .csv).');
+            $this->redirect('roster/submit?period=' . $formPeriod);
+        }
+
+        $tmp = tempnam(sys_get_temp_dir(), 'dr_imp_');
+        move_uploaded_file($file['tmp_name'], $tmp);
+
+        try {
+            $result = $this->parseRosterFile($tmp, $ext, $formDept, $formPeriod);
+            if ($result['ok']) {
+                $this->applyRosterImport($result);
+            }
+        } catch (\Throwable $e) {
+            @unlink($tmp);
+            $this->renderSubmit($formPeriod, [
+                'ok' => false, 'errors' => ['Could not process the file: ' . $e->getMessage()],
+                'warnings' => [], 'summary' => null, 'deptName' => '', 'period' => $formPeriod,
+            ]);
+            return;
+        }
+        @unlink($tmp);
+
+        $this->renderSubmit($result['period'] ?: $formPeriod, $result);
+    }
+
+    /** Parse + validate an uploaded roster file. Never writes to the DB. */
+    private function parseRosterFile(string $path, string $ext, int $formDept, string $formPeriod): array
+    {
+        $errors = $warnings = [];
+
+        // Trust the hidden Meta sheet (it matches the grid) when present.
+        $deptId = $formDept; $period = $formPeriod; $deptName = '';
+        if ($ext === 'xlsx') {
+            $meta = [];
+            foreach (SpreadsheetReader::namedMatrix($path, 'Meta') as $r) {
+                if (isset($r[0])) $meta[trim((string) $r[0])] = trim((string) ($r[1] ?? ''));
+            }
+            if (!empty($meta['DepartmentId'])) $deptId  = (int) $meta['DepartmentId'];
+            if (!empty($meta['Period']))       $period  = $meta['Period'];
+            $deptName = $meta['DepartmentName'] ?? '';
+            if ($formDept && $deptId && $formDept !== $deptId) {
+                $warnings[] = 'This file was generated for ' . ($deptName ?: 'another department')
+                    . '; importing it under that department, not the one selected.';
+            }
+        }
+        if (!$deptId) {
+            return $this->parseFail('Select the department and month this file is for before uploading.', $period);
+        }
+        if ($deptName === '') {
+            $d = (new DepartmentRepository($this->db))->find($deptId);
+            $deptName = $d['name'] ?? ('Department ' . $deptId);
+        }
+
+        // Keyed by true spreadsheet row number so error messages cite real cells.
+        $matrix = SpreadsheetReader::matrixIndexed($path, $ext);
+        if (!$matrix) {
+            return $this->parseFail('The file appears to be empty.', $period);
+        }
+
+        // Locate the header row (its first cell reads like "Employee ID").
+        $headerRowNo = null; $header = null;
+        foreach ($matrix as $rowNo => $r) {
+            $norm = preg_replace('/[^a-z0-9]/', '', strtolower((string) ($r[0] ?? '')));
+            if (strpos($norm, 'employeeid') !== false) { $headerRowNo = $rowNo; $header = $r; break; }
+        }
+        if ($headerRowNo === null) {
+            return $this->parseFail('Could not find the header row (a cell reading "Employee ID"). '
+                . 'Please upload the generated template without deleting its heading rows.', $period);
+        }
+
+        // Map each day column to a real date in the period.
+        [$y, $mo] = array_map('intval', explode('-', $period));
+        $dayCount = (int) date('t', mktime(0, 0, 0, $mo, 1, $y));
+        $colDate  = [];   // matrix col index => 'Y-m-d'
+        for ($c = 2; $c < count($header); $c++) {
+            $txt = trim((string) $header[$c]);
+            if ($txt === '') continue;
+            if (preg_match('/(\d{1,2})/', $txt, $m) && (int) $m[1] >= 1 && (int) $m[1] <= $dayCount) {
+                $colDate[$c] = sprintf('%04d-%02d-%02d', $y, $mo, (int) $m[1]);
+            } else {
+                $warnings[] = 'Ignored an unrecognised day heading "' . $txt . '".';
+            }
+        }
+        if (!$colDate) {
+            return $this->parseFail('No day columns were found in the sheet.', $period);
+        }
+
+        $empByCode  = (new EmployeeRepository($this->db))->codeMap();
+        $shiftByCode = [];
+        foreach ((new ShiftRepository($this->db))->all() as $s) {
+            $shiftByCode[strtoupper(trim((string) $s['code']))] = (int) $s['id'];
+        }
+
+        $employees = [];
+        $seen = [];
+        foreach ($matrix as $rowNo => $r) {
+            if ($rowNo <= $headerRowNo) continue;   // skip title/instructions/header
+            $code = trim((string) ($r[0] ?? ''));
+            if ($code === '') continue;
+            $excelRow = $rowNo;
+
+            if (!isset($empByCode[$code])) {
+                $errors[] = "Row {$excelRow}: unknown Employee ID \"{$code}\".";
+                continue;
+            }
+            if (isset($seen[$code])) {
+                $errors[] = "Row {$excelRow}: Employee ID \"{$code}\" appears more than once.";
+                continue;
+            }
+            $seen[$code] = true;
+
+            if (($empByCode[$code]['department_id'] ?? null) !== $deptId) {
+                $warnings[] = "Row {$excelRow}: {$code} is on file under a different department.";
+            }
+
+            // Authoritative for the month: every day column -> shift id, or 0 to clear.
+            $map = []; $days = 0;
+            foreach ($colDate as $c => $date) {
+                $cell = trim((string) ($r[$c] ?? ''));
+                if ($cell === '') { $map[$date] = 0; continue; }
+                $key = strtoupper($cell);
+                if (!isset($shiftByCode[$key])) {
+                    $ref = XlsxWriter::colLetter($c + 1) . $excelRow;
+                    $errors[] = "Cell {$ref} (" . date('d M', strtotime($date)) . "): unknown shift \"{$cell}\".";
+                    continue;
+                }
+                $map[$date] = $shiftByCode[$key];
+                $days++;
+            }
+
+            $employees[] = [
+                'id'     => (int) $empByCode[$code]['id'],
+                'emp_id' => $code,
+                'name'   => trim((string) ($r[1] ?? '')),
+                'map'    => $map,
+                'days'   => $days,
+            ];
+        }
+
+        if (!$employees && !$errors) {
+            $errors[] = 'No employee rows were found in the file.';
+        }
+
+        return [
+            'ok'        => empty($errors),
+            'deptId'    => $deptId,
+            'deptName'  => $deptName,
+            'period'    => $period,
+            'errors'    => $errors,
+            'warnings'  => $warnings,
+            'employees' => $employees,
+            'summary'   => null,
+        ];
+    }
+
+    private function parseFail(string $message, string $period): array
+    {
+        return [
+            'ok' => false, 'deptId' => 0, 'deptName' => '', 'period' => $period,
+            'errors' => [$message], 'warnings' => [], 'employees' => [], 'summary' => null,
+        ];
+    }
+
+    /** Write a validated import: one AllotShift per employee + one Schedule_Request. */
+    private function applyRosterImport(array &$result): void
+    {
+        $deptId = (int) $result['deptId'];
+        $period = (string) $result['period'];
+        $empCount = 0; $assignments = 0;
+
+        $this->db->begin();
+        try {
+            foreach ($result['employees'] as $e) {
+                if (!$e['map']) continue;
+                $this->saveLegacy((int) $e['id'], $period, $e['map']);
+                $empCount++;
+                $assignments += (int) $e['days'];
+            }
+            $submitted = $this->ensureLegacySubmissionByDept($deptId, $period);
+            $this->db->commit();
+        } catch (\Throwable $ex) {
+            $this->db->rollback();
+            $result['ok'] = false;
+            $result['errors'][] = 'Import failed while saving: ' . $ex->getMessage();
+            return;
+        }
+
+        $result['summary'] = [
+            'employees'   => $empCount,
+            'assignments' => $assignments,
+            'submitted'   => $submitted,
+        ];
+    }
+
+    /** Render the Submit Duty Roster screen (optionally with an import report). */
+    private function renderSubmit(string $period, ?array $import = null): void
+    {
+        if (legacy_mode()) {
+            $depts    = (new DepartmentRepository($this->db))->all();
+            $sections = [];
+        } else {
+            $depts    = $this->db->all("SELECT * FROM departments ORDER BY name");
+            $sections = $this->db->all("SELECT * FROM sections ORDER BY name");
+        }
+        $this->view('roster/submit', [
+            'title'    => 'Submit Duty Roster',
+            'period'   => $period,
+            'depts'    => $depts,
+            'sections' => $sections,
+            'import'   => $import,
+        ]);
     }
 }
