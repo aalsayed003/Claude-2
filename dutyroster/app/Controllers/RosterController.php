@@ -177,7 +177,8 @@ class RosterController extends Controller
             // Create a Schedule_Request (Approved = dr_initial_state, Uploaded = 0).
             [$y, $m] = explode('-', $period);
             try {
-                $this->db->insert(lt('sched_req'), [
+                $t = lt('sched_req');
+                $row = [
                     'DateTime'      => date('Y-m-d H:i:s'),
                     'DepartmentId'  => $deptId,
                     'ScheduleMonth' => sprintf('%04d-%02d-01', $y, $m),
@@ -185,7 +186,11 @@ class RosterController extends Controller
                     'Approved'      => (int) \App\Core\Config::get('legacy.dr_initial_state', 1),
                     'Uploaded'      => 0,
                     'Comments'      => null,
-                ]);
+                ];
+                if (!$this->db->isIdentity($t, 'ID')) {
+                    $row = ['ID' => $this->db->nextId($t, 'ID')] + $row;
+                }
+                $this->db->insert($t, $row);
                 $this->flash('success', 'Duty roster submitted for approval.');
             } catch (\Throwable $e) {
                 $this->flash('error', 'Could not submit: ' . $e->getMessage());

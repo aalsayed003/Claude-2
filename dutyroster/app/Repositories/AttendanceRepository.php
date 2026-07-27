@@ -111,13 +111,26 @@ class AttendanceRepository
         return $out;
     }
 
-    /** True if the given table exists in the current database. */
+    /** True if the given table exists in the current database (driver-aware). */
     private function tableExists(string $table): bool
     {
-        return (bool) $this->db->value(
-            "SELECT CASE WHEN OBJECT_ID(:t, 'U') IS NOT NULL THEN 1 ELSE 0 END",
-            [':t' => $table]
-        );
+        switch ($this->db->driver()) {
+            case 'sqlsrv':
+                return (bool) $this->db->value(
+                    "SELECT CASE WHEN OBJECT_ID(:t, 'U') IS NOT NULL THEN 1 ELSE 0 END",
+                    [':t' => $table]
+                );
+            case 'sqlite':
+                return (bool) $this->db->value(
+                    "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name = :t",
+                    [':t' => $table]
+                );
+            default: // mysql / pgsql
+                return (bool) $this->db->value(
+                    "SELECT COUNT(*) FROM information_schema.tables WHERE table_name = :t",
+                    [':t' => $table]
+                );
+        }
     }
 
     /**
