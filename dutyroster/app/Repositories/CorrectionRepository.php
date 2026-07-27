@@ -21,7 +21,8 @@ class CorrectionRepository
         $rt = lt('ot_reason');
         $rows = $this->db->all(
             "SELECT cr.RequestID, cr.RequestDate, cr.DayFor, cr.ReasonID,
-                    r.Reason AS reason_name, cr.TypeId, cr.StateID, cr.Remarks
+                    r.Reason AS reason_name, cr.TypeId, cr.StateID, cr.Remarks,
+                    cr.FirstIn, cr.FirstOut, cr.SecondIn, cr.SecondOut
                FROM {$t} cr
                LEFT JOIN {$rt} r ON r.ReasonID = cr.ReasonID
               WHERE cr.EmployeeID = :e AND cr.DayFor BETWEEN :a AND :b
@@ -82,12 +83,22 @@ class CorrectionRepository
     {
         $states = Config::get('legacy.dr_states', [10 => 'Expired']);
         $type = (int) ($r['TypeId'] ?? 0);
+
+        // Label the request by which punches it corrects (and their target time).
+        $tm = fn($v) => $v ? date('h:i a', strtotime((string) $v)) : null;
+        $parts = [];
+        if ($tm($r['FirstIn']   ?? null)) $parts[] = 'First In → '  . $tm($r['FirstIn']);
+        if ($tm($r['FirstOut']  ?? null)) $parts[] = 'First Out → ' . $tm($r['FirstOut']);
+        if ($tm($r['SecondIn']  ?? null)) $parts[] = 'Second In → ' . $tm($r['SecondIn']);
+        if ($tm($r['SecondOut'] ?? null)) $parts[] = 'Second Out → '. $tm($r['SecondOut']);
+        $label = $parts ? implode(', ', $parts) : (in_array($type, [0, 2], true) ? 'Late-In' : 'Early-Out');
+
         return [
             'id'           => (int) $r['RequestID'],
             'requested_at' => $r['RequestDate'] ?? null,
             'work_date'    => $r['DayFor'] ? substr((string) $r['DayFor'], 0, 10) : null,
             'reason'       => $r['reason_name'] ?? null,
-            'type_label'   => in_array($type, [0, 2], true) ? 'Late-In' : 'Early-Out',
+            'type_label'   => $label,
             'remarks'      => $r['Remarks'] ?? null,
             'status'       => $states[(int) ($r['StateID'] ?? 0)] ?? ('State ' . (int) ($r['StateID'] ?? 0)),
             'lines'        => 1,
