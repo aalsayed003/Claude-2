@@ -28,10 +28,18 @@ Helper scripts used to build and populate the single consolidated app database
 5. **`../app_users.sqlserver.sql`** — creates the app login table
    (`dr_app_users`) + the default `admin` account. The one table the legacy
    schema doesn't provide.
+6. **`Restore_Identity_AutoNumbering.sql`** — **required after the copies.**
+   `SELECT ... INTO` drops the IDENTITY property, so NOT NULL key columns the
+   app doesn't populate (`DR_CorrectionRequest.SNo` / `RequestID`,
+   `Schedule_Request.ID`, `AllotShift`/`AllotShiftDetail.ID`, …) reject inserts
+   with *"Cannot insert the value NULL into column …"*. This restores
+   auto-numbering in place (a SEQUENCE + DEFAULT per column) without rebuilding
+   the tables, and prints a diagnostic of any column that could still block.
 
 ## Notes
 - All copy scripts are idempotent-ish and skip tables already present / empty.
-- `SELECT ... INTO` copies structure + data + identity, but not PKs/indexes/
-  constraints — fine for a test database.
+- `SELECT ... INTO` copies structure + data, **but NOT the IDENTITY property**,
+  PKs, indexes, or constraints. The dropped identity is why inserts fail with a
+  NULL-key error until `Restore_Identity_AutoNumbering.sql` is run.
 - These operate on real hospital data; treat `TestASSH` with production-grade
   access controls.
