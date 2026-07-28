@@ -133,6 +133,17 @@ return [
         'correction_table'      => 'DR_CorrectionRequest', // EmployeeID, DayFor, StateID, TypeID
         'working_hours_table'   => 'EmployeeWorkingHours',
         // DR_CorrectionRequest.TypeID: 0,2 = late-in; 1,3 = early-out.
+
+        // Raw biometric punch table (one row per punch). When present, View
+        // Attendance pairs punches against the roster schedule itself — which
+        // fixes split-duty (reads the 2nd in) and overnight shifts (the
+        // after-midnight out is attributed to the shift's day, not the next).
+        // If this table isn't in the app DB, the app falls back to the
+        // pre-paired Atten_MMYYYY tables. Use a cross-DB name (e.g.
+        // 'zkteco_biotime.dbo.checkinout') if it lives in another database.
+        'punch_table'     => 'checkinout',
+        'punch_pin_col'   => 'pin',        // matched to the employee's 9-digit PIN
+        'punch_time_col'  => 'checktime',
     ],
 
     // The biometric source: the SQL Server DB that the ZKTeco auto-sync script
