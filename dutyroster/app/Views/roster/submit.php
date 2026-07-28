@@ -55,8 +55,9 @@
 
     <div class="card">
         <h3 style="margin-top:0">2 · Upload the filled roster</h3>
-        <p class="subtle">Upload the completed template. Every Employee ID, date and shift is checked first; if anything
-            is wrong the upload is rejected with the exact cells to fix, and nothing is saved.</p>
+        <p class="subtle">Upload the completed template. Recognised shifts are saved; a <strong>blank day is left
+            unchanged</strong> (not updated), and any unrecognised cell is skipped with a note. Only Employee-ID,
+            date or duplicate-row problems stop the import.</p>
         <form method="post" action="<?= url('roster/import') ?>" enctype="multipart/form-data">
             <?= csrf_field() ?>
             <div class="field"><label>Roster file (.xlsx)</label>
