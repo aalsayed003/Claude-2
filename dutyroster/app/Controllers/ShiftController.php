@@ -10,10 +10,12 @@ class ShiftController extends Controller
     {
         Auth::requireRole('dept_head');
         if (legacy_mode()) {
-            $shifts = (new \App\Repositories\ShiftRepository($this->db))->all();
-            usort($shifts, fn($a, $b) => [$b['is_day_off'], $b['is_holiday'], $a['code']] <=> [$a['is_day_off'], $a['is_holiday'], $b['code']]);
+            // Include blocked shifts in the admin list so they can be un-hidden;
+            // the roster dropdowns use all() (default) which excludes blocked ones.
+            $shifts = (new \App\Repositories\ShiftRepository($this->db))->all(false, true);
+            usort($shifts, fn($a, $b) => [$b['first_in']] <=> [$a['first_in']]);
         } else {
-            $shifts = $this->db->all("SELECT * FROM shifts ORDER BY is_day_off DESC, is_holiday DESC, code");
+            $shifts = $this->db->all("SELECT * FROM shifts ORDER BY first_in ASC");
         }
         $this->view('shifts/index', ['title' => 'Duty Roster Master — Shifts', 'shifts' => $shifts]);
     }
@@ -73,11 +75,34 @@ class ShiftController extends Controller
         $this->redirect('shifts');
     }
 
+    /**
+     * In legacy mode the Shift master is shared and must never be hard-deleted,
+     * so this toggles IsBlocked: a blocked shift disappears from the roster
+     * dropdowns (all()), which is how the long shift list is trimmed. Toggling
+     * again restores it. In the clean schema it keeps the delete/deactivate
+     * behaviour.
+     */
     public function delete(): void
     {
         Auth::requireRole('dept_head');
         $this->verifyCsrf();
         $id = (int) $this->input('id');
+
+        if (legacy_mode()) {
+            $shift = (new \App\Repositories\ShiftRepository($this->db))->find($id);
+            if (!$shift) {
+                $this->flash('error', 'Shift not found.');
+                $this->redirect('shifts');
+            }
+            // shape 'Blocked' == 1 means currently visible -> hide it (IsBlocked = 1).
+            $block = ((int) $shift['Blocked'] === 1) ? 1 : 0;
+            $this->db->update(lt('shift'), ['IsBlocked' => $block], 'ID = :id', [':id' => $id]);
+            $this->flash('success', $block
+                ? 'Shift hidden from the roster dropdowns.'
+                : 'Shift restored to the roster dropdowns.');
+            $this->redirect('shifts');
+        }
+
         $inUse = (int) $this->db->value("SELECT COUNT(*) FROM roster WHERE shift_id = :id", [':id' => $id]);
         if ($inUse > 0) {
             $this->db->update('shifts', ['active' => 0], 'id = :id', [':id' => $id]);
