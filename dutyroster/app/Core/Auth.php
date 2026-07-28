@@ -3,13 +3,19 @@ namespace App\Core;
 
 class Auth
 {
-    /** Approval ranking used to gate approval screens. */
+    /** Approval ranking used to gate approval screens. All approver roles rank
+     *  above dept_head so they can reach the Approve Request screen; the exact
+     *  gate (CNO / COO-MD / HR) is matched by role in the approval flow, not by
+     *  rank. */
     public const ROLE_RANK = [
         'employee'  => 0,
         'dept_head' => 1,
         'fa'        => 2,
         'mrd'       => 3,
         'coo'       => 4,
+        'cno'       => 4,
+        'coo_md'    => 5,
+        'hr'        => 6,
         'admin'     => 9,
     ];
 

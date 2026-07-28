@@ -122,6 +122,18 @@ return [
             'doctor'  => ['dept_head', 'coo_md', 'hr'],
             'default' => ['dept_head', 'hr'],
         ],
+        // Schedule_Request.Approved value written on reject (no legacy rejected
+        // code exists; 9 is outside the 1/2/3 approval range).
+        'schedule_reject_code' => 9,
+        // Until payroll supplies employee category, map departments that route
+        // through the extra approver: DepartmentId => 'nurse' (-> CNO) or
+        // 'doctor' (-> COO/MD). Unlisted departments use the 'default' chain
+        // (Dept Head -> HR apply). App users need matching roles in
+        // dr_app_users.role: 'dept_head', 'cno', 'coo_md', 'hr' (admin can do any).
+        'dept_category' => [
+            // 12 => 'nurse',
+            // 7  => 'doctor',
+        ],
         'ot_state_expired'  => 10,                // DR_OverTime.StateID 10 = Expired
 
         // Single-database deployment: the DB_ASSH duty-roster tables

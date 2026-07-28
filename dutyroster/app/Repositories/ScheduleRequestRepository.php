@@ -42,28 +42,35 @@ class ScheduleRequestRepository
         return array_map([$this, 'shape'], $rows);
     }
 
+    /** One submission by id (raw legacy row). */
+    public function find(int $id): ?array
+    {
+        $t = lt('sched_req');
+        return $this->db->one(
+            "SELECT ID AS id, DepartmentId, ScheduleMonth, Approved, Uploaded, Comments, Reason
+               FROM {$t} WHERE ID = :id",
+            [':id' => $id]
+        );
+    }
+
     private function shape(array $r): array
     {
-        $states = Config::get('legacy.schedule_states', [
-            1 => 'Submitted', 2 => 'Department Head Approved', 3 => 'MD/COO/CNO Approved',
-        ]);
-        $uploaded = (int) ($r['Uploaded'] ?? 0) === 1;
-        $approved = (int) ($r['Approved'] ?? 0);
-        $label = $uploaded ? 'Applied' : ($states[$approved] ?? 'Pending');
-        $class = $uploaded ? 'applied'
-            : ($approved >= 3 ? 'approved' : ($approved >= 1 ? 'present' : 'pending'));
-
         $month = $r['ScheduleMonth'] ? date('Y-m', strtotime((string) $r['ScheduleMonth'])) : '';
         return [
             'id'             => (int) $r['id'],
             'period_key'     => $month,
+            'department_id'  => (int) ($r['DepartmentId'] ?? 0),
             'dept_name'      => $r['dept_name'] ?? null,
             'section_name'   => null,
             'submitted_name' => null,
             'submitted_at'   => $r['submitted_at'] ?? null,
-            'status'         => $label,
-            'status_class'   => $class,
-            'can_act'        => false,   // approve/reject writes: next iteration
+            'approved'       => (int) ($r['Approved'] ?? 0),
+            'uploaded'       => (int) ($r['Uploaded'] ?? 0),
+            'comments'       => $r['Comments'] ?? null,
+            // status label/class/can_act are filled by the controller via ApprovalFlow.
+            'status'         => 'Pending',
+            'status_class'   => 'pending',
+            'can_act'        => false,
         ];
     }
 }
