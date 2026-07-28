@@ -329,9 +329,15 @@ class RosterController extends Controller
             }
         }
 
+        // Recompute the header total from ALL current detail rows, not just the
+        // ones in this call — an Excel import only carries the days it changed.
+        $sum = (float) $this->db->value(
+            "SELECT COALESCE(SUM(TotalHours), 0) FROM {$dtl} WHERE AllotId = :a AND Deleted = 0",
+            [':a' => $allotId]
+        );
         $this->db->run(
             "UPDATE {$hdr} SET TotalHours = :h WHERE ID = :id",
-            [':h' => $totalHours, ':id' => $allotId]
+            [':h' => $sum, ':id' => $allotId]
         );
     }
 
@@ -459,8 +465,8 @@ class RosterController extends Controller
         $xlsx->addMerge($R, 'A2:' . $lastColL . '2');
         $xlsx->setCell($R, 1, 1, 'DUTY ROSTER   —   ' . $deptName . '   —   ' . period_label($period), 1);
         $xlsx->setCell($R, 2, 1,
-            'Pick a shift for each day from the dropdown. Leave a day blank for no duty. '
-            . 'Do NOT change the Employee ID / Name columns or the day headings.', 0);
+            'Pick a shift for each day from the dropdown. Leave a day blank to keep its current '
+            . 'schedule (not updated). Do NOT change the Employee ID / Name columns or the day headings.', 0);
 
         $xlsx->setCell($R, $headerRow, 1, 'Employee ID', 2);
         $xlsx->setCell($R, $headerRow, 2, 'Employee Name', 2);
@@ -657,15 +663,18 @@ class RosterController extends Controller
                 $warnings[] = "Row {$excelRow}: {$code} is on file under a different department.";
             }
 
-            // Authoritative for the month: every day column -> shift id, or 0 to clear.
+            // Non-destructive: a blank cell means "schedule not updated" (leave
+            // that day exactly as it is); an unrecognised value is skipped with a
+            // note. Only recognised shifts actually change the roster.
             $map = []; $days = 0;
             foreach ($colDate as $c => $date) {
                 $cell = trim((string) ($r[$c] ?? ''));
-                if ($cell === '') { $map[$date] = 0; continue; }
+                if ($cell === '') continue;                       // blank -> not updated
                 $key = strtoupper($cell);
                 if (!isset($shiftLookup[$key])) {
                     $ref = XlsxWriter::colLetter($c + 1) . $excelRow;
-                    $errors[] = "Cell {$ref} (" . date('d M', strtotime($date)) . "): unknown shift \"{$cell}\".";
+                    $warnings[] = "Cell {$ref} (" . date('d M', strtotime($date))
+                        . ") for {$code}: \"{$cell}\" isn't a known shift — left unchanged.";
                     continue;
                 }
                 $map[$date] = $shiftLookup[$key];
@@ -720,7 +729,7 @@ class RosterController extends Controller
                 $empCount++;
                 $assignments += (int) $e['days'];
             }
-            $submitted = $this->ensureLegacySubmissionByDept($deptId, $period);
+            $submitted = $empCount > 0 ? $this->ensureLegacySubmissionByDept($deptId, $period) : false;
             $this->db->commit();
         } catch (\Throwable $ex) {
             $this->db->rollback();
