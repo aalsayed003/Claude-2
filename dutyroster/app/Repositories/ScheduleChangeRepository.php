@@ -32,6 +32,34 @@ class ScheduleChangeRepository
         return array_map([$this, 'shape'], $rows);
     }
 
+    /**
+     * Insert a change-of-schedule request into DR_ChangeSchedule. RequestID is
+     * not an identity column in TestASSH (SELECT INTO dropped it), so we supply
+     * MAX+1 when needed — same guard used for corrections. Returns the new id.
+     */
+    public function create(array $d): int
+    {
+        $t = lt('change_sched');
+        $date = $d['work_date'];
+        $row = [
+            'RequestDate'   => date('Y-m-d H:i:s'),
+            'EmployeeID'    => (int) $d['employee_id'],
+            'ScheduleMonth' => date('Y-m-01', strtotime($date)),
+            'ScheduleDay'   => (int) date('j', strtotime($date)),
+            'ShiftID'       => ($d['old_shift_id'] ?? '') !== '' ? (int) $d['old_shift_id'] : null,
+            'ChangeShiftID' => ($d['new_shift_id'] ?? '') !== '' ? (int) $d['new_shift_id'] : null,
+            'AgainstFor'    => ($d['change_against_date'] ?? '') ?: null,
+            'ClaimTime'     => ($d['claim_time'] ?? '') ?: null,
+            'RejectReason'  => null,
+            'StateID'       => (int) Config::get('legacy.dr_initial_state', 1),
+        ];
+        if (!$this->db->isIdentity($t, 'RequestID')) {
+            $row = ['RequestID' => $this->db->nextId($t, 'RequestID')] + $row;
+        }
+        $this->db->insert($t, $row);
+        return (int) ($row['RequestID'] ?? 0);
+    }
+
     private function shape(array $r): array
     {
         $states = Config::get('legacy.dr_states', [10 => 'Expired']);

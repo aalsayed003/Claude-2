@@ -57,14 +57,34 @@ class ScheduleChangeController extends Controller
             $this->flash('error', 'Employee and schedule day are required.');
             $this->redirect('schedule-change');
         }
+
+        $payload = [
+            'employee_id'         => $empId,
+            'work_date'           => $date,
+            'old_shift_id'        => $this->input('old_shift_id'),
+            'new_shift_id'        => $this->input('new_shift_id'),
+            'change_against_date' => $this->input('change_against_date'),
+            'claim_time'          => $this->input('claim_time'),
+        ];
+
+        if (legacy_mode()) {
+            try {
+                (new \App\Repositories\ScheduleChangeRepository($this->db))->create($payload);
+                $this->flash('success', 'Schedule change request submitted.');
+            } catch (\Throwable $e) {
+                $this->flash('error', 'Could not save schedule change: ' . $e->getMessage());
+            }
+            $this->redirect('schedule-change?employee_id=' . $empId);
+        }
+
         $this->db->insert('schedule_change_requests', [
             'employee_id'  => $empId,
             'period_key'   => period_of($date),
             'work_date'    => $date,
-            'old_shift_id' => $this->input('old_shift_id') ?: null,
-            'new_shift_id' => $this->input('new_shift_id') ?: null,
-            'change_against_date' => $this->input('change_against_date') ?: null,
-            'claim_time'   => $this->input('claim_time') ?: null,
+            'old_shift_id' => ($payload['old_shift_id'] ?? '') ?: null,
+            'new_shift_id' => ($payload['new_shift_id'] ?? '') ?: null,
+            'change_against_date' => ($payload['change_against_date'] ?? '') ?: null,
+            'claim_time'   => ($payload['claim_time'] ?? '') ?: null,
             'status'       => 'pending',
             'requested_by' => Auth::id(),
         ]);
