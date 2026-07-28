@@ -13,15 +13,16 @@ class ShiftRepository
 {
     public function __construct(private Database $db) {}
 
-    public function all(bool $includeDeleted = false): array
+    public function all(bool $includeDeleted = false, bool $includeIsBlocked = false): array
     {
         $shift = lt('shift');
         $where = $includeDeleted ? '1=1' : 'Deleted = 0';
+        $where2 = $includeIsBlocked ? '1=1' : 'IsBlocked = 0';
         $rows = $this->db->all(
             "SELECT ID AS id, Name AS name, FromTime AS first_in, ToTime AS first_out,
                     FromTime1 AS second_in, ToTime1 AS second_out, TotalHours AS total_hours,
-                    split, IsTwoShifts, ColorCode AS color, Deleted
-               FROM {$shift} WHERE {$where} ORDER BY Name"
+                    split, IsTwoShifts, ColorCode AS color, Deleted, IsBlocked
+               FROM {$shift} WHERE {$where} AND {$where2} ORDER BY FromTime"
         );
         return array_map([$this, 'shape'], $rows);
     }
@@ -32,7 +33,7 @@ class ShiftRepository
         $row = $this->db->one(
             "SELECT ID AS id, Name AS name, FromTime AS first_in, ToTime AS first_out,
                     FromTime1 AS second_in, ToTime1 AS second_out, TotalHours AS total_hours,
-                    split, IsTwoShifts, ColorCode AS color, Deleted
+                    split, IsTwoShifts, ColorCode AS color, Deleted, IsBlocked
                FROM {$shift} WHERE ID = :id",
             [':id' => $id]
         );
@@ -58,6 +59,7 @@ class ShiftRepository
             'crosses_midnight' => 0,
             'color'       => $r['color'] ?? null,
             'active'      => (int) ($r['Deleted'] ?? 0) === 0 ? 1 : 0,
+            'Blocked'      => (int) ($r['IsBlocked'] ?? 0) === 0 ? 1 : 0,
         ];
     }
 }
