@@ -106,6 +106,21 @@ function lt(string $key): string
     return Config::get('legacy.' . $key, $def[$key] ?? $key);
 }
 
+/** Friendly shift label with times, e.g. "MORNING (08:00–16:00 · 8h)".
+ *  Day Off / Public Holiday / timeless shifts fall back to just the code.
+ *  Takes a shaped shift row (code, first_in, first_out, second_out, total_hours). */
+function shift_label(array $s): string
+{
+    $code = trim((string) ($s['code'] ?? ''));
+    if ($code === '') return '';
+    $t = fn($v) => ($v !== null && trim((string) $v) !== '') ? date('H:i', strtotime((string) $v)) : null;
+    $in  = $t($s['first_in'] ?? null);
+    $out = $t($s['second_out'] ?? null) ?: $t($s['first_out'] ?? null);
+    if (!$in || !$out) return $code;
+    $hs = rtrim(rtrim(number_format((float) ($s['total_hours'] ?? 0), 1), '0'), '.');
+    return "{$code} ({$in}–{$out} · {$hs}h)";
+}
+
 /** Derive the 9-digit biometric PIN from an employee code (e.g. 01732 -> 000001732). */
 function pin_from_code(string $empCode): string
 {

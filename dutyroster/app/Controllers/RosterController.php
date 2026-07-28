@@ -417,15 +417,7 @@ class RosterController extends Controller
      */
     private function shiftLabel(array $s): string
     {
-        $code = trim((string) $s['code']);
-        if ($code === '') return '';
-        $t = fn($v) => ($v !== null && trim((string) $v) !== '')
-            ? date('H:i', strtotime((string) $v)) : null;
-        $in  = $t($s['first_in'] ?? null);
-        $out = $t($s['second_out'] ?? null) ?: $t($s['first_out'] ?? null);
-        if (!$in || !$out) return $code;   // DAY OFF / PUBLIC HOLIDAY / no times
-        $hs = rtrim(rtrim(number_format((float) ($s['total_hours'] ?? 0), 1), '0'), '.');
-        return "{$code} ({$in}–{$out} · {$hs}h)";
+        return shift_label($s);
     }
 
     /**
