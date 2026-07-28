@@ -5,7 +5,9 @@ use App\Core\Controller;
 use App\Core\Auth;
 use App\Core\Config;
 use App\Services\ApprovalFlow;
+use App\Services\CorrectionFlow;
 use App\Repositories\ScheduleRequestRepository;
+use App\Repositories\CorrectionRepository;
 
 /**
  * Duty-roster submission approvals.
@@ -59,11 +61,25 @@ class ApprovalController extends Controller
             unset($s);
         }
 
+        // Attendance corrections awaiting approval (legacy only).
+        $corrections = [];
+        if (legacy_mode()) {
+            $corrections = (new CorrectionRepository($this->db))->pendingForApproval($from, $to);
+            foreach ($corrections as &$c) {
+                $step = CorrectionFlow::step((int) $c['state_id']);
+                $c['status']       = CorrectionFlow::statusLabel((int) $c['state_id']);
+                $c['status_class'] = CorrectionFlow::statusClass((int) $c['state_id']);
+                $c['can_act']      = $step !== null && $this->canAct($step['role']);
+            }
+            unset($c);
+        }
+
         $this->view('approvals/index', [
-            'title' => 'Approve Request',
-            'subs'  => $subs,
-            'from'  => $from,
-            'to'    => $to,
+            'title'       => 'Approve Request',
+            'subs'        => $subs,
+            'corrections' => $corrections,
+            'from'        => $from,
+            'to'          => $to,
         ]);
     }
 
@@ -175,6 +191,53 @@ class ApprovalController extends Controller
         return ['ok' => true, 'msg' => $step['is_apply']
             ? 'Applied to the live roster.'
             : 'Approved — now awaiting ' . ($next['label'] ?? 'HR') . '.'];
+    }
+
+    /** Approve / reject an attendance correction (Dept Head -> HR), then redirect. */
+    public function actCorrection(): void
+    {
+        Auth::requireRole('dept_head');
+        $this->verifyCsrf();
+        $res = $this->correctionDecision(
+            (int) $this->input('id'),
+            $this->input('action'),
+            $this->input('comments') ?: null
+        );
+        $this->flash($res['ok'] ? 'success' : 'error', $res['msg']);
+        $this->redirect('approvals');
+    }
+
+    /** Testable core: advance/reject a correction. Returns ['ok'=>,'msg'=>]. */
+    private function correctionDecision(int $id, string $action, ?string $comment): array
+    {
+        $t = lt('correction_table') ?: 'DR_CorrectionRequest';
+        $c = (new CorrectionRepository($this->db))->find($id);
+        if (!$c) {
+            return ['ok' => false, 'msg' => 'Correction not found.'];
+        }
+
+        $state = (int) ($c['StateID'] ?? 0);
+        $step  = CorrectionFlow::step($state);
+        if (!$step) {
+            return ['ok' => false, 'msg' => 'This correction is already fully processed.'];
+        }
+        if (!$this->canAct($step['role'])) {
+            return ['ok' => false, 'msg' => 'You are not authorised for this step (' . $step['label'] . ').'];
+        }
+
+        if ($action === 'reject') {
+            $set = ['StateID' => CorrectionFlow::rejectState()];
+            if ($comment) {
+                $set['Remarks'] = mb_substr(trim(($c['Remarks'] ? $c['Remarks'] . ' | ' : '') . 'Rejected: ' . $comment), 0, 250);
+            }
+            $this->db->update($t, $set, 'RequestID = :id', [':id' => $id]);
+            return ['ok' => true, 'msg' => 'Correction rejected.'];
+        }
+
+        $this->db->update($t, ['StateID' => $step['to_state']], 'RequestID = :id', [':id' => $id]);
+        return ['ok' => true, 'msg' => $step['is_apply']
+            ? 'Correction applied — the punch will now show the rostered time in View Attendance.'
+            : 'Approved — now awaiting HR.'];
     }
 
     /** Department -> approval category (nurse / doctor / default). Until payroll

@@ -72,7 +72,8 @@ function tm($v){ return $v ? date('h:i a', strtotime($v)) : ''; }
             <td class="num <?= $r['late_in_min']?'late':'' ?>"><?= $r['late_in_min']?:'' ?></td>
             <td class="num <?= $r['early_out_min']?'late':'' ?>"><?= $r['early_out_min']?:'' ?></td>
             <td><span class="chip <?= $r['status'] ?>"><?= ucfirst(str_replace('_',' ',$r['status'])) ?></span>
-                <?= $r['is_odd_punch']?'<span class="chip pending" title="Odd number of punches">odd</span>':'' ?></td>
+                <?= $r['is_odd_punch']?'<span class="chip pending" title="Odd number of punches">odd</span>':'' ?>
+                <?= !empty($r['corrected'])?'<span class="chip applied" title="Approved correction applied">corrected</span>':'' ?></td>
         </tr>
     <?php endforeach; ?>
     <?php if (!$rows): ?><tr><td colspan="12" class="center subtle">No attendance rows. Pick an employee and date range, or recompute the period.</td></tr><?php endif; ?>

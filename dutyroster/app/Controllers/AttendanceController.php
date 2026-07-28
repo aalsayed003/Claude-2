@@ -88,6 +88,9 @@ class AttendanceController extends Controller
         $graceLate  = (int) \App\Core\Config::get('attendance.grace_late_min', 15);
         $graceEarly = (int) \App\Core\Config::get('attendance.grace_early_min', 15);
 
+        // Approved corrections override the computed punch with the rostered time.
+        $corrections = (new \App\Repositories\CorrectionRepository($this->db))->appliedForEmployee($empId, $from, $to);
+
         $available = $raw ?? [];   // punches not yet claimed by an earlier day
         $rows = [];
         for ($ts = strtotime($from); $ts <= strtotime($to); $ts = strtotime('+1 day', $ts)) {
@@ -102,6 +105,20 @@ class AttendanceController extends Controller
                 }
             } else {
                 $a = $atten[$date] ?? null;
+            }
+            $a = $a ?: ['act_first_in' => null, 'act_first_out' => null, 'act_second_in' => null,
+                        'act_second_out' => null, 'punch_count' => 0, 'is_odd_punch' => 0];
+
+            // Apply an approved correction: override slots with the rostered time.
+            $corr = $corrections[$date] ?? [];
+            $corrected = false;
+            foreach (['act_first_in', 'act_first_out', 'act_second_in', 'act_second_out'] as $slot) {
+                if (!empty($corr[$slot])) { $a[$slot] = $corr[$slot]; $corrected = true; }
+            }
+            if ($corrected) {
+                $filled = count(array_filter([$a['act_first_in'], $a['act_first_out'], $a['act_second_in'], $a['act_second_out']]));
+                $a['punch_count'] = max((int) ($a['punch_count'] ?? 0), $filled);
+                $a['is_odd_punch'] = 0;   // a corrected day is treated as complete
             }
 
             $punchCount = $a['punch_count'] ?? 0;
@@ -131,6 +148,10 @@ class AttendanceController extends Controller
                 }
             }
 
+            // A corrected slot is now the rostered time, so its late/early is excused.
+            if (!empty($corr['act_first_in']))  $late  = 0;
+            if (!empty($corr['act_second_out']) || !empty($corr['act_first_out'])) $early = 0;
+
             $rows[] = [
                 'work_date'      => $date,
                 'act_first_in'   => $a['act_first_in']   ?? null,
@@ -145,6 +166,7 @@ class AttendanceController extends Controller
                 'late_in_min'    => $late,
                 'early_out_min'  => $early,
                 'is_odd_punch'   => $a['is_odd_punch'] ?? 0,
+                'corrected'      => $corrected ? 1 : 0,
                 'status'         => $status,
             ];
         }

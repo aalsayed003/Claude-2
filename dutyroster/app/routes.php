@@ -55,6 +55,7 @@ $r->post('roster/import',    [RosterController::class, 'import']);
 // Approvals
 $r->get('approvals',         [ApprovalController::class, 'index']);
 $r->post('approvals/act',    [ApprovalController::class, 'act']);
+$r->post('approvals/correction', [ApprovalController::class, 'actCorrection']);
 
 // Attendance
 $r->get('attendance',        [AttendanceController::class, 'index']);

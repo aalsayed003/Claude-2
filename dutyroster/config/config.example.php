@@ -111,6 +111,18 @@ return [
         'dr_pending_states' => [1, 3, 4, 5, 6],  // provisional: counted as pending
         'dr_initial_state'  => 1,                 // StateID for a newly-submitted request
 
+        // Attendance-correction approval (DR_CorrectionRequest.StateID). The app
+        // owns these transitions now, so the codes are its own convention (aligned
+        // with dr_states labels). Chain: Dept Head -> HR apply. Once applied, the
+        // correction's rostered time overrides the computed punch in View Attendance.
+        'correction_states' => [
+            'pending'  => 1,
+            'head_ok'  => 3,    // Dept Head approved
+            'applied'  => 14,   // HR applied -> override active
+            'rejected' => 11,
+        ],
+        'correction_chain'  => ['dept_head', 'hr'],
+
         // Approval routing by employee category (request/roster approvals):
         //   nurse : Dept Head -> CNO -> HR apply
         //   doctor: Dept Head -> COO/MD -> HR apply
