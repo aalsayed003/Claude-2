@@ -475,15 +475,14 @@ class RosterController extends Controller
                 sprintf('%02d %s', (int) date('j', strtotime($d)), date('D', strtotime($d))), 2);
         }
 
+        $prefill = (bool) $this->input('prefill', 0);   // roll forward from last month
         $row = $firstDataRow;
         foreach ($employees as $emp) {
-            $assigned = $roster->forEmployeeRange((int) $emp['id'], $start, $end);
+            $vals = $this->templateRowValues((int) $emp['id'], $days, $start, $end, $labelById, $prefill);
             $xlsx->setCell($R, $row, 1, $emp['emp_id'], 5, 's');
             $xlsx->setCell($R, $row, 2, $emp['full_name'], 5, 's');
             foreach ($days as $k => $d) {
-                $a = $assigned[$d] ?? null;
-                $val = $a ? ($labelById[(int) $a['shift_id']] ?? trim((string) $a['code'])) : '';
-                $xlsx->setCell($R, $row, 3 + $k, $val, 4, 's');
+                $xlsx->setCell($R, $row, 3 + $k, $vals[$d], 4, 's');
             }
             $row++;
         }
@@ -509,6 +508,43 @@ class RosterController extends Controller
 
         $safe = preg_replace('/[^A-Za-z0-9]+/', '_', $deptName);
         $xlsx->stream('DutyRoster_' . trim($safe, '_') . '_' . $period . '.xlsx');
+    }
+
+    /**
+     * The cell value (shift label) for each day of one employee's template row.
+     * With $prefill, empty days are seeded from the PREVIOUS month's roster
+     * mapped by day-of-month (1st→1st, 2nd→2nd, …) — "roll forward" — so a team
+     * leader can start from last month and just edit the changes. This month's
+     * own roster always wins over the rolled-forward value.
+     *
+     * @return array<string,string>  'Y-m-d' => label ('' for a blank day)
+     */
+    private function templateRowValues(int $empId, array $days, string $start, string $end, array $labelById, bool $prefill): array
+    {
+        $roster   = new RosterRepository($this->db);
+        $assigned = $roster->forEmployeeRange($empId, $start, $end);
+
+        $lastByDom = [];   // day-of-month => label, from the previous month
+        if ($prefill) {
+            [$lastStart, $lastEnd] = month_bounds(date('Y-m', strtotime($start . ' -1 month')));
+            foreach ($roster->forEmployeeRange($empId, $lastStart, $lastEnd) as $ld => $la) {
+                $lastByDom[(int) date('j', strtotime($ld))] =
+                    $labelById[(int) $la['shift_id']] ?? trim((string) $la['code']);
+            }
+        }
+
+        $out = [];
+        foreach ($days as $d) {
+            $a = $assigned[$d] ?? null;
+            if ($a) {
+                $out[$d] = $labelById[(int) $a['shift_id']] ?? trim((string) $a['code']);
+            } elseif ($prefill) {
+                $out[$d] = $lastByDom[(int) date('j', strtotime($d))] ?? '';
+            } else {
+                $out[$d] = '';
+            }
+        }
+        return $out;
     }
 
     /**
