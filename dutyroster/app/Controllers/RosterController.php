@@ -385,6 +385,25 @@ class RosterController extends Controller
     // === Excel template + bulk upload ==================================
 
     /**
+     * Human-friendly dropdown label for a shift, e.g. "MORNING (08:00–16:00 · 8h)".
+     * Day Off / Public Holiday and any timeless shift fall back to just the code.
+     * Used for BOTH the template dropdown/pre-fill and the import lookup, so the
+     * two always agree on the exact string.
+     */
+    private function shiftLabel(array $s): string
+    {
+        $code = trim((string) $s['code']);
+        if ($code === '') return '';
+        $t = fn($v) => ($v !== null && trim((string) $v) !== '')
+            ? date('H:i', strtotime((string) $v)) : null;
+        $in  = $t($s['first_in'] ?? null);
+        $out = $t($s['second_out'] ?? null) ?: $t($s['first_out'] ?? null);
+        if (!$in || !$out) return $code;   // DAY OFF / PUBLIC HOLIDAY / no times
+        $hs = rtrim(rtrim(number_format((float) ($s['total_hours'] ?? 0), 1), '0'), '.');
+        return "{$code} ({$in}–{$out} · {$hs}h)";
+    }
+
+    /**
      * Stream a ready-to-fill .xlsx duty-roster template for one department and
      * month. Rows = the department's employees (ID + name locked-looking), one
      * column per calendar day, every day-cell a dropdown of the valid shift
@@ -408,10 +427,13 @@ class RosterController extends Controller
         $shifts    = (new ShiftRepository($this->db))->all();
         $roster    = new RosterRepository($this->db);
 
-        $codes = [];
+        $labels = [];      // dropdown values, e.g. "MORNING (08:00–16:00 · 8h)"
+        $labelById = [];   // shift id => label, for pre-filling existing roster cells
         foreach ($shifts as $s) {
-            $c = trim((string) $s['code']);
-            if ($c !== '' && !in_array($c, $codes, true)) $codes[] = $c;
+            $lbl = $this->shiftLabel($s);
+            if ($lbl === '') continue;
+            $labelById[(int) $s['id']] = $lbl;
+            if (!in_array($lbl, $labels, true)) $labels[] = $lbl;
         }
 
         [$start, $end] = month_bounds($period);
@@ -453,23 +475,24 @@ class RosterController extends Controller
             $xlsx->setCell($R, $row, 1, $emp['emp_id'], 5, 's');
             $xlsx->setCell($R, $row, 2, $emp['full_name'], 5, 's');
             foreach ($days as $k => $d) {
-                $code = isset($assigned[$d]) ? trim((string) $assigned[$d]['code']) : '';
-                $xlsx->setCell($R, $row, 3 + $k, $code, 4, 's');
+                $a = $assigned[$d] ?? null;
+                $val = $a ? ($labelById[(int) $a['shift_id']] ?? trim((string) $a['code'])) : '';
+                $xlsx->setCell($R, $row, 3 + $k, $val, 4, 's');
             }
             $row++;
         }
         $lastDataRow = $row - 1;
 
-        if ($employees && $codes) {
+        if ($employees && $labels) {
             $xlsx->addValidationList(
                 $R,
                 'C' . $firstDataRow . ':' . $lastColL . $lastDataRow,
-                'Lists!$A$2:$A$' . (count($codes) + 1)
+                'Lists!$A$2:$A$' . (count($labels) + 1)
             );
         }
 
         $xlsx->setCell($L, 1, 1, 'Shifts', 2);
-        foreach ($codes as $i => $c) {
+        foreach ($labels as $i => $c) {
             $xlsx->setCell($L, 2 + $i, 1, $c, 0, 's');
         }
 
@@ -602,9 +625,14 @@ class RosterController extends Controller
         }
 
         $empByCode  = (new EmployeeRepository($this->db))->codeMap();
-        $shiftByCode = [];
+        // Accept either the descriptive dropdown label or the bare shift code,
+        // case-insensitively (so older templates and manual entries still work).
+        $shiftLookup = [];
         foreach ((new ShiftRepository($this->db))->all() as $s) {
-            $shiftByCode[strtoupper(trim((string) $s['code']))] = (int) $s['id'];
+            $id = (int) $s['id'];
+            $shiftLookup[strtoupper(trim((string) $s['code']))] = $id;
+            $lbl = $this->shiftLabel($s);
+            if ($lbl !== '') $shiftLookup[strtoupper(trim($lbl))] = $id;
         }
 
         $employees = [];
@@ -635,12 +663,12 @@ class RosterController extends Controller
                 $cell = trim((string) ($r[$c] ?? ''));
                 if ($cell === '') { $map[$date] = 0; continue; }
                 $key = strtoupper($cell);
-                if (!isset($shiftByCode[$key])) {
+                if (!isset($shiftLookup[$key])) {
                     $ref = XlsxWriter::colLetter($c + 1) . $excelRow;
                     $errors[] = "Cell {$ref} (" . date('d M', strtotime($date)) . "): unknown shift \"{$cell}\".";
                     continue;
                 }
-                $map[$date] = $shiftByCode[$key];
+                $map[$date] = $shiftLookup[$key];
                 $days++;
             }
 
