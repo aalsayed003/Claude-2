@@ -32,6 +32,98 @@ class CorrectionRepository
         return array_map([$this, 'shape'], $rows);
     }
 
+    /** One correction request by id (raw legacy row). */
+    public function find(int $id): ?array
+    {
+        $t = lt('correction_table') ?: 'DR_CorrectionRequest';
+        return $this->db->one(
+            "SELECT RequestID, EmployeeID, DayFor, FirstIn, FirstOut, SecondIn, SecondOut,
+                    ReasonID, TypeId, Remarks, StateID
+               FROM {$t} WHERE RequestID = :id",
+            [':id' => $id]
+        );
+    }
+
+    /** Corrections still in the approval chain (pending or dept-head-approved). */
+    public function pendingForApproval(string $from, string $to): array
+    {
+        $t   = lt('correction_table') ?: 'DR_CorrectionRequest';
+        $rt  = lt('ot_reason');
+        $emp = lt('employee');
+        $st  = \App\Services\CorrectionFlow::states();
+        $in  = implode(',', [(int) $st['pending'], (int) $st['head_ok']]);
+        try {
+        $rows = $this->db->all(
+            "SELECT cr.RequestID, cr.RequestDate, cr.EmployeeID, e.EmployeeId AS emp_code, e.Name AS emp_name,
+                    cr.DayFor, cr.FirstIn, cr.FirstOut, cr.SecondIn, cr.SecondOut,
+                    r.Reason AS reason_name, cr.TypeId, cr.StateID, cr.Remarks
+               FROM {$t} cr
+               LEFT JOIN {$emp} e ON e.ID = cr.EmployeeID
+               LEFT JOIN {$rt} r  ON r.ReasonID = cr.ReasonID
+              WHERE cr.StateID IN ({$in}) AND cr.DayFor BETWEEN :a AND :b
+              ORDER BY cr.DayFor DESC, cr.RequestID DESC",
+            [':a' => $from, ':b' => $to . ' 23:59:59']
+        );
+        return array_map([$this, 'shapePending'], $rows);
+        } catch (\Throwable $e) {
+            return [];   // correction table absent / different shape — no pending list
+        }
+    }
+
+    /**
+     * Applied corrections for one employee, keyed by 'Y-m-d', each giving the
+     * punch slots to override with the approved (rostered) time.
+     */
+    public function appliedForEmployee(int $employeeId, string $from, string $to): array
+    {
+        $t = lt('correction_table') ?: 'DR_CorrectionRequest';
+        $applied = \App\Services\CorrectionFlow::appliedState();
+        try {
+            $rows = $this->db->all(
+                "SELECT DayFor, FirstIn, FirstOut, SecondIn, SecondOut
+                   FROM {$t}
+                  WHERE EmployeeID = :e AND StateID = :s AND DayFor BETWEEN :a AND :b",
+                [':e' => $employeeId, ':s' => $applied, ':a' => $from, ':b' => $to . ' 23:59:59']
+            );
+        } catch (\Throwable $e) {
+            return [];   // correction table absent — no overrides
+        }
+        $map = [];
+        foreach ($rows as $r) {
+            $date = substr((string) $r['DayFor'], 0, 10);
+            $slots = [
+                'act_first_in'   => $r['FirstIn']   ?: null,
+                'act_first_out'  => $r['FirstOut']  ?: null,
+                'act_second_in'  => $r['SecondIn']  ?: null,
+                'act_second_out' => $r['SecondOut'] ?: null,
+            ];
+            // Merge if multiple corrections exist for the same day.
+            $map[$date] = array_merge($map[$date] ?? [], array_filter($slots, fn($v) => $v !== null));
+        }
+        return $map;
+    }
+
+    private function shapePending(array $r): array
+    {
+        $tm = fn($v) => $v ? date('h:i a', strtotime((string) $v)) : null;
+        $parts = [];
+        if ($tm($r['FirstIn']))   $parts[] = 'First In → '  . $tm($r['FirstIn']);
+        if ($tm($r['FirstOut']))  $parts[] = 'First Out → ' . $tm($r['FirstOut']);
+        if ($tm($r['SecondIn']))  $parts[] = 'Second In → ' . $tm($r['SecondIn']);
+        if ($tm($r['SecondOut'])) $parts[] = 'Second Out → '. $tm($r['SecondOut']);
+        $state = (int) ($r['StateID'] ?? 0);
+        return [
+            'id'         => (int) $r['RequestID'],
+            'emp_code'   => trim((string) ($r['emp_code'] ?? '')),
+            'emp_name'   => trim((string) ($r['emp_name'] ?? '')),
+            'work_date'  => $r['DayFor'] ? substr((string) $r['DayFor'], 0, 10) : null,
+            'change'     => implode(', ', $parts),
+            'reason'     => $r['reason_name'] ?? null,
+            'remarks'    => $r['Remarks'] ?? null,
+            'state_id'   => $state,
+        ];
+    }
+
     /** Count of pending corrections in a period (dashboard). */
     public function pendingCount(string $from, string $to): int
     {

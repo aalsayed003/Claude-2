@@ -50,3 +50,37 @@ $statusChip = [
     </tbody>
 </table>
 </div>
+
+<?php if (isset($corrections)): ?>
+<h2 style="margin:22px 0 6px">Attendance Corrections</h2>
+<p class="subtle" style="margin-top:0">Chain: Dept Head → HR. Once applied, the punch shows the rostered time in View Attendance.</p>
+<div class="tbl-wrap">
+<table class="tbl">
+    <thead><tr><th>#</th><th>Employee</th><th>Day</th><th>Correction</th><th>Reason</th><th>Status</th><th>Action</th></tr></thead>
+    <tbody>
+    <?php foreach ($corrections as $c): ?>
+        <tr>
+            <td><?= $c['id'] ?></td>
+            <td><?= e(trim($c['emp_code'].' '.$c['emp_name'])) ?></td>
+            <td><?= $c['work_date'] ? date('d M', strtotime($c['work_date'])) : '' ?></td>
+            <td><?= e($c['change']) ?></td>
+            <td><?= e($c['reason']) ?></td>
+            <td><span class="chip <?= e($c['status_class']) ?>"><?= strtoupper($c['status']) ?></span></td>
+            <td>
+                <?php if ($c['can_act']): ?>
+                <form method="post" action="<?= url('approvals/correction') ?>" class="actions" style="gap:6px;flex-wrap:wrap">
+                    <?= csrf_field() ?>
+                    <input type="hidden" name="id" value="<?= $c['id'] ?>">
+                    <input type="text" name="comments" placeholder="comment / reason…" style="max-width:140px">
+                    <button class="btn btn-sm btn-ok" name="action" value="approve">Approve</button>
+                    <button class="btn btn-sm btn-danger" name="action" value="reject" onclick="return confirm('Reject this correction?')">Reject</button>
+                </form>
+                <?php else: ?><span class="subtle">—</span><?php endif; ?>
+            </td>
+        </tr>
+    <?php endforeach; ?>
+    <?php if (!$corrections): ?><tr><td colspan="7" class="center subtle">No pending corrections in this date range.</td></tr><?php endif; ?>
+    </tbody>
+</table>
+</div>
+<?php endif; ?>
