@@ -5,7 +5,7 @@ $statusChip = [
 ];
 ?>
 <div class="page-head"><div><h1>Approve Request</h1>
-    <p class="subtle">Duty-roster submissions awaiting action. Chain: Dept Head → FA → MRD → COO/MD/CNO.</p></div>
+    <p class="subtle">Duty-roster submissions awaiting action. Chain: Dept Head → CNO (nurse) / COO·MD (doctor) → HR apply.</p></div>
     <form method="get" action="<?= url('approvals') ?>" class="inline">
         <div class="field"><label>From</label><input type="date" name="from" value="<?= e($from) ?>"></div>
         <div class="field"><label>To</label><input type="date" name="to" value="<?= e($to) ?>"></div>
@@ -35,9 +35,10 @@ $statusChip = [
             <td><span class="chip <?= e($s['status_class'] ?? ($statusChip[$s['status']]??'pending')) ?>"><?= strtoupper(str_replace('_',' ',$s['status'])) ?></span></td>
             <td>
                 <?php if ($s['can_act']): ?>
-                <form method="post" action="<?= url('approvals/act') ?>" class="actions">
+                <form method="post" action="<?= url('approvals/act') ?>" class="actions" style="gap:6px;flex-wrap:wrap">
                     <?= csrf_field() ?>
                     <input type="hidden" name="id" value="<?= $s['id'] ?>">
+                    <input type="text" name="comments" placeholder="comment / reason…" style="max-width:150px">
                     <button class="btn btn-sm btn-ok" name="action" value="approve">Approve</button>
                     <button class="btn btn-sm btn-danger" name="action" value="reject" onclick="return confirm('Reject this submission?')">Reject</button>
                 </form>
