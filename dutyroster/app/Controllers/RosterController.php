@@ -567,7 +567,7 @@ class RosterController extends Controller
         $headerRowNo = null; $header = null;
         foreach ($matrix as $rowNo => $r) {
             $norm = preg_replace('/[^a-z0-9]/', '', strtolower((string) ($r[0] ?? '')));
-            if (strpos($norm, 'employeeid') !== false) { $headerRowNo = $rowNo; $header = $r; break; }
+            if ($norm === 'employeeid') { $headerRowNo = $rowNo; $header = $r; break; }
         }
         if ($headerRowNo === null) {
             return $this->parseFail('Could not find the header row (a cell reading "Employee ID"). '
@@ -581,6 +581,16 @@ class RosterController extends Controller
         for ($c = 2; $c < count($header); $c++) {
             $txt = trim((string) $header[$c]);
             if ($txt === '') continue;
+            // Excel sometimes turns a heading cell into a real date (e.g. an autofill drag
+            // over the header row) — that stores a raw serial day-count instead of the "DD Ddd"
+            // text, so decode it before falling back to the plain digit match below.
+            if (preg_match('/^\d+(?:\.\d+)?$/', $txt) && (float) $txt > 1000) {
+                $ts = (int) round(((float) $txt - 25569) * 86400);
+                if ((int) gmdate('n', $ts) === $mo && (int) gmdate('Y', $ts) === $y) {
+                    $colDate[$c] = sprintf('%04d-%02d-%02d', $y, $mo, (int) gmdate('j', $ts));
+                    continue;
+                }
+            }
             if (preg_match('/(\d{1,2})/', $txt, $m) && (int) $m[1] >= 1 && (int) $m[1] <= $dayCount) {
                 $colDate[$c] = sprintf('%04d-%02d-%02d', $y, $mo, (int) $m[1]);
             } else {
@@ -588,7 +598,7 @@ class RosterController extends Controller
             }
         }
         if (!$colDate) {
-            return $this->parseFail('No day columns were found in the sheet.', $period);
+            return $this->parseFail('No day columns were found in the sheet.', $period, $warnings);
         }
 
         $empByCode  = (new EmployeeRepository($this->db))->codeMap();
@@ -659,11 +669,11 @@ class RosterController extends Controller
         ];
     }
 
-    private function parseFail(string $message, string $period): array
+    private function parseFail(string $message, string $period, array $warnings = []): array
     {
         return [
             'ok' => false, 'deptId' => 0, 'deptName' => '', 'period' => $period,
-            'errors' => [$message], 'warnings' => [], 'employees' => [], 'summary' => null,
+            'errors' => [$message], 'warnings' => $warnings, 'employees' => [], 'summary' => null,
         ];
     }
 
