@@ -49,6 +49,10 @@
                 </select></div>
             <div class="field"><label>Month *</label>
                 <input type="month" name="period" value="<?= e($period) ?>" required></div>
+            <label class="checkbox subtle" style="display:flex;gap:8px;align-items:center;margin:2px 0 12px">
+                <input type="checkbox" name="prefill" value="1">
+                Roll forward — start from last month's roster (same dates), then edit
+            </label>
             <button type="submit">⬇ Download template (.xlsx)</button>
         </form>
     </div>
