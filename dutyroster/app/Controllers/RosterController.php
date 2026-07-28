@@ -83,6 +83,24 @@ class RosterController extends Controller
             $days[] = date('Y-m-d', $ts);
         }
 
+        // Last month's roster (day-of-month => shift_id) for the in-app "roll forward".
+        $lastByDom = [];
+        if ($emp) {
+            [$ls, $le] = month_bounds(date('Y-m', strtotime($start . ' -1 month')));
+            if (legacy_mode()) {
+                foreach ((new \App\Repositories\RosterRepository($this->db))->forEmployeeRange($empId, $ls, $le) as $ld => $la) {
+                    $lastByDom[(int) date('j', strtotime($ld))] = (int) $la['shift_id'];
+                }
+            } else {
+                foreach ($this->db->all(
+                    "SELECT work_date, shift_id FROM roster WHERE employee_id = :e AND work_date BETWEEN :a AND :b",
+                    [':e' => $empId, ':a' => $ls, ':b' => $le]
+                ) as $r) {
+                    $lastByDom[(int) date('j', strtotime($r['work_date']))] = (int) $r['shift_id'];
+                }
+            }
+        }
+
         $this->view('roster/allot', [
             'title'    => 'Duty Roster — Allot Shift',
             'employees'=> $employees,
@@ -91,6 +109,7 @@ class RosterController extends Controller
             'shifts'   => $shifts,
             'days'     => $days,
             'assigned' => $assigned,
+            'last_by_dom' => $lastByDom,
             'scheduled_hours' => array_sum(array_map(fn($a) => (float) $a['total_hours'], $assigned)),
         ]);
     }

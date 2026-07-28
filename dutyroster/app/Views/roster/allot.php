@@ -38,6 +38,11 @@
                 <button type="button" class="btn btn-sm btn-muted" onclick="applyToSelected()"
                         title="Applies to the days checked below; if none are checked, applies to all days">
                     Apply to selected</button>
+                <?php if (!empty($last_by_dom)): ?>
+                <button type="button" class="btn btn-sm btn-muted" onclick="rollForward()"
+                        title="Fill the empty days from last month's roster (same dates); then edit and save">
+                    ↩ Roll forward last month</button>
+                <?php endif; ?>
                 <span class="subtle">Scheduled: <strong id="schedHrs"><?= number_format((float)$scheduled_hours,1) ?></strong> hrs</span>
             </div>
         </div>
@@ -57,7 +62,7 @@
                 <td><strong><?= date('D', strtotime($d)) ?></strong></td>
                 <td><?= date('d M', strtotime($d)) ?></td>
                 <td>
-                    <select name="shift[<?= $d ?>]" class="shiftSel" onchange="recalc()">
+                    <select name="shift[<?= $d ?>]" class="shiftSel" data-dom="<?= (int)date('j', strtotime($d)) ?>" onchange="recalc()">
                         <option value="">—</option>
                         <?php foreach ($shifts as $s): ?>
                             <option value="<?= $s['id'] ?>"
@@ -115,6 +120,19 @@ function applyToSelected(){
     if(sel) sel.value=v;
   });
   recalc();
+}
+// Roll forward: fill only the EMPTY days from last month's roster (same dates).
+// Nothing is saved until you click Save, so you can review/edit first.
+const LAST_BY_DOM = <?= json_encode((object)($last_by_dom ?? []), JSON_UNESCAPED_UNICODE) ?>;
+function rollForward(){
+  let filled=0;
+  document.querySelectorAll('.shiftSel').forEach(sel=>{
+    if(sel.value) return;                       // keep this month's existing choices
+    const sid = LAST_BY_DOM[sel.dataset.dom];
+    if(sid && [...sel.options].some(o=>o.value==sid)){ sel.value=String(sid); filled++; }
+  });
+  recalc();
+  if(!filled) alert("Nothing to roll forward — last month has no roster for the empty days (or those shifts are now hidden).");
 }
 </script>
 <?php endif; ?>
