@@ -90,6 +90,53 @@ class AttendanceRepository
     }
 
     /**
+     * Raw biometric punches for an employee between two datetimes, as sorted
+     * unix timestamps. Reads the configured raw punch table (default
+     * `checkinout`, one row per punch) matched on the 9-digit PIN (and any
+     * fallback codes). Returns NULL when that table isn't present, so callers
+     * can fall back to the pre-paired Atten_MMYYYY tables.
+     *
+     * @param string[] $pins  candidate punch codes (9-digit PIN, emp_id, …)
+     */
+    public function rawPunches(array $pins, string $fromDt, string $toDt): ?array
+    {
+        $table = Config::get('legacy.punch_table', 'checkinout');
+        if (!$this->tableExists($table)) {
+            return null;
+        }
+        $pins = array_values(array_unique(array_filter($pins, fn($v) => $v !== null && $v !== '')));
+        if (!$pins) {
+            return [];
+        }
+        $pinCol  = Config::get('legacy.punch_pin_col', 'pin');
+        $timeCol = Config::get('legacy.punch_time_col', 'checktime');
+
+        $ph = [];
+        $params = [':a' => $fromDt, ':b' => $toDt];
+        foreach ($pins as $i => $p) {
+            $ph[] = ":p{$i}";
+            $params[":p{$i}"] = $p;
+        }
+        $in = implode(',', $ph);
+
+        $rows = $this->db->all(
+            "SELECT {$timeCol} AS t FROM {$table}
+              WHERE {$pinCol} IN ({$in}) AND {$timeCol} BETWEEN :a AND :b
+              ORDER BY {$timeCol}",
+            $params
+        );
+
+        $ts = [];
+        foreach ($rows as $r) {
+            $u = strtotime((string) $r['t']);
+            if ($u !== false) $ts[] = $u;
+        }
+        $ts = array_values(array_unique($ts));
+        sort($ts);
+        return $ts;
+    }
+
+    /**
      * Distinct Atten_MMYYYY table names (+ date bounds clipped to that
      * calendar month) spanned by [$start, $end]. Table name = the
      * configured prefix (default 'Atten_') + date('mY'), e.g. 'Atten_072026'
