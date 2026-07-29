@@ -163,13 +163,20 @@ class AttendanceRepository
     {
         switch ($this->db->driver()) {
             case 'sqlsrv':
+                // Accept a real table (U), a VIEW (V) or a SYNONYM (SN) so the
+                // punch source can be exposed to the app DB as a view/synonym
+                // pointing at the biometric database (e.g. dbo.checkinout ->
+                // zkteco_biotime.dbo.checkinout) without duplicating data.
                 return (bool) $this->db->value(
-                    "SELECT CASE WHEN OBJECT_ID(:t, 'U') IS NOT NULL THEN 1 ELSE 0 END",
+                    "SELECT CASE WHEN OBJECT_ID(:t, 'U')  IS NOT NULL
+                                   OR OBJECT_ID(:t, 'V')  IS NOT NULL
+                                   OR OBJECT_ID(:t, 'SN') IS NOT NULL
+                                 THEN 1 ELSE 0 END",
                     [':t' => $table]
                 );
             case 'sqlite':
                 return (bool) $this->db->value(
-                    "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name = :t",
+                    "SELECT COUNT(*) FROM sqlite_master WHERE type IN ('table','view') AND name = :t",
                     [':t' => $table]
                 );
             default: // mysql / pgsql
