@@ -105,11 +105,8 @@ class DashboardController extends Controller
         $tiles = [
             ['key' => 'shifts',          'label' => 'Duty Roster Master', 'icon' => 'grid',     'min' => 'dept_head'],
             ['key' => 'roster',          'label' => 'Duty Roster',        'icon' => 'calendar', 'min' => 'dept_head'],
-            ['key' => 'roster/submit',   'label' => 'Submit Duty Roster', 'icon' => 'upload',   'min' => 'dept_head'],
             ['key' => 'approvals',       'label' => 'Approve Request',    'icon' => 'check',    'min' => 'dept_head'],
-            ['key' => 'attendance',      'label' => 'View Attendance',    'icon' => 'clock',    'min' => 'employee'],
-            ['key' => 'correction',      'label' => 'Attendance Correction','icon'=>'edit',     'min' => 'employee'],
-            ['key' => 'schedule-change', 'label' => 'Change Schedule',    'icon' => 'swap',     'min' => 'employee'],
+            ['key' => 'attendance',      'label' => 'Attendance',         'icon' => 'clock',    'min' => 'employee'],
             ['key' => 'overtime',        'label' => 'Overtime',           'icon' => 'plus',     'min' => 'employee'],
             ['key' => 'employees',       'label' => 'Employees',          'icon' => 'users',    'min' => 'admin'],
             ['key' => 'departments',     'label' => 'Departments',        'icon' => 'building', 'min' => 'admin'],

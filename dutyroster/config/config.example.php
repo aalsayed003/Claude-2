@@ -121,7 +121,6 @@ return [
             'applied'  => 14,   // HR applied -> override active
             'rejected' => 11,
         ],
-        'correction_chain'  => ['dept_head', 'hr'],
 
         // Approval routing by employee category (request/roster approvals):
         //   nurse : Dept Head -> CNO -> HR apply
@@ -136,6 +135,15 @@ return [
         ],
         // Schedule_Request.Approved value written on reject (no legacy rejected
         // code exists; 9 is outside the 1/2/3 approval range).
+        // Attendance-correction / schedule-change approval routing by employee
+        // category (2-step chain: [first approver, 'hr']). Nurse/doctor skip the
+        // Dept Head step entirely and go straight to the clinical approver.
+        'request_chains' => [
+            'nurse'   => ['cno', 'hr'],
+            'doctor'  => ['coo_md', 'hr'],
+            'default' => ['dept_head', 'hr'],
+        ],
+
         'schedule_reject_code' => 9,
         // Until payroll supplies employee category, map departments that route
         // through the extra approver: DepartmentId => 'nurse' (-> CNO) or

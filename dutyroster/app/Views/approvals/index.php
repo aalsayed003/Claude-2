@@ -84,3 +84,37 @@ $statusChip = [
 </table>
 </div>
 <?php endif; ?>
+
+<?php if (isset($scheduleChanges)): ?>
+<h2 style="margin:22px 0 6px">Schedule Change Requests</h2>
+<p class="subtle" style="margin-top:0">Chain: Dept Head (or CNO/COO·MD for clinical staff) → HR apply. Once applied, the employee's roster for that day updates to the new shift.</p>
+<div class="tbl-wrap">
+<table class="tbl">
+    <thead><tr><th>#</th><th>Employee</th><th>Day</th><th>Old Shift</th><th>New Shift</th><th>Status</th><th>Action</th></tr></thead>
+    <tbody>
+    <?php foreach ($scheduleChanges as $sc): ?>
+        <tr>
+            <td><?= $sc['id'] ?></td>
+            <td><?= e(trim($sc['emp_code'].' '.$sc['emp_name'])) ?></td>
+            <td><?= $sc['work_date'] ? date('d M', strtotime($sc['work_date'])) : '' ?></td>
+            <td><?= e($sc['old_code'] ?? '—') ?></td>
+            <td><?= e($sc['new_code'] ?? '—') ?></td>
+            <td><span class="chip <?= e($sc['status_class']) ?>"><?= strtoupper($sc['status']) ?></span></td>
+            <td>
+                <?php if ($sc['can_act']): ?>
+                <form method="post" action="<?= url('approvals/schedule-change') ?>" class="actions" style="gap:6px;flex-wrap:wrap">
+                    <?= csrf_field() ?>
+                    <input type="hidden" name="id" value="<?= $sc['id'] ?>">
+                    <input type="text" name="comments" placeholder="comment / reason…" style="max-width:140px">
+                    <button class="btn btn-sm btn-ok" name="action" value="approve">Approve</button>
+                    <button class="btn btn-sm btn-danger" name="action" value="reject" onclick="return confirm('Reject this schedule change?')">Reject</button>
+                </form>
+                <?php else: ?><span class="subtle">—</span><?php endif; ?>
+            </td>
+        </tr>
+    <?php endforeach; ?>
+    <?php if (!$scheduleChanges): ?><tr><td colspan="7" class="center subtle">No pending schedule changes in this date range.</td></tr><?php endif; ?>
+    </tbody>
+</table>
+</div>
+<?php endif; ?>

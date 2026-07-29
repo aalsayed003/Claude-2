@@ -48,7 +48,10 @@ class ScheduleChangeRepository
             'ScheduleDay'   => (int) date('j', strtotime($date)),
             'ShiftID'       => ($d['old_shift_id'] ?? '') !== '' ? (int) $d['old_shift_id'] : null,
             'ChangeShiftID' => ($d['new_shift_id'] ?? '') !== '' ? (int) $d['new_shift_id'] : null,
-            'AgainstFor'    => ($d['change_against_date'] ?? '') ?: null,
+            // AgainstFor is a tinyint (a numeric code), not a date, despite the old UI
+            // having a date picker for it. Since the field is no longer collected from
+            // the user, default to 0 (the column is NOT NULL so it can't be left out).
+            'AgainstFor'    => is_numeric($d['change_against_date'] ?? null) ? (int) $d['change_against_date'] : 0,
             'ClaimTime'     => ($d['claim_time'] ?? '') ?: null,
             'RejectReason'  => null,
             'StateID'       => (int) Config::get('legacy.dr_initial_state', 1),
@@ -58,6 +61,70 @@ class ScheduleChangeRepository
         }
         $this->db->insert($t, $row);
         return (int) ($row['RequestID'] ?? 0);
+    }
+
+    /** One schedule-change request by id, plus the employee's DepartmentId for category routing. */
+    public function find(int $id): ?array
+    {
+        $t = lt('change_sched');
+        $emp = lt('employee');
+        return $this->db->one(
+            "SELECT sc.RequestID, sc.EmployeeID, sc.ScheduleMonth, sc.ScheduleDay, sc.ShiftID,
+                    sc.ChangeShiftID, sc.AgainstFor, sc.ClaimTime, sc.RejectReason, sc.StateID,
+                    e.DepartmentId
+               FROM {$t} sc
+               LEFT JOIN {$emp} e ON e.ID = sc.EmployeeID
+              WHERE sc.RequestID = :id",
+            [':id' => $id]
+        );
+    }
+
+    /** Schedule-change requests still in the approval chain (pending or first-gate-approved). */
+    public function pendingForApproval(string $from, string $to): array
+    {
+        $t   = lt('change_sched');
+        $emp = lt('employee');
+        $shift = lt('shift');
+        $st  = \App\Services\ScheduleChangeFlow::states();
+        $in  = implode(',', [(int) $st['pending'], (int) $st['head_ok']]);
+        try {
+            $rows = $this->db->all(
+                "SELECT sc.RequestID, sc.RequestDate, sc.EmployeeID, e.EmployeeId AS emp_code, e.Name AS emp_name,
+                        e.DepartmentId, sc.ScheduleMonth, sc.ScheduleDay, sc.ClaimTime, sc.StateID,
+                        os.Name AS old_code, ns.Name AS new_code
+                   FROM {$t} sc
+                   LEFT JOIN {$emp} e ON e.ID = sc.EmployeeID
+                   LEFT JOIN {$shift} os ON os.ID = sc.ShiftID
+                   LEFT JOIN {$shift} ns ON ns.ID = sc.ChangeShiftID
+                  WHERE sc.StateID IN ({$in}) AND sc.RequestDate BETWEEN :a AND :b
+                  ORDER BY sc.RequestDate DESC, sc.RequestID DESC",
+                [':a' => $from . ' 00:00:00', ':b' => $to . ' 23:59:59']
+            );
+        } catch (\Throwable $e) {
+            return [];   // table absent / different shape — no pending list
+        }
+        return array_map([$this, 'shapePending'], $rows);
+    }
+
+    private function shapePending(array $r): array
+    {
+        $work = null;
+        if (!empty($r['ScheduleMonth'])) {
+            $ym  = date('Y-m', strtotime((string) $r['ScheduleMonth']));
+            $day = str_pad((string) (int) ($r['ScheduleDay'] ?? 1), 2, '0', STR_PAD_LEFT);
+            $work = "{$ym}-{$day}";
+        }
+        return [
+            'id'            => (int) $r['RequestID'],
+            'emp_code'      => trim((string) ($r['emp_code'] ?? '')),
+            'emp_name'      => trim((string) ($r['emp_name'] ?? '')),
+            'department_id' => (int) ($r['DepartmentId'] ?? 0),
+            'work_date'     => $work,
+            'old_code'      => $r['old_code'] ?? null,
+            'new_code'      => $r['new_code'] ?? null,
+            'claim_time'    => $r['ClaimTime'] ?? null,
+            'state_id'      => (int) ($r['StateID'] ?? 0),
+        ];
     }
 
     private function shape(array $r): array

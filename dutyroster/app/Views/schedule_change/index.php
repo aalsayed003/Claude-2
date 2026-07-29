@@ -21,20 +21,14 @@
     <form method="post" action="<?= url('schedule-change/save') ?>">
         <?= csrf_field() ?>
         <input type="hidden" name="employee_id" value="<?= $emp['id'] ?>">
-        <div class="field"><label>Schedule Day *</label>
-            <input type="date" name="work_date" id="schedDay" onchange="onSchedDay()" required></div>
+        <div class="field"><label>Schedule Day *</label><input type="date" name="work_date" required></div>
         <div class="inline">
-            <div class="field" style="flex:1"><label>Old Shift (rostered)</label>
-                <select id="oldShift" disabled>
-                    <option value="">—</option>
-                    <?php foreach ($shifts as $s): ?><option value="<?= $s['id'] ?>"><?= e(shift_label($s)) ?></option><?php endforeach; ?>
-                </select>
-                <div id="oldShiftNote" class="subtle" style="margin-top:2px">Pick a day — the current shift fills in automatically.</div></div>
-            <div class="field" style="flex:1"><label>New Shift *</label>
-                <select name="new_shift_id" id="newShift" required>
-                    <option value="">Select…</option>
-                    <?php foreach ($shifts as $s): ?><option value="<?= $s['id'] ?>"><?= e(shift_label($s)) ?></option><?php endforeach; ?>
-                </select></div>
+            <div class="field" style="flex:1"><label>Old Shift</label>
+                <select name="old_shift_id"><option value="">—</option>
+                    <?php foreach ($shifts as $s): ?><option value="<?= $s['id'] ?>"><?= e($s['code']) ?></option><?php endforeach; ?></select></div>
+            <div class="field" style="flex:1"><label>New Shift</label>
+                <select name="new_shift_id"><option value="">—</option>
+                    <?php foreach ($shifts as $s): ?><option value="<?= $s['id'] ?>"><?= e($s['code']) ?></option><?php endforeach; ?></select></div>
         </div>
         <div class="inline">
             <div class="field" style="flex:1"><label>Change Against Date</label><input type="date" name="change_against_date"></div>
@@ -43,19 +37,6 @@
         <button type="submit">Submit Request</button>
     </form>
 </div>
-<script>
-// The old shift is auto-filled from the stored roster (the server also resolves
-// it authoritatively on submit, so a disabled control is fine).
-const ROSTER_BY_DATE = <?= json_encode($roster_by_date ?? (object)[], JSON_UNESCAPED_UNICODE) ?>;
-function onSchedDay(){
-  const d = document.getElementById('schedDay').value;
-  const sel = document.getElementById('oldShift');
-  const note = document.getElementById('oldShiftNote');
-  const r = ROSTER_BY_DATE[d];
-  if(r){ sel.value = String(r.shift_id); note.textContent = 'Currently rostered: ' + r.label; }
-  else { sel.value = ''; note.textContent = d ? '⚠ No shift rostered for this day — nothing to change.' : ''; }
-}
-</script>
 <div class="card">
     <h2 style="margin-top:0">Request(s) List</h2>
     <table class="tbl"><thead><tr><th>Day</th><th>Old</th><th>New</th><th>Status</th></tr></thead><tbody>

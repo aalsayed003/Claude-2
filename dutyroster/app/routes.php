@@ -8,6 +8,7 @@ use App\Controllers\EmployeeImportController;
 use App\Controllers\DepartmentController;
 use App\Controllers\RosterController;
 use App\Controllers\AttendanceController;
+use App\Controllers\WorkspaceController;
 use App\Controllers\ApprovalController;
 use App\Controllers\CorrectionController;
 use App\Controllers\ScheduleChangeController;
@@ -56,12 +57,14 @@ $r->post('roster/import',    [RosterController::class, 'import']);
 $r->get('approvals',         [ApprovalController::class, 'index']);
 $r->post('approvals/act',    [ApprovalController::class, 'act']);
 $r->post('approvals/correction', [ApprovalController::class, 'actCorrection']);
+$r->post('approvals/schedule-change', [ApprovalController::class, 'actScheduleChange']);
 
-// Attendance
-$r->get('attendance',        [AttendanceController::class, 'index']);
+// Attendance (merged workspace: Attendance + Correction + Change Schedule tabs)
+$r->get('attendance',        [WorkspaceController::class, 'index']);
 $r->post('attendance/rebuild',[AttendanceController::class, 'rebuild']);
 
-// Requests
+// Requests — old standalone pages now redirect into the merged Attendance workspace above;
+// their save actions are unchanged.
 $r->get('correction',        [CorrectionController::class, 'index']);
 $r->post('correction/save',  [CorrectionController::class, 'save']);
 $r->get('schedule-change',   [ScheduleChangeController::class, 'index']);
