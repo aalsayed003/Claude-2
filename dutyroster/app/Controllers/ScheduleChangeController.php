@@ -38,6 +38,21 @@ class ScheduleChangeController extends Controller
         ];
 
         if (legacy_mode()) {
+            // Backstop: only if the form didn't send an Old Shift (e.g. JS didn't
+            // run), fall back to the rostered shift for that day so ShiftID is
+            // never NULL. A normal auto-filled request is untouched. Block only
+            // when there's genuinely no old shift to change.
+            if (($payload['old_shift_id'] ?? '') === '') {
+                $current = (new \App\Repositories\RosterRepository($this->db))
+                    ->forEmployeeRange($empId, $date, $date)[$date] ?? null;
+                if ($current) {
+                    $payload['old_shift_id'] = $current['shift_id'];
+                }
+            }
+            if (($payload['old_shift_id'] ?? '') === '') {
+                $this->flash('error', 'No shift is scheduled for that day, so there is nothing to change.');
+                $this->redirect($back);
+            }
             try {
                 (new \App\Repositories\ScheduleChangeRepository($this->db))->create($payload);
                 $this->flash('success', 'Schedule change request submitted.');
