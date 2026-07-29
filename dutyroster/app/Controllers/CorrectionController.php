@@ -62,25 +62,6 @@ class CorrectionController extends Controller
         'second_in' => 'Second In', 'second_out' => 'Second Out',
     ];
 
-    /** Shape legacy actual attendance into the rows the correction view expects. */
-    private function legacyAttendanceRows($keys, string $from, string $to): array
-    {
-        $actual = (new \App\Repositories\AttendanceRepository($this->db))->forEmployee($keys, $from, $to);
-        $rows = [];
-        foreach ($actual as $date => $a) {
-            $rows[] = [
-                'work_date'      => $date,
-                'act_first_in'   => $a['act_first_in'],
-                'act_first_out'  => $a['act_first_out'],
-                'act_second_in'  => $a['act_second_in'],
-                'act_second_out' => $a['act_second_out'],
-                'shift_code'     => null,
-                'status'         => \App\Repositories\AttendanceRepository::mapStatus($a['status_code'] ?? '', $a['punch_count']),
-            ];
-        }
-        return $rows;
-    }
-
     public function save(): void
     {
         Auth::require();

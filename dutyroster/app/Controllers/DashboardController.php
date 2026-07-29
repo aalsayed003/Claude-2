@@ -65,9 +65,17 @@ class DashboardController extends Controller
         $safe = function (callable $fn): int {
             try { return (int) $fn(); } catch (\Throwable $e) { return 0; }
         };
-        $dash = lt('dashboard');
-        $dtl  = lt('roster_dtl');
-        $shift = lt('shift');
+
+        // Today's attendance counts (odd punch / absent / day-off / late / early)
+        // are derived from the SAME live punch pairing as View Attendance, so the
+        // dashboard can't disagree with the attendance page or silently read a
+        // stale pre-computed DRMainDashBoard table. Computed once for the day,
+        // guarded so a data gap can't break the dashboard.
+        try {
+            $todayCounts = \App\Services\DashboardMetrics::todayCounts($this->db, $today);
+        } catch (\Throwable $e) {
+            $todayCounts = ['absent' => 0, 'odd_punch' => 0, 'late' => 0, 'early' => 0, 'day_off' => 0];
+        }
 
         return [
             'schedules' => $safe(fn() => (new \App\Repositories\ScheduleRequestRepository($this->db))->pendingCount()),
@@ -80,23 +88,11 @@ class DashboardController extends Controller
                     [':a' => $start . ' 00:00:00', ':b' => $end . ' 23:59:59']
                 );
             }),
-            'odd_punch' => $safe(fn() => $this->db->value(
-                "SELECT COUNT(*) FROM {$dash} WHERE OddPunch = 1 AND AttendanceDate BETWEEN :a AND :b",
-                [':a' => $start, ':b' => $end . ' 23:59:59']
-            )),
-            'absent_today' => $safe(fn() => $this->db->value(
-                "SELECT COUNT(*) FROM {$dash} WHERE Absent1 = 1 AND AttendanceDate BETWEEN :a AND :b",
-                [':a' => $today, ':b' => $today . ' 23:59:59']
-            )),
-            'dayoff_today' => $safe(fn() => $this->db->value(
-                "SELECT COUNT(*) FROM {$dtl} d JOIN {$shift} s ON s.ID = d.Shiftid
-                  WHERE d.Deleted = 0 AND s.Name = 'DAY OFF'
-                    AND d.ShiftDate BETWEEN :a AND :b",
-                [':a' => $today, ':b' => $today . ' 23:59:59']
-            )),
-            // Late/early-today derivation (Atten_ vs schedule) — next iteration.
-            'late_today' => 0,
-            'early_today' => 0,
+            'odd_punch'    => (int) ($todayCounts['odd_punch'] ?? 0),
+            'absent_today' => (int) ($todayCounts['absent'] ?? 0),
+            'dayoff_today' => (int) ($todayCounts['day_off'] ?? 0),
+            'late_today'   => (int) ($todayCounts['late'] ?? 0),
+            'early_today'  => (int) ($todayCounts['early'] ?? 0),
         ];
     }
 
