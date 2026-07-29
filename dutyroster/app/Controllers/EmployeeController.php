@@ -40,11 +40,12 @@ class EmployeeController extends Controller
     public function create(): void
     {
         Auth::requireRole('admin');
+        [$depts, $sections] = $this->pickerLists();
         $this->view('employees/form', [
             'title' => 'New Employee',
             'emp'   => null,
-            'depts' => $this->db->all("SELECT * FROM departments ORDER BY name"),
-            'sections' => $this->db->all("SELECT * FROM sections ORDER BY name"),
+            'depts' => $depts,
+            'sections' => $sections,
         ]);
     }
 
@@ -52,16 +53,19 @@ class EmployeeController extends Controller
     {
         Auth::requireRole('admin');
         $id = (int) $this->input('id');
-        $emp = $this->db->one("SELECT * FROM employees WHERE id = :id", [':id' => $id]);
+        $emp = legacy_mode()
+            ? (new \App\Repositories\EmployeeRepository($this->db))->find($id)
+            : $this->db->one("SELECT * FROM employees WHERE id = :id", [':id' => $id]);
         if (!$emp) {
             $this->flash('error', 'Employee not found.');
             $this->redirect('employees');
         }
+        [$depts, $sections] = $this->pickerLists();
         $this->view('employees/form', [
             'title' => 'Edit Employee',
             'emp'   => $emp,
-            'depts' => $this->db->all("SELECT * FROM departments ORDER BY name"),
-            'sections' => $this->db->all("SELECT * FROM sections ORDER BY name"),
+            'depts' => $depts,
+            'sections' => $sections,
         ]);
     }
 
@@ -84,6 +88,11 @@ class EmployeeController extends Controller
             $this->flash('error', 'Employee ID, PIN and name are required.');
             $this->redirect('employees/new');
         }
+        if (legacy_mode()) {
+            $this->saveLegacyEmployee($id, $data);
+            $this->flash('success', $id ? 'Employee updated.' : 'Employee added.');
+            $this->redirect('employees');
+        }
         if ($id) {
             $this->db->update('employees', $data, 'id = :id', [':id' => $id]);
             $this->flash('success', 'Employee updated.');
@@ -92,5 +101,70 @@ class EmployeeController extends Controller
             $this->flash('success', 'Employee added.');
         }
         $this->redirect('employees');
+    }
+
+    /** Department + section dropdown data (legacy has no section master). */
+    private function pickerLists(): array
+    {
+        if (legacy_mode()) {
+            return [(new \App\Repositories\DepartmentRepository($this->db))->all(), []];
+        }
+        return [
+            $this->db->all("SELECT * FROM departments ORDER BY name"),
+            $this->db->all("SELECT * FROM sections ORDER BY name"),
+        ];
+    }
+
+    /**
+     * Write an employee to the legacy `Employee` master. The master has several
+     * NOT NULL columns (EmpCode, FirstName, Middlename, DesignationId,
+     * StartDateTime, Deleted, DepartmentId), so an insert supplies all of them;
+     * an update only touches the fields the form owns (leaving the rest intact).
+     * The free-text designation is resolved to a Designation.ID when it matches
+     * an existing one. ID is supplied identity-safe (TestASSH dropped IDENTITY).
+     */
+    private function saveLegacyEmployee(int $id, array $data): void
+    {
+        $emp = lt('employee');
+        $desigId = $this->resolveDesignationId($data['designation']);
+        $row = [
+            'EmployeeId'   => $data['emp_id'],
+            'Name'         => $data['full_name'],
+            'DepartmentId' => $data['department_id'] !== null ? (int) $data['department_id'] : 0,
+            'IsHead'       => $data['is_dept_head'],
+        ];
+        if ($desigId !== null) {
+            $row['DesignationId'] = $desigId;
+        }
+        if ($id) {
+            $this->db->update($emp, $row, 'ID = :id', [':id' => $id]);
+        } else {
+            $parts = preg_split('/\s+/', trim($data['full_name']));
+            $row['EmpCode']       = $data['emp_id'];
+            $row['FirstName']     = $parts[0] ?? $data['full_name'];
+            $row['Middlename']    = '';
+            $row['DesignationId'] = $desigId ?? 0;
+            $row['StartDateTime'] = date('Y-m-d H:i:s');
+            $row['Deleted']       = 0;
+            $this->db->insertLegacy($emp, $row, 'ID');
+        }
+    }
+
+    /** Resolve a free-text designation to an existing Designation.ID, or null. */
+    private function resolveDesignationId(?string $designation): ?int
+    {
+        $designation = trim((string) $designation);
+        if ($designation === '') {
+            return null;
+        }
+        if (ctype_digit($designation)) {
+            return (int) $designation;
+        }
+        $des = lt('designation');
+        $hit = $this->db->value(
+            "SELECT ID FROM {$des} WHERE Deleted = 0 AND (Name = :n OR Code = :n)",
+            [':n' => $designation]
+        );
+        return $hit !== null ? (int) $hit : null;
     }
 }

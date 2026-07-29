@@ -67,6 +67,15 @@ class AttendanceController extends Controller
         Auth::requireRole('dept_head');
         $this->verifyCsrf();
         $period = $this->input('period', period_of(date('Y-m-d')));
+
+        // In legacy mode there is no stored `attendance` table to rebuild —
+        // attendance is derived live from the raw punches against the roster
+        // every time View Attendance is opened. So there is nothing to recompute.
+        if (legacy_mode()) {
+            $this->flash('success', 'Attendance is computed live from punches in legacy mode — nothing to rebuild.');
+            $this->redirect('attendance?period=' . $period);
+        }
+
         $engine = new AttendanceEngine($this->db);
         $n = $engine->rebuildPeriod($period);
         $this->flash('success', "Attendance recomputed for {$n} employee-days in " . period_label($period) . '.');

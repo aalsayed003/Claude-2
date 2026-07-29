@@ -110,7 +110,9 @@ class SpreadsheetReader
             return $out;
         }
         $first = true;
-        while (($data = fgetcsv($fh, 0, ',')) !== false) {
+        // Pass the escape char explicitly ('' = none): PHP 8.4 deprecates relying
+        // on the default, and an empty escape avoids surprises with backslashes.
+        while (($data = fgetcsv($fh, 0, ',', '"', '')) !== false) {
             if ($first) {
                 if (isset($data[0])) {
                     $data[0] = preg_replace('/^\x{FEFF}/u', '', $data[0]);
