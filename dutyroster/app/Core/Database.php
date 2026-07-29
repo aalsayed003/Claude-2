@@ -143,6 +143,22 @@ class Database
         return (int) $this->value("SELECT COALESCE(MAX({$col}), 0) + 1 FROM {$table}");
     }
 
+    /**
+     * Insert into a legacy table whose primary key may have lost its IDENTITY
+     * property (SELECT INTO drops IDENTITY). If the caller didn't supply the id
+     * and the column isn't an identity, fill it with MAX(id)+1 so the insert
+     * can't fail with "Cannot insert NULL into <id>". Returns the row id.
+     */
+    public function insertLegacy(string $table, array $data, string $idCol = 'ID'): int
+    {
+        if (!array_key_exists($idCol, $data) && !$this->isIdentity($table, $idCol)) {
+            $id = $this->nextId($table, $idCol);
+            $this->insert($table, [$idCol => $id] + $data);
+            return $id;
+        }
+        return $this->insert($table, $data);
+    }
+
     public function begin(): void  { $this->pdo->beginTransaction(); }
     public function commit(): void { $this->pdo->commit(); }
     public function rollback(): void { if ($this->pdo->inTransaction()) $this->pdo->rollBack(); }

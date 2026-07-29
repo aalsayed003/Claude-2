@@ -302,15 +302,24 @@ class ApprovalController extends Controller
             return ['ok' => true, 'msg' => 'Schedule change request rejected.'];
         }
 
-        $this->db->update($t, ['StateID' => $step['to_state']], 'RequestID = :id', [':id' => $id]);
-
-        if ($step['is_apply']) {
-            $newShiftId = (int) ($sc['ChangeShiftID'] ?? 0);
-            $work = $this->scheduleChangeWorkDate($sc);
-            if ($newShiftId > 0 && $work !== null) {
-                (new \App\Repositories\RosterRepository($this->db))
-                    ->applyShiftChange((int) $sc['EmployeeID'], $work, $newShiftId);
+        // Apply the roster change FIRST, then flip the state — both in one
+        // transaction — so we never end up "Applied" with the roster unchanged,
+        // and any failure surfaces as a message instead of a 500.
+        try {
+            $this->db->begin();
+            if ($step['is_apply']) {
+                $newShiftId = (int) ($sc['ChangeShiftID'] ?? 0);
+                $work = $this->scheduleChangeWorkDate($sc);
+                if ($newShiftId > 0 && $work !== null) {
+                    (new \App\Repositories\RosterRepository($this->db))
+                        ->applyShiftChange((int) $sc['EmployeeID'], $work, $newShiftId);
+                }
             }
+            $this->db->update($t, ['StateID' => $step['to_state']], 'RequestID = :id', [':id' => $id]);
+            $this->db->commit();
+        } catch (\Throwable $e) {
+            $this->db->rollback();
+            return ['ok' => false, 'msg' => 'Could not apply the schedule change: ' . $e->getMessage()];
         }
 
         return ['ok' => true, 'msg' => $step['is_apply']

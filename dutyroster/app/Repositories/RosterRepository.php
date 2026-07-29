@@ -72,18 +72,15 @@ class RosterRepository
         if ($header) {
             $allotId = (int) $header['ID'];
         } else {
-            $allotId = $this->db->isIdentity($hdr, 'ID')
-                ? $this->db->insert($hdr, [
-                    'Empid' => $employeeId, 'CurrentMonth' => $monthStart, 'Deleted' => 0, 'TotalHours' => 0,
-                  ])
-                : (function () use ($hdr, $employeeId, $monthStart) {
-                    $id = $this->db->nextId($hdr, 'ID');
-                    $this->db->insert($hdr, [
-                        'ID' => $id, 'Empid' => $employeeId, 'CurrentMonth' => $monthStart,
-                        'Deleted' => 0, 'TotalHours' => 0,
-                    ]);
-                    return $id;
-                })();
+            // Identity-safe: supply ID when the header PK isn't an IDENTITY column
+            // (SELECT INTO drops IDENTITY, which otherwise crashes on NULL ID).
+            // operatorid is NOT NULL: record the operator (HR user applying),
+            // falling back to the employee when there's no active session.
+            $operator = \App\Core\Auth::id() ?: $employeeId;
+            $allotId = $this->db->insertLegacy($hdr, [
+                'Empid' => $employeeId, 'CurrentMonth' => $monthStart,
+                'Deleted' => 0, 'TotalHours' => 0, 'operatorid' => $operator,
+            ], 'ID');
         }
 
         $hours = (float) ($this->db->value("SELECT TotalHours FROM {$shift} WHERE ID = :s", [':s' => $newShiftId]) ?? 0);
@@ -97,9 +94,13 @@ class RosterRepository
                 [':s' => $newShiftId, ':h' => $hours, ':a' => $allotId, ':d' => $date]
             );
         } else {
+            // AllotShiftDetail has no ID/identity column; AllotId is the key.
+            // ShiftDay and halfdayleavetype are NOT NULL with no default, so
+            // both must be supplied or the INSERT crashes on SQL Server.
             $this->db->insert($dtl, [
-                'AllotId' => $allotId, 'Shiftid' => $newShiftId, 'ShiftDay' => date('l', strtotime($date)),
-                'ShiftDate' => $date, 'Deleted' => 0, 'TotalHours' => $hours,
+                'AllotId' => $allotId, 'Shiftid' => $newShiftId,
+                'ShiftDay' => date('l', strtotime($date)), 'ShiftDate' => $date,
+                'Deleted' => 0, 'halfdayleavetype' => 0, 'TotalHours' => $hours,
             ]);
         }
 
