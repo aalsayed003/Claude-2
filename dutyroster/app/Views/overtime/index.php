@@ -1,6 +1,8 @@
 <div class="page-head"><div><h1>Overtime</h1>
     <p class="subtle">Early-in / late-out overtime for period
-        <strong><?= e(period_label($period)) ?></strong>.</p></div></div>
+        <strong><?= e(period_label($period)) ?></strong><?php if (!empty($cutFrom)): ?>
+        <span class="subtle">(cutoff <?= date('d M Y', strtotime($cutFrom)) ?> – <?= date('d M Y', strtotime($cutTo)) ?>)</span>
+        <?php endif; ?>.</p></div></div>
 
 <div class="card">
 <form method="get" action="<?= url('overtime') ?>" class="inline">

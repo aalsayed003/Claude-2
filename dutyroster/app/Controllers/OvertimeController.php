@@ -55,6 +55,8 @@ class OvertimeController extends Controller
             'employees' => $employees,
             'emp'       => $emp,
             'period'    => $period,
+            'cutFrom'   => $cutFrom,
+            'cutTo'     => $cutTo,
             'eligible'  => $eligible,
             'requests'  => $requests,
             'reasons'   => $reasons,
