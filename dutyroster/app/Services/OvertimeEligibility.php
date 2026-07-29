@@ -45,28 +45,33 @@ class OvertimeEligibility
             $emp['emp_id'] ?? null,
             $emp['emp_code'] ?? null,
         ];
-        // Widen the punch window a little past the period so an overnight out on
-        // the last day (after midnight) is still captured.
+        // Prefer the raw punch feed (schedule-aware pairing). If that table isn't
+        // reachable (e.g. punch_table not pointed at the biometric DB), fall back
+        // to the pre-paired Atten_MMYYYY tables — exactly like View Attendance —
+        // so OT is never silently empty just because the raw feed is unavailable.
         $raw = $repo->rawPunches(
             $pins,
             $from . ' 00:00:00',
             date('Y-m-d', strtotime($to . ' +1 day')) . ' 12:00:00'
         );
-        if ($raw === null) {
-            return [];   // no raw punch table — can't derive OT from punches
-        }
+        $useRaw = $raw !== null;
+        $atten  = $useRaw ? [] : $repo->forEmployee([$emp['emp_id'] ?? null, $emp['emp_code'] ?? null], $from, $to);
 
-        $available = $raw;
+        $available = $raw ?? [];
         $out = [];
         for ($ts = strtotime($from); $ts <= strtotime($to); $ts = strtotime('+1 day', $ts)) {
             $date = date('Y-m-d', $ts);
             $s = $scheduled[$date] ?? null;
 
-            $a = PunchPairer::pair($date, $s, $available);
-            if (!empty($a['used_ts'])) {
-                $available = array_values(array_diff($available, $a['used_ts']));
+            if ($useRaw) {
+                $a = PunchPairer::pair($date, $s, $available);
+                if (!empty($a['used_ts'])) {
+                    $available = array_values(array_diff($available, $a['used_ts']));
+                }
+            } else {
+                $a = $atten[$date] ?? null;
             }
-            if (($a['punch_count'] ?? 0) === 0) {
+            if (!$a || ($a['punch_count'] ?? 0) === 0) {
                 continue;   // nothing punched -> nothing to claim
             }
 
