@@ -18,6 +18,14 @@
 </form>
 </div>
 
+<?php if ($emp && empty($punchSourceOk)): ?>
+<div class="flash flash-warn">
+    ⚠ Punch feed not reachable — eligible OT is derived from punches, so this list may be
+    empty or incomplete. Ask IT to make the biometric punch table (<code>checkinout</code>)
+    visible to the app (see database/migration/Fix_Overtime_Punch_Source.sql).
+</div>
+<?php endif; ?>
+
 <?php if ($emp): ?>
 <div class="grid" style="grid-template-columns:1fr 1fr">
 <div class="card">

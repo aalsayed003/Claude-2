@@ -4,6 +4,7 @@ namespace App\Controllers;
 use App\Core\Controller;
 use App\Core\Auth;
 use App\Services\AttendanceView;
+use App\Repositories\AttendanceRepository;
 use App\Repositories\EmployeeRepository;
 use App\Repositories\RosterRepository;
 use App\Repositories\CorrectionRepository;
@@ -35,8 +36,10 @@ class WorkspaceController extends Controller
 
         $emp = null; $attendanceRows = []; $corrRequests = []; $reasons = [];
         $scRequests = []; $roster = []; $shifts = []; $employees = []; $allRequests = [];
+        $punchSourceOk = true;
 
         if (legacy_mode()) {
+            $punchSourceOk = (new AttendanceRepository($this->db))->punchSourceAvailable();
             $empRepo = new EmployeeRepository($this->db);
             $emp = $empId ? $empRepo->find($empId) : null;
             $employees = $canPickAnyone ? $empRepo->search('') : [];
@@ -89,6 +92,7 @@ class WorkspaceController extends Controller
             'corrRequests'   => $corrRequests,
             'scRequests'     => $scRequests,
             'allRequests'    => $allRequests,
+            'punchSourceOk'  => $punchSourceOk,
         ]);
     }
 

@@ -18,7 +18,9 @@ class OvertimeController extends Controller
         [$cutFrom, $cutTo] = period_bounds($period);
 
         $reasons = [];
+        $punchSourceOk = true;
         if (legacy_mode()) {
+            $punchSourceOk = (new \App\Repositories\AttendanceRepository($this->db))->punchSourceAvailable();
             $empRepo = new \App\Repositories\EmployeeRepository($this->db);
             $emp = $empId ? $empRepo->find($empId) : null;
             // Eligible OT is derived from the roster vs the raw punches: working-day
@@ -57,6 +59,7 @@ class OvertimeController extends Controller
             'period'    => $period,
             'cutFrom'   => $cutFrom,
             'cutTo'     => $cutTo,
+            'punchSourceOk' => $punchSourceOk,
             'eligible'  => $eligible,
             'requests'  => $requests,
             'reasons'   => $reasons,

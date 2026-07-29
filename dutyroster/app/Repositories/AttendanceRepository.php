@@ -158,6 +158,17 @@ class AttendanceRepository
         return $out;
     }
 
+    /**
+     * True when the configured raw biometric punch table (legacy.punch_table,
+     * default `checkinout`) is reachable from the app database. When false, the
+     * app falls back to the pre-paired Atten_MMYYYY tables, which lose split-duty
+     * middle punches and mis-file overnight outs — so callers warn the user.
+     */
+    public function punchSourceAvailable(): bool
+    {
+        return $this->tableExists(Config::get('legacy.punch_table', 'checkinout'));
+    }
+
     /** True if the given table exists in the current database (driver-aware). */
     private function tableExists(string $table): bool
     {
