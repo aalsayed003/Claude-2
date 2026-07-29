@@ -18,6 +18,15 @@ return [
         'cutoff_day'        => 16,
         'grace_late_min'    => 15,  // late-in counts only when > this (so 16 min and above)
         'grace_early_min'   => 15,  // early-out counts only when > this
+        // OVERTIME ELIGIBILITY RULE (the "Eligible OT from punches" list):
+        //   working day -> early-punch-in OT (clocked IN before the scheduled
+        //                  start) + late-punch-out OT (clocked OUT after the
+        //                  scheduled end); each counts only once it reaches this
+        //                  many minutes, and the FULL early/late minutes show.
+        //   off day / PH -> a DAY OFF / PUBLIC HOLIDAY that was actually worked
+        //                  (any punches) is claimable for the whole worked span.
+        // Implemented in App\Services\OvertimeEligibility (legacy mode) and
+        // App\Services\AttendanceEngine::applyShiftMetrics (clean schema).
         'ot_min_threshold'  => 60,  // overtime counts only from this many minutes
         'week_off_days'     => [5, 6], // 0=Sun..6=Sat  -> Fri & Sat (informational)
     ],

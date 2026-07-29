@@ -21,8 +21,14 @@ class OvertimeController extends Controller
         if (legacy_mode()) {
             $empRepo = new \App\Repositories\EmployeeRepository($this->db);
             $emp = $empId ? $empRepo->find($empId) : null;
-            $eligible = [];   // legacy OT-eligibility derivation: next iteration
-            $requests = [];   // legacy DR_OverTime request list: next iteration
+            // Eligible OT is derived from the roster vs the raw punches: working-day
+            // early-in / late-out, plus off-day / public-holiday worked days.
+            $eligible = $emp
+                ? \App\Services\OvertimeEligibility::forEmployee($this->db, $emp, $empId, $cutFrom, $cutTo)
+                : [];
+            $requests = $empId
+                ? (new \App\Repositories\OvertimeRepository($this->db))->forEmployee($empId, $cutFrom, $cutTo)
+                : [];
             $employees = Auth::atLeast('dept_head') ? $empRepo->search('') : [];
             $reasons = (new \App\Repositories\ReasonRepository($this->db))->overtime();
         } else {
