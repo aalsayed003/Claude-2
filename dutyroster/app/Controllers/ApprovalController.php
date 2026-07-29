@@ -6,8 +6,11 @@ use App\Core\Auth;
 use App\Core\Config;
 use App\Services\ApprovalFlow;
 use App\Services\CorrectionFlow;
+use App\Services\ScheduleChangeFlow;
+use App\Services\RequestCategory;
 use App\Repositories\ScheduleRequestRepository;
 use App\Repositories\CorrectionRepository;
+use App\Repositories\ScheduleChangeRepository;
 
 /**
  * Duty-roster submission approvals.
@@ -66,20 +69,36 @@ class ApprovalController extends Controller
         if (legacy_mode()) {
             $corrections = (new CorrectionRepository($this->db))->pendingForApproval($from, $to);
             foreach ($corrections as &$c) {
-                $step = CorrectionFlow::step((int) $c['state_id']);
-                $c['status']       = CorrectionFlow::statusLabel((int) $c['state_id']);
+                $cat  = RequestCategory::forDept((int) ($c['department_id'] ?? 0));
+                $step = CorrectionFlow::step((int) $c['state_id'], $cat);
+                $c['status']       = CorrectionFlow::statusLabel((int) $c['state_id'], $cat);
                 $c['status_class'] = CorrectionFlow::statusClass((int) $c['state_id']);
                 $c['can_act']      = $step !== null && $this->canAct($step['role']);
             }
             unset($c);
         }
 
+        // Schedule-change requests awaiting approval (legacy only).
+        $scheduleChanges = [];
+        if (legacy_mode()) {
+            $scheduleChanges = (new ScheduleChangeRepository($this->db))->pendingForApproval($from, $to);
+            foreach ($scheduleChanges as &$sc) {
+                $cat  = RequestCategory::forDept((int) ($sc['department_id'] ?? 0));
+                $step = ScheduleChangeFlow::step((int) $sc['state_id'], $cat);
+                $sc['status']       = ScheduleChangeFlow::statusLabel((int) $sc['state_id'], $cat);
+                $sc['status_class'] = ScheduleChangeFlow::statusClass((int) $sc['state_id']);
+                $sc['can_act']      = $step !== null && $this->canAct($step['role']);
+            }
+            unset($sc);
+        }
+
         $this->view('approvals/index', [
-            'title'       => 'Approve Request',
-            'subs'        => $subs,
-            'corrections' => $corrections,
-            'from'        => $from,
-            'to'          => $to,
+            'title'           => 'Approve Request',
+            'subs'            => $subs,
+            'corrections'     => $corrections,
+            'scheduleChanges' => $scheduleChanges,
+            'from'            => $from,
+            'to'              => $to,
         ]);
     }
 
@@ -217,7 +236,8 @@ class ApprovalController extends Controller
         }
 
         $state = (int) ($c['StateID'] ?? 0);
-        $step  = CorrectionFlow::step($state);
+        $cat   = RequestCategory::forDept((int) ($c['DepartmentId'] ?? 0));
+        $step  = CorrectionFlow::step($state, $cat);
         if (!$step) {
             return ['ok' => false, 'msg' => 'This correction is already fully processed.'];
         }
@@ -240,13 +260,79 @@ class ApprovalController extends Controller
             : 'Approved — now awaiting HR.'];
     }
 
+    /** Approve / reject a schedule-change request (Dept Head/CNO/COO-MD -> HR), then redirect. */
+    public function actScheduleChange(): void
+    {
+        Auth::requireRole('dept_head');
+        $this->verifyCsrf();
+        $res = $this->scheduleChangeDecision(
+            (int) $this->input('id'),
+            $this->input('action'),
+            $this->input('comments') ?: null
+        );
+        $this->flash($res['ok'] ? 'success' : 'error', $res['msg']);
+        $this->redirect('approvals');
+    }
+
+    /** Testable core: advance/reject a schedule-change request. Returns ['ok'=>,'msg'=>]. */
+    private function scheduleChangeDecision(int $id, string $action, ?string $comment): array
+    {
+        $t  = lt('change_sched');
+        $sc = (new ScheduleChangeRepository($this->db))->find($id);
+        if (!$sc) {
+            return ['ok' => false, 'msg' => 'Schedule change request not found.'];
+        }
+
+        $state = (int) ($sc['StateID'] ?? 0);
+        $cat   = RequestCategory::forDept((int) ($sc['DepartmentId'] ?? 0));
+        $step  = ScheduleChangeFlow::step($state, $cat);
+        if (!$step) {
+            return ['ok' => false, 'msg' => 'This request is already fully processed.'];
+        }
+        if (!$this->canAct($step['role'])) {
+            return ['ok' => false, 'msg' => 'You are not authorised for this step (' . $step['label'] . ').'];
+        }
+
+        if ($action === 'reject') {
+            $set = ['StateID' => ScheduleChangeFlow::rejectState()];
+            if ($comment) {
+                $set['RejectReason'] = mb_substr(trim((string) $comment), 0, 250);
+            }
+            $this->db->update($t, $set, 'RequestID = :id', [':id' => $id]);
+            return ['ok' => true, 'msg' => 'Schedule change request rejected.'];
+        }
+
+        $this->db->update($t, ['StateID' => $step['to_state']], 'RequestID = :id', [':id' => $id]);
+
+        if ($step['is_apply']) {
+            $newShiftId = (int) ($sc['ChangeShiftID'] ?? 0);
+            $work = $this->scheduleChangeWorkDate($sc);
+            if ($newShiftId > 0 && $work !== null) {
+                (new \App\Repositories\RosterRepository($this->db))
+                    ->applyShiftChange((int) $sc['EmployeeID'], $work, $newShiftId);
+            }
+        }
+
+        return ['ok' => true, 'msg' => $step['is_apply']
+            ? 'Applied — the employee\'s roster for that day is now updated.'
+            : 'Approved — now awaiting HR.'];
+    }
+
+    /** ScheduleMonth + ScheduleDay -> 'Y-m-d', as stored on DR_ChangeSchedule. */
+    private function scheduleChangeWorkDate(array $sc): ?string
+    {
+        if (empty($sc['ScheduleMonth'])) return null;
+        $ym  = date('Y-m', strtotime((string) $sc['ScheduleMonth']));
+        $day = str_pad((string) (int) ($sc['ScheduleDay'] ?? 1), 2, '0', STR_PAD_LEFT);
+        return "{$ym}-{$day}";
+    }
+
     /** Department -> approval category (nurse / doctor / default). Until payroll
      *  supplies employee category, a config map (legacy.dept_category) drives it;
      *  unmapped departments use the plain Dept Head -> HR chain. */
     private function categoryForDept(int $deptId): string
     {
-        $map = Config::get('legacy.dept_category', []);
-        return $map[$deptId] ?? 'default';
+        return RequestCategory::forDept($deptId);
     }
 
     /** Admin may action any gate; otherwise the user's role must match the gate. */

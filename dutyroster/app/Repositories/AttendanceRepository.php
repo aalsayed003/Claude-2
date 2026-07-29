@@ -186,8 +186,12 @@ class AttendanceRepository
      */
     public static function deriveStatus(int $punchCount, ?array $sched): string
     {
-        if ($sched && strtoupper((string) ($sched['code'] ?? '')) === 'DAY OFF') {
+        $code = strtoupper((string) ($sched['code'] ?? ''));
+        if ($sched && $code === 'DAY OFF') {
             return 'day_off';
+        }
+        if ($sched && str_contains($code, 'HOLIDAY')) {
+            return 'holiday';
         }
         if ($punchCount > 0) {
             return 'present';

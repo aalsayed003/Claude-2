@@ -32,14 +32,17 @@ class CorrectionRepository
         return array_map([$this, 'shape'], $rows);
     }
 
-    /** One correction request by id (raw legacy row). */
+    /** One correction request by id (raw legacy row), plus the employee's DepartmentId for category routing. */
     public function find(int $id): ?array
     {
         $t = lt('correction_table') ?: 'DR_CorrectionRequest';
+        $emp = lt('employee');
         return $this->db->one(
-            "SELECT RequestID, EmployeeID, DayFor, FirstIn, FirstOut, SecondIn, SecondOut,
-                    ReasonID, TypeId, Remarks, StateID
-               FROM {$t} WHERE RequestID = :id",
+            "SELECT cr.RequestID, cr.EmployeeID, cr.DayFor, cr.FirstIn, cr.FirstOut, cr.SecondIn, cr.SecondOut,
+                    cr.ReasonID, cr.TypeId, cr.Remarks, cr.StateID, e.DepartmentId
+               FROM {$t} cr
+               LEFT JOIN {$emp} e ON e.ID = cr.EmployeeID
+              WHERE cr.RequestID = :id",
             [':id' => $id]
         );
     }
@@ -55,7 +58,7 @@ class CorrectionRepository
         try {
         $rows = $this->db->all(
             "SELECT cr.RequestID, cr.RequestDate, cr.EmployeeID, e.EmployeeId AS emp_code, e.Name AS emp_name,
-                    cr.DayFor, cr.FirstIn, cr.FirstOut, cr.SecondIn, cr.SecondOut,
+                    e.DepartmentId, cr.DayFor, cr.FirstIn, cr.FirstOut, cr.SecondIn, cr.SecondOut,
                     r.Reason AS reason_name, cr.TypeId, cr.StateID, cr.Remarks
                FROM {$t} cr
                LEFT JOIN {$emp} e ON e.ID = cr.EmployeeID
@@ -113,14 +116,15 @@ class CorrectionRepository
         if ($tm($r['SecondOut'])) $parts[] = 'Second Out → '. $tm($r['SecondOut']);
         $state = (int) ($r['StateID'] ?? 0);
         return [
-            'id'         => (int) $r['RequestID'],
-            'emp_code'   => trim((string) ($r['emp_code'] ?? '')),
-            'emp_name'   => trim((string) ($r['emp_name'] ?? '')),
-            'work_date'  => $r['DayFor'] ? substr((string) $r['DayFor'], 0, 10) : null,
-            'change'     => implode(', ', $parts),
-            'reason'     => $r['reason_name'] ?? null,
-            'remarks'    => $r['Remarks'] ?? null,
-            'state_id'   => $state,
+            'id'            => (int) $r['RequestID'],
+            'emp_code'      => trim((string) ($r['emp_code'] ?? '')),
+            'emp_name'      => trim((string) ($r['emp_name'] ?? '')),
+            'department_id' => (int) ($r['DepartmentId'] ?? 0),
+            'work_date'     => $r['DayFor'] ? substr((string) $r['DayFor'], 0, 10) : null,
+            'change'        => implode(', ', $parts),
+            'reason'        => $r['reason_name'] ?? null,
+            'remarks'       => $r['Remarks'] ?? null,
+            'state_id'      => $state,
         ];
     }
 

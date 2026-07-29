@@ -52,6 +52,64 @@ class RosterRepository
         return $out;
     }
 
+    /**
+     * Write an approved schedule-change onto the live roster: set the shift for
+     * one employee/day to $newShiftId, creating the month header if it doesn't
+     * exist yet. Called when HR applies a Change-of-Schedule request, so the
+     * approved change actually takes effect (not just a status flag).
+     */
+    public function applyShiftChange(int $employeeId, string $date, int $newShiftId): void
+    {
+        $hdr = lt('roster_hdr');
+        $dtl = lt('roster_dtl');
+        $shift = lt('shift');
+        $monthStart = date('Y-m-01', strtotime($date));
+
+        $header = $this->db->one(
+            "SELECT ID FROM {$hdr} WHERE Empid = :e AND CurrentMonth = :m AND Deleted = 0",
+            [':e' => $employeeId, ':m' => $monthStart]
+        );
+        if ($header) {
+            $allotId = (int) $header['ID'];
+        } else {
+            $allotId = $this->db->isIdentity($hdr, 'ID')
+                ? $this->db->insert($hdr, [
+                    'Empid' => $employeeId, 'CurrentMonth' => $monthStart, 'Deleted' => 0, 'TotalHours' => 0,
+                  ])
+                : (function () use ($hdr, $employeeId, $monthStart) {
+                    $id = $this->db->nextId($hdr, 'ID');
+                    $this->db->insert($hdr, [
+                        'ID' => $id, 'Empid' => $employeeId, 'CurrentMonth' => $monthStart,
+                        'Deleted' => 0, 'TotalHours' => 0,
+                    ]);
+                    return $id;
+                })();
+        }
+
+        $hours = (float) ($this->db->value("SELECT TotalHours FROM {$shift} WHERE ID = :s", [':s' => $newShiftId]) ?? 0);
+        $existing = $this->db->one(
+            "SELECT AllotId FROM {$dtl} WHERE AllotId = :a AND ShiftDate = :d",
+            [':a' => $allotId, ':d' => $date]
+        );
+        if ($existing) {
+            $this->db->run(
+                "UPDATE {$dtl} SET Shiftid = :s, Deleted = 0, TotalHours = :h WHERE AllotId = :a AND ShiftDate = :d",
+                [':s' => $newShiftId, ':h' => $hours, ':a' => $allotId, ':d' => $date]
+            );
+        } else {
+            $this->db->insert($dtl, [
+                'AllotId' => $allotId, 'Shiftid' => $newShiftId, 'ShiftDay' => date('l', strtotime($date)),
+                'ShiftDate' => $date, 'Deleted' => 0, 'TotalHours' => $hours,
+            ]);
+        }
+
+        $sum = (float) $this->db->value(
+            "SELECT COALESCE(SUM(TotalHours), 0) FROM {$dtl} WHERE AllotId = :a AND Deleted = 0",
+            [':a' => $allotId]
+        );
+        $this->db->run("UPDATE {$hdr} SET TotalHours = :h WHERE ID = :id", [':h' => $sum, ':id' => $allotId]);
+    }
+
     /** empId => assigned-day count over a date range (for the roster overview). */
     public function assignedDaysByEmployee(string $start, string $end): array
     {

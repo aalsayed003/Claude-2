@@ -12,20 +12,38 @@ use App\Repositories\RosterRepository;
 
 class RosterController extends Controller
 {
-    /** Roster overview for a period. */
+    /** Merged Roster workspace: employee list + Allot Shift grid + Bulk Excel Import, as tabs on one page. */
     public function index(): void
     {
         Auth::requireRole('dept_head');
         $period = $this->input('period', period_of(date('Y-m-d')));
+        $empId  = (int) $this->input('employee_id', 0);
+        $tab    = $this->input('tab', 'roster');
+        $this->renderWorkspace($tab, $period, $empId, null);
+    }
+
+    /**
+     * Builds and renders the combined Roster workspace: the employee list +
+     * Allot Shift grid on the "roster" tab, and the Bulk Excel Import form
+     * (+ optional import result) on the "bulk" tab. Called by index() for a
+     * normal page view, and by import()/submitForm() so the bulk-import
+     * result renders back on the same merged page.
+     */
+    private function renderWorkspace(string $tab, string $period, int $empId, ?array $import): void
+    {
         [$start, $end] = month_bounds($period);
+
+        // --- Employees + roster list (assigned-day counts) ---
         if (legacy_mode()) {
-            $emps  = (new \App\Repositories\EmployeeRepository($this->db))->search('');
-            $counts = (new \App\Repositories\RosterRepository($this->db))->assignedDaysByEmployee($start, $end);
+            $empRepo   = new EmployeeRepository($this->db);
+            $employees = $empRepo->search('');
+            $counts    = (new RosterRepository($this->db))->assignedDaysByEmployee($start, $end);
             $rows = array_map(fn($e) => [
                 'id' => $e['id'], 'emp_id' => $e['emp_id'], 'full_name' => $e['full_name'],
                 'assigned_days' => $counts[$e['id']] ?? 0,
-            ], $emps);
+            ], $employees);
         } else {
+            $employees = $this->db->all("SELECT id, emp_id, full_name FROM employees WHERE active = 1 ORDER BY full_name");
             $rows = $this->db->all(
                 "SELECT e.id, e.emp_id, e.full_name,
                         SUM(CASE WHEN r.id IS NOT NULL THEN 1 ELSE 0 END) AS assigned_days
@@ -37,33 +55,16 @@ class RosterController extends Controller
                 [':p' => $period]
             );
         }
-        $this->view('roster/index', [
-            'title'  => 'Duty Roster',
-            'period' => $period,
-            'rows'   => $rows,
-        ]);
-    }
 
-    /** Allot-shift screen for one employee / month. */
-    public function allot(): void
-    {
-        Auth::requireRole('dept_head');
-        $empId  = (int) $this->input('employee_id', 0);
-        $period = $this->input('period', period_of(date('Y-m-d')));
-        [$start, $end] = month_bounds($period);
-
+        // --- Allot Shift grid (only populated once an employee is picked) ---
+        $emp = null; $shifts = []; $assigned = []; $lastByDom = [];
         if (legacy_mode()) {
-            $empRepo = new \App\Repositories\EmployeeRepository($this->db);
-            $emp     = $empId ? $empRepo->find($empId) : null;
-            $shifts  = (new \App\Repositories\ShiftRepository($this->db))->all();
-            $assigned = $emp
-                ? (new \App\Repositories\RosterRepository($this->db))->forEmployeeRange($empId, $start, $end)
-                : [];
-            $employees = $empRepo->search('');
+            $emp    = $empId ? (new EmployeeRepository($this->db))->find($empId) : null;
+            $shifts = (new ShiftRepository($this->db))->all();
+            $assigned = $emp ? (new RosterRepository($this->db))->forEmployeeRange($empId, $start, $end) : [];
         } else {
             $emp = $empId ? $this->db->one("SELECT * FROM employees WHERE id = :id", [':id' => $empId]) : null;
             $shifts = $this->db->all("SELECT * FROM shifts WHERE active = 1 ORDER BY is_day_off DESC, code");
-            $assigned = [];
             if ($emp) {
                 foreach ($this->db->all(
                     "SELECT r.work_date, r.shift_id, s.code, s.name, s.first_in, s.first_out,
@@ -75,7 +76,6 @@ class RosterController extends Controller
                     $assigned[$r['work_date']] = $r;
                 }
             }
-            $employees = $this->db->all("SELECT id, emp_id, full_name FROM employees WHERE active = 1 ORDER BY full_name");
         }
 
         $days = [];
@@ -84,11 +84,10 @@ class RosterController extends Controller
         }
 
         // Last month's roster (day-of-month => shift_id) for the in-app "roll forward".
-        $lastByDom = [];
         if ($emp) {
             [$ls, $le] = month_bounds(date('Y-m', strtotime($start . ' -1 month')));
             if (legacy_mode()) {
-                foreach ((new \App\Repositories\RosterRepository($this->db))->forEmployeeRange($empId, $ls, $le) as $ld => $la) {
+                foreach ((new RosterRepository($this->db))->forEmployeeRange($empId, $ls, $le) as $ld => $la) {
                     $lastByDom[(int) date('j', strtotime($ld))] = (int) $la['shift_id'];
                 }
             } else {
@@ -101,17 +100,42 @@ class RosterController extends Controller
             }
         }
 
-        $this->view('roster/allot', [
-            'title'    => 'Duty Roster — Allot Shift',
+        // --- Bulk Excel Import tab ---
+        if (legacy_mode()) {
+            $depts    = (new DepartmentRepository($this->db))->all();
+            $sections = [];
+        } else {
+            $depts    = $this->db->all("SELECT * FROM departments ORDER BY name");
+            $sections = $this->db->all("SELECT * FROM sections ORDER BY name");
+        }
+
+        $this->view('roster/workspace', [
+            'title'    => 'Duty Roster',
+            'tab'      => in_array($tab, ['roster', 'bulk'], true) ? $tab : 'roster',
+            'period'   => $period,
+            'rows'     => $rows,
+            'not_scheduled' => count(array_filter($rows, fn($r) => (int) $r['assigned_days'] === 0)),
+            'total_employees' => count($rows),
             'employees'=> $employees,
             'emp'      => $emp,
-            'period'   => $period,
             'shifts'   => $shifts,
             'days'     => $days,
             'assigned' => $assigned,
             'last_by_dom' => $lastByDom,
             'scheduled_hours' => array_sum(array_map(fn($a) => (float) $a['total_hours'], $assigned)),
+            'depts'    => $depts,
+            'sections' => $sections,
+            'import'   => $import,
         ]);
+    }
+
+    /** Allot Shift is now the "Roster" tab on the merged workspace page. */
+    public function allot(): void
+    {
+        Auth::requireRole('dept_head');
+        $qs = $_GET;
+        $qs['tab'] = 'roster';
+        $this->redirect('roster?' . http_build_query($qs));
     }
 
     /** Persist a month's allotment for one employee, then auto-submit it for approval. */
@@ -142,13 +166,13 @@ class RosterController extends Controller
         } catch (\Throwable $e) {
             $this->db->rollback();
             $this->flash('error', 'Save failed: ' . $e->getMessage());
-            $this->redirect('roster/allot?employee_id=' . $empId . '&period=' . $period);
+            $this->redirect('roster?tab=roster&employee_id=' . $empId . '&period=' . $period);
         }
 
         $this->flash('success', $submitted
             ? 'Roster saved and submitted for approval.'
             : 'Roster saved (already submitted and awaiting approval for this month).');
-        $this->redirect('roster/allot?employee_id=' . $empId . '&period=' . $period);
+        $this->redirect('roster?tab=roster&employee_id=' . $empId . '&period=' . $period);
     }
 
     /**
@@ -360,10 +384,13 @@ class RosterController extends Controller
         );
     }
 
+    /** The old standalone "Submit Duty Roster" page is now the "Bulk Import" tab on the merged workspace. */
     public function submitForm(): void
     {
         Auth::requireRole('dept_head');
-        $this->renderSubmit($this->input('period', period_of(date('Y-m-d'))));
+        $qs = $_GET;
+        $qs['tab'] = 'bulk';
+        $this->redirect('roster?' . http_build_query($qs));
     }
 
     public function submit(): void
@@ -375,7 +402,7 @@ class RosterController extends Controller
         $sectionId = $this->input('section_id') ?: null;
         if (!$period || !$deptId) {
             $this->flash('error', 'Period and department are required.');
-            $this->redirect('roster/submit');
+            $this->redirect('roster?tab=bulk');
         }
 
         if (legacy_mode()) {
@@ -435,7 +462,7 @@ class RosterController extends Controller
         $period = $this->input('period', period_of(date('Y-m-d')));
         if (!$deptId) {
             $this->flash('error', 'Choose a department before downloading the template.');
-            $this->redirect('roster/submit?period=' . $period);
+            $this->redirect('roster?tab=bulk&period=' . $period);
         }
 
         $dept      = (new DepartmentRepository($this->db))->find($deptId);
@@ -576,12 +603,12 @@ class RosterController extends Controller
         $file = $_FILES['file'] ?? null;
         if (!$file || $file['error'] !== UPLOAD_ERR_OK) {
             $this->flash('error', 'Please choose a filled-in roster file to upload.');
-            $this->redirect('roster/submit?period=' . $formPeriod . ($formDept ? '&department_id=' . $formDept : ''));
+            $this->redirect('roster?tab=bulk&period=' . $formPeriod . ($formDept ? '&department_id=' . $formDept : ''));
         }
         $ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
         if (!in_array($ext, ['xlsx', 'csv'], true)) {
             $this->flash('error', 'Unsupported file type. Upload the .xlsx template (or a .csv).');
-            $this->redirect('roster/submit?period=' . $formPeriod);
+            $this->redirect('roster?tab=bulk&period=' . $formPeriod);
         }
 
         $tmp = tempnam(sys_get_temp_dir(), 'dr_imp_');
@@ -594,7 +621,7 @@ class RosterController extends Controller
             }
         } catch (\Throwable $e) {
             @unlink($tmp);
-            $this->renderSubmit($formPeriod, [
+            $this->renderWorkspace('bulk', $formPeriod, 0, [
                 'ok' => false, 'errors' => ['Could not process the file: ' . $e->getMessage()],
                 'warnings' => [], 'summary' => null, 'deptName' => '', 'period' => $formPeriod,
             ]);
@@ -602,7 +629,7 @@ class RosterController extends Controller
         }
         @unlink($tmp);
 
-        $this->renderSubmit($result['period'] ?: $formPeriod, $result);
+        $this->renderWorkspace('bulk', $result['period'] ?: $formPeriod, 0, $result);
     }
 
     /** Parse + validate an uploaded roster file. Never writes to the DB. */
@@ -792,22 +819,4 @@ class RosterController extends Controller
         ];
     }
 
-    /** Render the Submit Duty Roster screen (optionally with an import report). */
-    private function renderSubmit(string $period, ?array $import = null): void
-    {
-        if (legacy_mode()) {
-            $depts    = (new DepartmentRepository($this->db))->all();
-            $sections = [];
-        } else {
-            $depts    = $this->db->all("SELECT * FROM departments ORDER BY name");
-            $sections = $this->db->all("SELECT * FROM sections ORDER BY name");
-        }
-        $this->view('roster/submit', [
-            'title'    => 'Submit Duty Roster',
-            'period'   => $period,
-            'depts'    => $depts,
-            'sections' => $sections,
-            'import'   => $import,
-        ]);
-    }
 }

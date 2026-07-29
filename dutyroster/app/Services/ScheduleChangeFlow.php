@@ -4,44 +4,36 @@ namespace App\Services;
 use App\Core\Config;
 
 /**
- * Attendance-correction approval state machine (DR_CorrectionRequest.StateID).
+ * Schedule-change approval state machine (DR_ChangeSchedule.StateID).
  *
- * Chain depends on the employee's category (via their department, see
- * RequestCategory) — the first gate goes straight to the clinical approver
- * for nurses/doctors (no Dept Head step), then HR applies either way:
+ * Same shape and same category routing as CorrectionFlow — first gate goes
+ * straight to the clinical approver for nurses/doctors (no Dept Head step),
+ * then HR applies either way:
  *   default : pending -> (Dept Head approves) -> head_ok -> (HR applies) -> applied
  *   nurse   : pending -> (CNO approves)        -> head_ok -> (HR applies) -> applied
  *   doctor  : pending -> (COO/MD approves)     -> head_ok -> (HR applies) -> applied
  * Reject at either gate -> rejected.
  *
- * State codes are configurable (legacy.correction_states); the app is the only
- * writer/reader now, so they are an internal convention aligned with dr_states.
+ * Uses the same state codes as corrections by default (legacy.correction_states)
+ * since both tables share the DR request StateID convention (see config.php),
+ * but can be overridden independently via legacy.schedule_change_states.
  */
-class CorrectionFlow
+class ScheduleChangeFlow
 {
     public static function states(): array
     {
-        return Config::get('legacy.correction_states', [
-            'pending' => 1, 'head_ok' => 3, 'applied' => 14, 'rejected' => 11,
-        ]);
-    }
-
-    /** Ordered 2-role chain for a category: [first approver, 'hr']. */
-    public static function chainFor(string $category): array
-    {
-        $chains = Config::get('legacy.request_chains', [
-            'nurse'   => ['cno', 'hr'],
-            'doctor'  => ['coo_md', 'hr'],
-            'default' => ['dept_head', 'hr'],
-        ]);
-        return $chains[$category] ?? ($chains['default'] ?? ['dept_head', 'hr']);
+        return Config::get('legacy.schedule_change_states',
+            Config::get('legacy.correction_states', [
+                'pending' => 1, 'head_ok' => 3, 'applied' => 14, 'rejected' => 11,
+            ])
+        );
     }
 
     /** @return array{role:string,label:string,is_apply:bool,to_state:int}|null */
     public static function step(int $state, string $category = 'default'): ?array
     {
         $s = self::states();
-        $chain = self::chainFor($category);
+        $chain = CorrectionFlow::chainFor($category);
         if ($state === (int) $s['pending']) {
             return ['role' => $chain[0], 'label' => ApprovalFlow::roleLabel($chain[0]), 'is_apply' => false, 'to_state' => (int) $s['head_ok']];
         }
@@ -54,7 +46,7 @@ class CorrectionFlow
     public static function statusLabel(int $state, string $category = 'default'): string
     {
         $s = self::states();
-        $chain = self::chainFor($category);
+        $chain = CorrectionFlow::chainFor($category);
         return match ($state) {
             (int) $s['pending']  => 'Awaiting ' . ApprovalFlow::roleLabel($chain[0]),
             (int) $s['head_ok']  => 'Awaiting HR',

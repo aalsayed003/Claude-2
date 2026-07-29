@@ -32,28 +32,30 @@ function old(string $key, $default = ''): string
 
 /**
  * Attendance period helpers. A "period" is the cutoff cycle, keyed by the
- * YYYY-MM of its *start month*. With cutoff_day=16, Sep-2023 period runs
- * 2023-09-16 .. 2023-10-15.
+ * YYYY-MM of its *end month* (the month the person naturally thinks of it
+ * as). With cutoff_day=16, picking "Aug-2026" shows the window
+ * 2026-07-16 .. 2026-08-15.
  */
 function period_bounds(string $periodKey): array
 {
     $cut = (int) Config::get('attendance.cutoff_day', 16);
     [$y, $m] = array_map('intval', explode('-', $periodKey));
-    $start = sprintf('%04d-%02d-%02d', $y, $m, $cut);
-    $endTs = strtotime($start . ' +1 month -1 day');
-    return [$start, date('Y-m-d', $endTs)];
+    $base = sprintf('%04d-%02d-%02d', $y, $m, $cut);
+    $start = date('Y-m-d', strtotime($base . ' -1 month'));
+    $end   = date('Y-m-d', strtotime($base . ' -1 day'));
+    return [$start, $end];
 }
 
-/** Which period does a given date fall into? */
+/** Which period (keyed by its END month) does a given date fall into? */
 function period_of(string $date): string
 {
     $cut = (int) Config::get('attendance.cutoff_day', 16);
     $ts  = strtotime($date);
     $d   = (int) date('j', $ts);
     if ($d >= $cut) {
-        return date('Y-m', $ts);
+        return date('Y-m', strtotime(date('Y-m-01', $ts) . ' +1 month'));
     }
-    return date('Y-m', strtotime(date('Y-m-01', $ts) . ' -1 month'));
+    return date('Y-m', $ts);
 }
 
 /** "Sep 2023" style label for a period key. */
@@ -106,24 +108,23 @@ function lt(string $key): string
     return Config::get('legacy.' . $key, $def[$key] ?? $key);
 }
 
-/** Friendly shift label with times, e.g. "MORNING (08:00–16:00 · 8h)".
- *  Day Off / Public Holiday / timeless shifts fall back to just the code.
- *  Takes a shaped shift row (code, first_in, first_out, second_out, total_hours). */
-function shift_label(array $s): string
-{
-    $code = trim((string) ($s['code'] ?? ''));
-    if ($code === '') return '';
-    $t = fn($v) => ($v !== null && trim((string) $v) !== '') ? date('H:i', strtotime((string) $v)) : null;
-    $in  = $t($s['first_in'] ?? null);
-    $out = $t($s['second_out'] ?? null) ?: $t($s['first_out'] ?? null);
-    if (!$in || !$out) return $code;
-    $hs = rtrim(rtrim(number_format((float) ($s['total_hours'] ?? 0), 1), '0'), '.');
-    return "{$code} ({$in}–{$out} · {$hs}h)";
-}
-
 /** Derive the 9-digit biometric PIN from an employee code (e.g. 01732 -> 000001732). */
 function pin_from_code(string $empCode): string
 {
     $digits = preg_replace('/\D/', '', $empCode);
     return $digits === '' ? '' : str_pad($digits, 9, '0', STR_PAD_LEFT);
+}
+
+/** "D1 (08:00–16:00 · 8h)" style label for a shift row (id/code/first_in/... shape). */
+function shift_label(array $s): string
+{
+    $code = trim((string) ($s['code'] ?? ''));
+    if ($code === '') return '';
+    $t = fn($v) => ($v !== null && trim((string) $v) !== '')
+        ? date('H:i', strtotime((string) $v)) : null;
+    $in  = $t($s['first_in'] ?? null);
+    $out = $t($s['second_out'] ?? null) ?: $t($s['first_out'] ?? null);
+    if (!$in || !$out) return $code;   // DAY OFF / PUBLIC HOLIDAY / no times
+    $hs = rtrim(rtrim(number_format((float) ($s['total_hours'] ?? 0), 1), '0'), '.');
+    return "{$code} ({$in}–{$out} · {$hs}h)";
 }
