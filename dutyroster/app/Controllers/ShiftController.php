@@ -30,7 +30,9 @@ class ShiftController extends Controller
     {
         Auth::requireRole('dept_head');
         $id = (int) $this->input('id');
-        $shift = $this->db->one("SELECT * FROM shifts WHERE id = :id", [':id' => $id]);
+        $shift = legacy_mode()
+            ? (new \App\Repositories\ShiftRepository($this->db))->find($id)
+            : $this->db->one("SELECT * FROM shifts WHERE id = :id", [':id' => $id]);
         if (!$shift) {
             $this->flash('error', 'Shift not found.');
             $this->redirect('shifts');
@@ -65,6 +67,12 @@ class ShiftController extends Controller
             $this->redirect('shifts/new');
         }
 
+        if (legacy_mode()) {
+            $this->saveLegacyShift($id, $data);
+            $this->flash('success', $id ? 'Shift updated.' : 'Shift created.');
+            $this->redirect('shifts');
+        }
+
         if ($id) {
             $this->db->update('shifts', $data, 'id = :id', [':id' => $id]);
             $this->flash('success', 'Shift updated.');
@@ -73,6 +81,38 @@ class ShiftController extends Controller
             $this->flash('success', 'Shift created.');
         }
         $this->redirect('shifts');
+    }
+
+    /**
+     * Write a shift to the legacy `Shift` master. Legacy stores the code in the
+     * Name column and the times as varchar (FromTime/ToTime + the split pair
+     * FromTime1/ToTime1); DAY OFF / PUBLIC HOLIDAY are recognised by Name. ID is
+     * supplied via the identity-safe helper (TestASSH dropped IDENTITY).
+     */
+    private function saveLegacyShift(int $id, array $data): void
+    {
+        $shift = lt('shift');
+        $name = $data['is_day_off'] ? 'DAY OFF'
+              : ($data['is_holiday'] ? 'PUBLIC HOLIDAY' : $data['code']);
+        $split = ($data['second_in'] || $data['second_out']) ? 1 : 0;
+        $row = [
+            'Name'       => $name,
+            'FromTime'   => $data['first_in'],
+            'ToTime'     => $data['first_out'],
+            'FromTime1'  => $data['second_in'],
+            'ToTime1'    => $data['second_out'],
+            'TotalHours' => $data['total_hours'],
+            'split'      => $split,
+            'operatorid' => Auth::id(),
+        ];
+        if ($id) {
+            $this->db->update($shift, $row, 'ID = :id', [':id' => $id]);
+        } else {
+            $row['StartDateTime'] = date('Y-m-d H:i:s');
+            $row['Deleted']  = 0;
+            $row['IsBlocked'] = 0;
+            $this->db->insertLegacy($shift, $row, 'ID');
+        }
     }
 
     /**

@@ -3,6 +3,7 @@ namespace App\Controllers;
 
 use App\Core\Controller;
 use App\Core\Auth;
+use App\Core\Config;
 
 class OvertimeController extends Controller
 {
@@ -66,13 +67,21 @@ class OvertimeController extends Controller
         }
         $from = $this->input('from_time') ?: null;
         $to   = $this->input('to_time') ?: null;
-        $mins = 0;
+        $mins = 0; $endTs = null;
         if ($from && $to) {
             $a = strtotime($date . ' ' . $from);
             $b = strtotime($date . ' ' . $to);
             if ($b < $a) { $b += 86400; }
             $mins = (int) round(($b - $a) / 60);
+            $endTs = $b;
         }
+
+        if (legacy_mode()) {
+            $this->saveLegacyOvertime($empId, $date, $from, $to, $endTs, $mins);
+            $this->flash('success', 'Overtime request submitted.');
+            $this->redirect('overtime?employee_id=' . $empId . '&period=' . period_of($date));
+        }
+
         $this->db->insert('overtime_requests', [
             'employee_id'  => $empId,
             'period_key'   => period_of($date),
@@ -90,5 +99,37 @@ class OvertimeController extends Controller
         ]);
         $this->flash('success', 'Overtime request submitted.');
         $this->redirect('overtime?employee_id=' . $empId . '&period=' . period_of($date));
+    }
+
+    /**
+     * Write an overtime request to the legacy `DR_OverTime` table. Most columns
+     * there are NOT NULL (Designation, the datetime pair, TotalOverTime, ReasonID,
+     * Remarks, StateID, ClaimTime, RejectReason), so all are supplied. Hours are
+     * stored as a numeric total; RequestID is supplied identity-safe.
+     */
+    private function saveLegacyOvertime(int $empId, string $date, ?string $from, ?string $to, ?int $endTs, int $mins): void
+    {
+        $t   = lt('ot');
+        $emp = (new \App\Repositories\EmployeeRepository($this->db))->find($empId);
+        $start = $from ? ($date . ' ' . $from . ':00') : ($date . ' 00:00:00');
+        $end   = $endTs !== null ? date('Y-m-d H:i:s', $endTs) : ($date . ' 00:00:00');
+        $reason = $this->input('reason');
+        $row = [
+            'EmployeeID'    => $empId,
+            'CategoryID'    => null,
+            'Designation'   => (string) ($emp['designation'] ?? ''),
+            'RequestDate'   => date('Y-m-d H:i:s'),
+            'OverTimeDate'  => $date,
+            'StartOverTime' => $start,
+            'EndOverTime'   => $end,
+            'TotalOverTime' => round($mins / 60, 2),
+            'ReasonID'      => is_numeric($reason) ? (int) $reason : 0,
+            'Remarks'       => (string) ($this->input('remark') ?? ''),
+            'StateID'       => (int) Config::get('legacy.dr_initial_state', 1),
+            'ClaimTime'     => 0,
+            'RejectReason'  => '',
+            'IsExpired'     => 0,
+        ];
+        $this->db->insertLegacy($t, $row, 'RequestID');
     }
 }

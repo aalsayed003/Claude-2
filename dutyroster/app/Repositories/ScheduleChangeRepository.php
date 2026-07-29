@@ -46,13 +46,18 @@ class ScheduleChangeRepository
             'EmployeeID'    => (int) $d['employee_id'],
             'ScheduleMonth' => date('Y-m-01', strtotime($date)),
             'ScheduleDay'   => (int) date('j', strtotime($date)),
-            'ShiftID'       => ($d['old_shift_id'] ?? '') !== '' ? (int) $d['old_shift_id'] : null,
-            'ChangeShiftID' => ($d['new_shift_id'] ?? '') !== '' ? (int) $d['new_shift_id'] : null,
+            // ShiftID (old) and ChangeShiftID (new) are NOT NULL in DR_ChangeSchedule,
+            // so coalesce a missing value to 0 rather than NULL (which crashes the
+            // insert). The controller backstop fills the old shift from the roster.
+            'ShiftID'       => ($d['old_shift_id'] ?? '') !== '' ? (int) $d['old_shift_id'] : 0,
+            'ChangeShiftID' => ($d['new_shift_id'] ?? '') !== '' ? (int) $d['new_shift_id'] : 0,
             // AgainstFor is a tinyint (a numeric code), not a date, despite the old UI
             // having a date picker for it. Since the field is no longer collected from
             // the user, default to 0 (the column is NOT NULL so it can't be left out).
             'AgainstFor'    => is_numeric($d['change_against_date'] ?? null) ? (int) $d['change_against_date'] : 0,
-            'ClaimTime'     => ($d['claim_time'] ?? '') ?: null,
+            // ClaimTime is an int and NOT NULL — default to 0 when not supplied
+            // (it isn't collected from the user), never NULL.
+            'ClaimTime'     => is_numeric($d['claim_time'] ?? null) ? (int) $d['claim_time'] : 0,
             'RejectReason'  => null,
             'StateID'       => (int) Config::get('legacy.dr_initial_state', 1),
         ];

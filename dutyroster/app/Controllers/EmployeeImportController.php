@@ -90,6 +90,11 @@ class EmployeeImportController extends Controller
         [$headers, $rows] = SpreadsheetReader::read($tmp, $ext);
         $parsed = $this->validateRows($rows);
 
+        if (legacy_mode()) {
+            $this->commitLegacy($parsed, $tmp);
+            return;
+        }
+
         $deptCache = $this->nameIdMap('departments');
         $secCache  = [];   // "deptId|name" => sectionId
         $inserted = $updated = 0;
@@ -157,6 +162,97 @@ class EmployeeImportController extends Controller
         $this->redirect('employees');
     }
 
+    /**
+     * Commit an import against the legacy masters: upsert into `Employee`
+     * (keyed by EmployeeId), auto-creating a legacy `Department` by name when
+     * needed and resolving the designation to a Designation.ID. Legacy has no
+     * section master, so the section column is ignored. `active` maps to the
+     * Deleted flag (active=1 -> Deleted=0).
+     */
+    private function commitLegacy(array $parsed, string $tmp): void
+    {
+        $empT = lt('employee');
+        $depT = lt('department');
+        $desT = lt('designation');
+
+        // name (lowercased) -> legacy Department.Id
+        $deptCache = [];
+        foreach ($this->db->all("SELECT Id AS id, Name AS name FROM {$depT} WHERE Deleted = 0") as $row) {
+            $deptCache[mb_strtolower(trim((string) $row['name']))] = (int) $row['id'];
+        }
+        // name/code (lowercased) -> legacy Designation.ID
+        $desCache = [];
+        foreach ($this->db->all("SELECT ID AS id, Name AS name, Code AS code FROM {$desT} WHERE Deleted = 0") as $row) {
+            if (($row['name'] ?? '') !== '') $desCache[mb_strtolower(trim((string) $row['name']))] = (int) $row['id'];
+            if (($row['code'] ?? '') !== '') $desCache[mb_strtolower(trim((string) $row['code']))] = (int) $row['id'];
+        }
+
+        $inserted = $updated = 0;
+        $this->db->begin();
+        try {
+            foreach ($parsed['rows'] as $r) {
+                if (!$r['_valid']) continue;
+
+                $deptId = 0;
+                if ($r['department'] !== '') {
+                    $key = mb_strtolower(trim($r['department']));
+                    if (!isset($deptCache[$key])) {
+                        $deptCache[$key] = $this->db->insertLegacy($depT, [
+                            'Name'          => $r['department'],
+                            'DeptCode'      => strtoupper(substr(preg_replace('/[^A-Za-z0-9]/', '', $r['department']), 0, 10)),
+                            'StartDateTime' => date('Y-m-d H:i:s'),
+                            'Deleted'       => 0,
+                        ], 'Id');
+                    }
+                    $deptId = $deptCache[$key];
+                }
+
+                $desigId = 0;
+                if ($r['designation'] !== '') {
+                    $desigId = $desCache[mb_strtolower(trim($r['designation']))] ?? 0;
+                }
+
+                $existing = $this->db->one("SELECT ID FROM {$empT} WHERE EmployeeId = :e", [':e' => $r['emp_id']]);
+                if ($existing) {
+                    $this->db->update($empT, [
+                        'Name'         => $r['full_name'],
+                        'DepartmentId' => $deptId,
+                        'IsHead'       => $r['is_dept_head'],
+                        'Deleted'      => $r['active'] ? 0 : 1,
+                    ], 'ID = :id', [':id' => $existing['ID']]);
+                    $updated++;
+                } else {
+                    $parts = preg_split('/\s+/', trim($r['full_name']));
+                    $this->db->insertLegacy($empT, [
+                        'EmployeeId'    => $r['emp_id'],
+                        'EmpCode'       => $r['emp_id'],
+                        'Name'          => $r['full_name'],
+                        'FirstName'     => $parts[0] ?? $r['full_name'],
+                        'Middlename'    => '',
+                        'DepartmentId'  => $deptId,
+                        'DesignationId' => $desigId,
+                        'IsHead'        => $r['is_dept_head'],
+                        'StartDateTime' => date('Y-m-d H:i:s'),
+                        'Deleted'       => $r['active'] ? 0 : 1,
+                    ], 'ID');
+                    $inserted++;
+                }
+            }
+            $this->db->commit();
+        } catch (\Throwable $e) {
+            $this->db->rollback();
+            @unlink($tmp);
+            $this->flash('error', 'Import failed: ' . $e->getMessage());
+            $this->redirect('employees/import');
+        }
+
+        @unlink($tmp);
+        $skipped = $parsed['invalid'];
+        $this->flash('success', "Import complete — {$inserted} added, {$updated} updated"
+            . ($skipped ? ", {$skipped} skipped (invalid)" : '') . '.');
+        $this->redirect('employees');
+    }
+
     /** Download a ready-to-fill CSV template. */
     public function template(): void
     {
@@ -165,9 +261,10 @@ class EmployeeImportController extends Controller
         header('Content-Disposition: attachment; filename="employees_template.csv"');
         $out = fopen('php://output', 'w');
         fprintf($out, "\xEF\xBB\xBF");   // UTF-8 BOM for Excel
-        fputcsv($out, ['emp_id','pin','full_name','department','section','designation','is_dept_head','active']);
-        fputcsv($out, ['01732','000001732','Hawra Abdulhusain Ahmed Alasfoor','Information And Communication Technology','General','IT Programmer','no','yes']);
-        fputcsv($out, ['01013','000001013','Joby Kaitharath George','Information And Communication Technology','General','','no','yes']);
+        // Explicit escape ('' = none): PHP 8.4 deprecates the default escape arg.
+        fputcsv($out, ['emp_id','pin','full_name','department','section','designation','is_dept_head','active'], ',', '"', '');
+        fputcsv($out, ['01732','000001732','Hawra Abdulhusain Ahmed Alasfoor','Information And Communication Technology','General','IT Programmer','no','yes'], ',', '"', '');
+        fputcsv($out, ['01013','000001013','Joby Kaitharath George','Information And Communication Technology','General','','no','yes'], ',', '"', '');
         fclose($out);
         exit;
     }
