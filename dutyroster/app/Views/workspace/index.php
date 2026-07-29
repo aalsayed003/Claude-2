@@ -31,6 +31,14 @@ function wtm($v){ return $v ? date('h:i a', strtotime($v)) : ''; }
 
 <?php if ($emp): ?>
 
+<?php if (empty($punchSourceOk)): ?>
+<div class="flash flash-warn">
+    ⚠ Punch feed not reachable — showing pre-paired fallback data. Split-duty second in/out
+    and overnight punches may be incomplete. Ask IT to make the biometric punch table
+    (<code>checkinout</code>) visible to the app (see database/migration/Fix_Overtime_Punch_Source.sql).
+</div>
+<?php endif; ?>
+
 <div class="card compact-head">
     <strong><?= e($emp['emp_id'].' · '.$emp['full_name']) ?></strong>
     <div class="legend">
