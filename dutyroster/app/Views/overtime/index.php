@@ -20,12 +20,15 @@
 <div class="grid" style="grid-template-columns:1fr 1fr">
 <div class="card">
     <h2 style="margin-top:0">Eligible OT (from punches)</h2>
-    <table class="tbl"><thead><tr><th>Date</th><th class="num">Early Punch-In (min)</th><th class="num">Late Punch-Out (min)</th></tr></thead><tbody>
+    <table class="tbl"><thead><tr><th>Date</th><th>Day</th><th class="num">Early In (min)</th><th class="num">Late Out (min)</th><th class="num">Off-day Worked (min)</th></tr></thead><tbody>
         <?php foreach ($eligible as $x): ?>
             <tr><td><?= date('d M Y', strtotime($x['work_date'])) ?></td>
-                <td class="num"><?= $x['ot_early_min']?:'' ?></td><td class="num"><?= $x['ot_late_min']?:'' ?></td></tr>
+                <td><?= e(($x['day_type'] ?? '') === 'off' ? ($x['shift_code'] ?: 'Off Day') : 'Working') ?></td>
+                <td class="num"><?= !empty($x['ot_early_min']) ? $x['ot_early_min'] : '' ?></td>
+                <td class="num"><?= !empty($x['ot_late_min']) ? $x['ot_late_min'] : '' ?></td>
+                <td class="num"><?= !empty($x['worked_min']) ? $x['worked_min'] : '' ?></td></tr>
         <?php endforeach; ?>
-        <?php if (!$eligible): ?><tr><td colspan="3" class="subtle center">No eligible OT in this period.</td></tr><?php endif; ?>
+        <?php if (!$eligible): ?><tr><td colspan="5" class="subtle center">No eligible OT in this period.</td></tr><?php endif; ?>
     </tbody></table>
 </div>
 <div class="card">
