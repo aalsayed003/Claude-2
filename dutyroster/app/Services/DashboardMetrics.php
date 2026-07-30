@@ -69,20 +69,31 @@ class DashboardMetrics
         $emp = lt('employee');
         $shift = lt('shift');
 
-        $people = $db->all(
-            "SELECT h.Empid AS id, e.EmployeeId AS emp_id, e.EmpCode AS emp_code, e.Name AS name,
+        $rows = $db->all(
+            "SELECT h.Empid AS id, h.ID AS allot_id, e.EmployeeId AS emp_id, e.EmpCode AS emp_code, e.Name AS name,
                     s.Name AS code, d.Intime, d.Outtime, d.InTime1, d.OutTime1,
                     s.FromTime, s.ToTime, s.FromTime1, s.ToTime1
                FROM {$dtl} d
                JOIN {$hdr} h ON h.ID = d.AllotId AND h.Deleted = 0
                JOIN {$emp} e ON e.ID = h.Empid
                JOIN {$shift} s ON s.ID = d.Shiftid
-              WHERE d.Deleted = 0 AND d.ShiftDate BETWEEN :a AND :b",
+              WHERE d.Deleted = 0 AND d.ShiftDate BETWEEN :a AND :b
+              ORDER BY h.ID",
             [':a' => $date, ':b' => $date . ' 23:59:59']
         );
-        if (!$people) {
+        if (!$rows) {
             return [];
         }
+        // One row PER EMPLOYEE for the day. An employee can have more than one
+        // roster row for a date (e.g. two non-deleted AllotShift headers or a
+        // duplicated detail); counting each would double the tile numbers and
+        // list every name twice. Keep the most recent header (highest h.ID),
+        // matching View Attendance which keys the day to a single roster row.
+        $people = [];
+        foreach ($rows as $r) {
+            $people[(int) $r['id']] = $r;   // ORDER BY h.ID -> last (highest) wins
+        }
+        $people = array_values($people);
         [$byPin, $havePunches] = self::punchesByPin($db, $date);
 
         $out = [];
