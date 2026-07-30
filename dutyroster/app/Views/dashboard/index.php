@@ -23,23 +23,36 @@
     <?php endforeach; ?>
 </div>
 
+<?php
+    // A "today" attendance count links to the list of people behind it; the
+    // approval counts link to the Approve Request screen. dept_head+ only.
+    $drill = fn($metric) => can('dept_head')
+        ? url('dashboard/list?metric=' . $metric . '&date=' . $today . '&period=' . $period)
+        : null;
+    $kpi = function (string $label, $value, ?string $href, string $cls = '') {
+        $inner = '<span>' . e($label) . '</span><b>' . $value . '</b>';
+        echo $href
+            ? '<a class="kpi kpi-link ' . $cls . '" href="' . $href . '">' . $inner . '</a>'
+            : '<div class="kpi ' . $cls . '">' . $inner . '</div>';
+    };
+?>
 <div class="card" style="margin-top:22px">
-    <div class="panel-title">Pending Approvals</div>
+    <div class="panel-title">Pending Approvals &amp; Today</div>
     <div class="kpi-wrap">
         <div>
-            <div class="kpi"><span>Schedules</span><b><?= $counts['schedules'] ?></b></div>
-            <div class="kpi"><span>Correction Requests</span><b><?= $counts['corrections'] ?></b></div>
-            <div class="kpi"><span>Schedule Changes</span><b><?= $counts['schedule_changes'] ?></b></div>
-            <div class="kpi warn"><span>Odd Punch</span><b><?= $counts['odd_punch'] ?></b></div>
-            <div class="kpi"><span>Today Staff Absent</span><b><?= $counts['absent_today'] ?></b></div>
-            <div class="kpi"><span>Today Staff Day Off</span><b><?= $counts['dayoff_today'] ?></b></div>
+            <?php $kpi('Schedules', $counts['schedules'], can('dept_head') ? url('approvals') : null); ?>
+            <?php $kpi('Correction Requests', $counts['corrections'], can('dept_head') ? url('approvals') : null); ?>
+            <?php $kpi('Schedule Changes', $counts['schedule_changes'], can('dept_head') ? url('approvals') : null); ?>
+            <?php $kpi('Odd Punch', $counts['odd_punch'], $drill('odd'), 'warn'); ?>
+            <?php $kpi('Today Staff Absent', $counts['absent_today'], $drill('absent')); ?>
+            <?php $kpi('Today Staff Day Off', $counts['dayoff_today'], $drill('day_off')); ?>
         </div>
         <div>
-            <div class="kpi danger"><span>Late(s) / Early Out(s) Today</span>
-                <b><?= $counts['late_today'] ?> / <?= $counts['early_today'] ?></b></div>
+            <?php $kpi('Late In(s) Today', $counts['late_today'], $drill('late'), 'danger'); ?>
+            <?php $kpi('Early Out(s) Today', $counts['early_today'], $drill('early'), 'danger'); ?>
             <p class="subtle" style="padding:10px 12px">
+                <?php if (can('dept_head')): ?>Click a "today" figure to see exactly who they are.<br><?php endif; ?>
                 Counts reflect the selected attendance period and today's date.
-                Approvals route through Dept&nbsp;Head → FA → MRD → COO/MD/CNO.
             </p>
         </div>
     </div>
