@@ -48,6 +48,12 @@ h2{font-size:16px;margin:24px 0 12px}
 .kpi b{background:#10151c;color:#fff;min-width:70px;text-align:center;padding:4px 10px;border-radius:6px;font-variant-numeric:tabular-nums}
 .kpi .warn b{background:var(--warn)}
 .kpi .danger b{background:var(--danger)}
+.kpi.warn b{background:var(--warn)}
+.kpi.danger b{background:var(--danger)}
+a.kpi-link{text-decoration:none;color:inherit;cursor:pointer;transition:background .12s}
+a.kpi-link:hover{background:#eef2f8}
+a.kpi-link:hover b{filter:brightness(1.12)}
+a.kpi-link span{border-bottom:1px dashed #9aa7b8}
 
 /* Tables */
 table{width:100%;border-collapse:collapse;background:#fff}

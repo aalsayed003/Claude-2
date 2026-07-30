@@ -56,7 +56,7 @@ class DashboardController extends Controller
             ];
         }
 
-        $this->renderDashboard($period, $counts);
+        $this->renderDashboard($period, $counts, $today);
     }
 
     /** Dashboard counts from legacy tables (each guarded so one gap can't break the page). */
@@ -96,7 +96,33 @@ class DashboardController extends Controller
         ];
     }
 
-    private function renderDashboard(string $period, array $counts): void
+    /**
+     * Drill-down behind a clickable dashboard tile: the list of people who make
+     * up a "today" count (late / early / absent / odd punch / day off), derived
+     * from the same live pairing as the tile number and View Attendance.
+     */
+    public function detail(): void
+    {
+        Auth::requireRole('dept_head');
+        $metric = $this->input('metric', 'late');
+        $date   = $this->input('date', date('Y-m-d'));
+        $period = $this->input('period', period_of(date('Y-m-d')));
+
+        $rows = legacy_mode()
+            ? \App\Services\DashboardMetrics::todayDetails($this->db, $date, $metric)
+            : [];
+
+        $this->view('dashboard/detail', [
+            'title'  => \App\Services\DashboardMetrics::metricLabel($metric) . ' — ' . date('d M Y', strtotime($date)),
+            'metric' => $metric,
+            'label'  => \App\Services\DashboardMetrics::metricLabel($metric),
+            'date'   => $date,
+            'period' => $period,
+            'rows'   => $rows,
+        ]);
+    }
+
+    private function renderDashboard(string $period, array $counts, string $today = ''): void
     {
         $tiles = [
             ['key' => 'shifts',          'label' => 'Duty Roster Master', 'icon' => 'grid',     'min' => 'dept_head'],
@@ -113,6 +139,7 @@ class DashboardController extends Controller
             'period'  => $period,
             'counts'  => $counts,
             'tiles'   => $tiles,
+            'today'   => $today ?: date('Y-m-d'),
         ]);
     }
 }

@@ -13,7 +13,10 @@ class ShiftController extends Controller
             // Include blocked shifts in the admin list so they can be un-hidden;
             // the roster dropdowns use all() (default) which excludes blocked ones.
             $shifts = (new \App\Repositories\ShiftRepository($this->db))->all(false, true);
-            usort($shifts, fn($a, $b) => [$b['first_in']] <=> [$a['first_in']]);
+            // Newest first (highest ID) so a just-created shift is immediately
+            // visible at the top of the list — the master list can be long, and
+            // sorting by punch-in time used to bury a new shift out of view.
+            usort($shifts, fn($a, $b) => ($b['id'] ?? 0) <=> ($a['id'] ?? 0));
         } else {
             $shifts = $this->db->all("SELECT * FROM shifts ORDER BY first_in ASC");
         }

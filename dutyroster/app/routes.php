@@ -23,6 +23,7 @@ $r->get('logout', [AuthController::class, 'logout']);
 
 // Dashboard
 $r->get('dashboard', [DashboardController::class, 'index']);
+$r->get('dashboard/list', [DashboardController::class, 'detail']);
 
 // Duty Roster Master (shifts)
 $r->get('shifts',        [ShiftController::class, 'index']);
