@@ -161,9 +161,11 @@ class EmployeeController extends Controller
             return (int) $designation;
         }
         $des = lt('designation');
+        // Distinct placeholders (:n1/:n2) bound to the same value: the sqlsrv PDO
+        // driver rejects a named parameter reused more than once in a statement.
         $hit = $this->db->value(
-            "SELECT ID FROM {$des} WHERE Deleted = 0 AND (Name = :n OR Code = :n)",
-            [':n' => $designation]
+            "SELECT ID FROM {$des} WHERE Deleted = 0 AND (Name = :n1 OR Code = :n2)",
+            [':n1' => $designation, ':n2' => $designation]
         );
         return $hit !== null ? (int) $hit : null;
     }
