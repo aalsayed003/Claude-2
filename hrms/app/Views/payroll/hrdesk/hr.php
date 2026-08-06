@@ -1,10 +1,22 @@
-<?php use App\Payroll\Repositories\HrRequestRepository as HR; ?>
-<div class="page-head"><div><h1>HR Requests</h1><p class="subtle">Open requests from staff — certificates, letters, queries.</p></div></div>
+<?php use App\Payroll\Repositories\HrRequestRepository as HR;
+$fc = $filterCategory ?? null; ?>
+<div class="page-head"><div><h1>HR Requests<?= $fc ? ' · ' . e($fc) : '' ?></h1>
+    <p class="subtle">Open requests from staff — certificates, letters, queries.</p></div></div>
 <div class="card" style="padding:10px 14px"><div class="actions">
     <a class="btn-ghost btn-sm" href="<?= url('hr/leave') ?>">Leave requests</a>
     <a class="btn-ghost btn-sm" href="<?= url('hr/requests') ?>">HR requests</a>
     <a class="btn-ghost btn-sm" href="<?= url('hr/cme') ?>">CME compliance</a>
 </div></div>
+
+<div class="card" style="padding:10px 14px">
+    <div class="actions" style="flex-wrap:wrap;gap:6px">
+        <a class="btn-sm <?= $fc === null ? 'btn-ok' : 'btn-ghost' ?>" href="<?= url('hr/requests') ?>">All</a>
+        <?php foreach (($categories ?? []) as $c): ?>
+            <a class="btn-sm <?= $fc === $c ? 'btn-ok' : 'btn-ghost' ?>"
+               href="<?= url('hr/requests?category=' . rawurlencode($c)) ?>"><?= e($c) ?></a>
+        <?php endforeach; ?>
+    </div>
+</div>
 
 <?php foreach ($queue as $r): $st = (int) $r['StateID']; ?>
 <div class="card">

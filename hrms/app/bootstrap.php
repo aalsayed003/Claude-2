@@ -4,6 +4,10 @@
  */
 use App\Core\Config;
 
+if (!defined('APP_ROOT')) {
+    define('APP_ROOT', dirname(__DIR__));   // <app>/  (parent of app/, config/, public/, storage/)
+}
+
 require __DIR__ . '/Core/autoload.php';
 
 Config::load(dirname(__DIR__) . '/config/config.php');

@@ -82,6 +82,48 @@ $pdo->exec("INSERT INTO CurrentDetails (Empid, CurrentMonth, Deleted, BasicSalar
 // bank row for WPS
 try { $pdo->exec("INSERT INTO Pay_Bank (Code, Name, SwiftCode) VALUES ('TEST','Test Bank','TESTBHBM')"); } catch (\Throwable $e) {}
 
+/* -------- 5) Leave balances, a sick-leave request + attachment, salary cert -- */
+// Leave balances for Nurse Mona (202): 30 Annual (5 used), 15 Sick.
+$year = 2026;
+try {
+    $pdo->exec("INSERT INTO Pay_LeaveBalance (EmployeeID, LeaveType, LeaveYear, Entitlement, Used, Pending)
+                VALUES (202,'Annual',$year,30,5,0), (202,'Sick',$year,15,0,3)");
+} catch (\Throwable $e) { echo "SKIP leave balance: " . $e->getMessage() . "\n"; }
+
+// A real attachment on disk so the download + OCR display can be exercised.
+$upDir = '/home/user/Claude-2/hrms/storage/uploads/leave';
+@mkdir($upDir, 0775, true);
+$imgPath = $upDir . '/seed_sicknote.png';
+if (function_exists('imagecreatetruecolor')) {
+    $im = imagecreatetruecolor(520, 200);
+    imagefill($im, 0, 0, imagecolorallocate($im, 255, 255, 255));
+    $ink = imagecolorallocate($im, 20, 40, 70);
+    imagestring($im, 5, 20, 20, 'AL SALAM SPECIALIST HOSPITAL', $ink);
+    imagestring($im, 4, 20, 70, 'MEDICAL CERTIFICATE', $ink);
+    imagestring($im, 3, 20, 110, 'Patient: Mona Hassan  advised rest', $ink);
+    imagestring($im, 3, 20, 140, '3 days from 2026-07-16', $ink);
+    imagepng($im, $imgPath);
+    imagedestroy($im);
+} else {
+    file_put_contents($imgPath, "MEDICAL CERTIFICATE\nMona Hassan - 3 days from 2026-07-16\n");
+}
+$ocr = "AL SALAM SPECIALIST HOSPITAL\nMEDICAL CERTIFICATE\nPatient: Mona Hassan advised rest\n3 days from 2026-07-16";
+try {
+    $st = $pdo->prepare("INSERT INTO Pay_LeaveRequest
+        (EmployeeID, LeaveType, FromDate, ToDate, Days, Reason, Contact,
+         AttachmentName, AttachmentPath, AttachmentOcr, StateID, CreatedAt)
+        VALUES (202,'Sick','2026-07-16','2026-07-18',3,'Flu, doctor advised rest','36000000',
+                'medical-certificate.png','leave/seed_sicknote.png',:ocr,1,'2026-07-19 08:30:00')");
+    $st->execute([':ocr' => $ocr]);
+} catch (\Throwable $e) { echo "SKIP leave request: " . $e->getMessage() . "\n"; }
+
+// A pending salary-certificate request (drives the dashboard tile + HR filter).
+try {
+    $pdo->exec("INSERT INTO Pay_HrRequest (EmployeeID, Category, Subject, Message, StateID, CreatedAt)
+                VALUES (202,'Salary certificate','Salary certificate for bank',
+                        'Need a salary certificate addressed to Test Bank.',1,'2026-07-20 09:00:00')");
+} catch (\Throwable $e) { echo "SKIP hr request: " . $e->getMessage() . "\n"; }
+
 /* -------- report -------- */
 $n = fn($t) => (int) $pdo->query("SELECT COUNT(*) FROM $t")->fetchColumn();
 echo "HRMS test DB built: $DB\n";

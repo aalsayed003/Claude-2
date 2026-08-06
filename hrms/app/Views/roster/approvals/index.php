@@ -52,7 +52,7 @@ $statusChip = [
 </div>
 
 <?php if (isset($corrections)): ?>
-<h2 style="margin:22px 0 6px">Attendance Corrections</h2>
+<h2 id="corrections" style="margin:22px 0 6px">Attendance Corrections</h2>
 <p class="subtle" style="margin-top:0">Chain: Dept Head → HR. Once applied, the punch shows the rostered time in View Attendance.</p>
 <div class="tbl-wrap">
 <table class="tbl">
@@ -86,7 +86,7 @@ $statusChip = [
 <?php endif; ?>
 
 <?php if (isset($scheduleChanges)): ?>
-<h2 style="margin:22px 0 6px">Schedule Change Requests</h2>
+<h2 id="schedule-changes" style="margin:22px 0 6px">Schedule Change Requests</h2>
 <p class="subtle" style="margin-top:0">Chain: Dept Head (or CNO/COO·MD for clinical staff) → HR apply. Once applied, the employee's roster for that day updates to the new shift.</p>
 <div class="tbl-wrap">
 <table class="tbl">

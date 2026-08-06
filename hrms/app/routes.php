@@ -144,6 +144,7 @@ $r->get('me',              [EssController::class, 'home']);
 $r->get('me/payslips',     [EssController::class, 'payslips']);
 $r->get('me/leave',        [EssController::class, 'leave']);
 $r->post('me/leave/save',  [EssController::class, 'leaveSave']);
+$r->get('me/leave/attachment', [EssController::class, 'leaveAttachment']);
 $r->get('me/hr',           [EssController::class, 'hr']);
 $r->post('me/hr/save',     [EssController::class, 'hrSave']);
 $r->get('me/cme',          [EssController::class, 'cme']);

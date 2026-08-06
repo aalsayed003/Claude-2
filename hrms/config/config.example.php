@@ -186,6 +186,7 @@ return array (
       'indemnity_prov' => 'Pay_IndemnityProvision',
       'leave_prov' => 'Pay_LeaveProvision',
       'leave_request' => 'Pay_LeaveRequest',
+      'leave_balance' => 'Pay_LeaveBalance',
       'hr_request' => 'Pay_HrRequest',
       'cme_req' => 'Pay_CmeRequirement',
       'cme_activity' => 'Pay_CmeActivity',
@@ -215,7 +216,7 @@ return array (
       4 => 'Maternity',
       5 => 'Bereavement',
     ),
-    'hr_request_categories' => 
+    'hr_request_categories' =>
     array (
       0 => 'Salary certificate',
       1 => 'Experience letter',
@@ -223,6 +224,52 @@ return array (
       3 => 'Payslip query',
       4 => 'Bank / IBAN update',
       5 => 'Other',
+    ),
+    // Category treated as the "salary certificate" queue on the dashboard tile.
+    'salary_certificate_category' => 'Salary certificate',
+    // Yearly entitlement (days) per leave type. Types not listed here (e.g.
+    // Unpaid) do not draw from a balance.
+    'leave_entitlement' =>
+    array (
+      'Annual' => 30,
+      'Sick' => 15,
+      'Emergency' => 5,
+      'Maternity' => 70,
+      'Bereavement' => 5,
+    ),
+    // Leave types that must have enough balance to be requested and that
+    // consume the balance once approved.
+    'leave_balance_types' =>
+    array (
+      0 => 'Annual',
+      1 => 'Sick',
+      2 => 'Emergency',
+      3 => 'Maternity',
+      4 => 'Bereavement',
+    ),
+    // Leave types for which a supporting document (e.g. a medical note) can be
+    // attached. Sick leave prompts for it; the field is optional for others.
+    'leave_attachment_types' =>
+    array (
+      0 => 'Sick',
+    ),
+    // Uploaded supporting documents (leave notes etc.).
+    'uploads' =>
+    array (
+      'dir' => '',                       // '' -> <app>/storage/uploads
+      'max_bytes' => 5242880,            // 5 MB
+      'allowed_ext' =>
+      array (
+        0 => 'pdf', 1 => 'jpg', 2 => 'jpeg', 3 => 'png', 4 => 'gif', 5 => 'webp', 6 => 'heic',
+      ),
+    ),
+    // Best-effort OCR of image attachments (free Tesseract CLI). If the binary
+    // is missing the attachment is still stored; only the extracted text is skipped.
+    'ocr' =>
+    array (
+      'enabled' => true,
+      'bin' => 'tesseract',
+      'lang' => 'eng',
     ),
     'cme' => 
     array (

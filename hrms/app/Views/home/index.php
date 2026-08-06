@@ -25,12 +25,24 @@
             <?php $tile('Odd Punch', $roster['odd_punch'], $drill('odd'), 'warn'); ?>
             <?php $tile('Day Off', $roster['day_off'], $drill('day_off'), ''); ?>
         </div>
-        <?php if (Auth::atLeast('dept_head')): ?>
-        <div class="ph" style="margin-top:14px"><h2 style="font-size:14px">Pending Approvals</h2>
-            <a class="lnk" href="<?= url('approvals') ?>">Open Approvals →</a></div>
+        <?php
+          $isApprover = Auth::atLeast('dept_head');
+          $isHr       = Auth::atLeast('fa');
+          $certHref   = url('hr/requests?category=' . rawurlencode($salaryCertCategory));
+        ?>
+        <?php if ($isApprover || $isHr): ?>
+        <div class="ph" style="margin-top:14px"><h2 style="font-size:14px">Pending Requests</h2>
+            <?php if ($isApprover): ?><a class="lnk" href="<?= url('approvals') ?>">Open Approvals →</a><?php endif; ?></div>
         <div class="stats">
-            <?php $tile('Roster Submissions', $pendingSchedules, url('approvals')); ?>
-            <?php $tile('Corrections', $pendingCorrections, url('approvals')); ?>
+            <?php if ($isApprover): ?>
+                <?php $tile('Roster Submissions', $pendingSchedules, url('approvals')); ?>
+                <?php $tile('Change Schedule', $pendingScheduleChanges, url('approvals') . '#schedule-changes'); ?>
+                <?php $tile('Attendance Corrections', $pendingCorrections, url('approvals') . '#corrections'); ?>
+            <?php endif; ?>
+            <?php if ($isHr): ?>
+                <?php $tile('Salary Certificates', $pendingSalaryCerts, $certHref); ?>
+                <?php $tile('Leave Requests', $pendingLeave, url('hr/leave')); ?>
+            <?php endif; ?>
         </div>
         <?php endif; ?>
     </div>
