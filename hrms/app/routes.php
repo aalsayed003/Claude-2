@@ -7,6 +7,7 @@
  */
 use App\Core\Router;
 use App\Controllers\AuthController;
+use App\Controllers\HomeController;
 
 // Roster module
 use App\Roster\Controllers\DashboardController as RDash;
@@ -43,8 +44,9 @@ $r = new Router();
 $r->get('login',  [AuthController::class, 'showLogin']);
 $r->post('login', [AuthController::class, 'login']);
 $r->get('logout', [AuthController::class, 'logout']);
-$r->get('dashboard',      [RDash::class, 'index']);     // '' also maps here
-$r->get('dashboard/list', [RDash::class, 'detail']);    // tile drill-down
+$r->get('dashboard',      [HomeController::class, 'index']);  // combined landing ('' also maps here)
+$r->get('dashboard/list', [RDash::class, 'detail']);         // roster tile drill-down
+$r->get('roster/board',   [RDash::class, 'index']);          // the roster-only dashboard
 
 // ==== DUTY ROSTER MODULE =====================================================
 $r->get('shifts',        [ShiftController::class, 'index']);

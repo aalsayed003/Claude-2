@@ -1,4 +1,13 @@
-<?php use App\Core\Auth; ?>
+<?php use App\Core\Auth;
+$cur = trim(parse_url($_SERVER['REQUEST_URI'] ?? '', PHP_URL_PATH) ?? '', '/');
+$base = trim(parse_url(url(''), PHP_URL_PATH) ?? '', '/');
+if ($base !== '' && str_starts_with($cur, $base)) $cur = ltrim(substr($cur, strlen($base)), '/');
+$cur = $cur === '' ? 'dashboard' : $cur;
+$active = function (string $path) use ($cur) {
+    $p = trim($path, '/');
+    return ($cur === $p || str_starts_with($cur, $p . '/')) ? ' class="on"' : '';
+};
+?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -7,84 +16,117 @@
     <title><?= e($title ?? 'HRMS') ?> · <?= e(\App\Core\Config::get('app.org')) ?></title>
     <link rel="stylesheet" href="<?= url('assets/app.css') ?>">
     <style>
-      .subnav{display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center;padding:8px 20px;background:#f3f5f9;border-bottom:1px solid var(--line,#e2e6ee);font-size:14px}
-      .subnav .grp{font-weight:700;color:#5a6577;text-transform:uppercase;font-size:11px;letter-spacing:.04em;margin-left:6px}
-      .subnav a{color:#26313f;text-decoration:none;padding:3px 6px;border-radius:5px}
-      .subnav a:hover{background:#e2e8f2}
-      .subnav .sep{width:1px;height:16px;background:#cfd6e2;margin:0 2px}
+      :root{ --nav:#0f3f6b; --navbg:#ffffff; --navline:#e4e9f1; --ink:#1f2a37; --muted:#6b7787; --accent:#137fc4; }
+      *{box-sizing:border-box}
+      body{margin:0;background:#eef1f6;color:var(--ink);font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif}
+      .hrms{display:flex;min-height:100vh}
+      /* ---- sidebar ---- */
+      .side{width:236px;flex:0 0 236px;background:var(--navbg);border-right:1px solid var(--navline);
+            display:flex;flex-direction:column;position:sticky;top:0;height:100vh;overflow-y:auto}
+      .side .logo{padding:16px 16px 12px;border-bottom:1px solid var(--navline)}
+      .side .logo img{width:100%;max-width:190px;height:auto;display:block;margin:0 auto}
+      .side nav{padding:8px 10px 20px;flex:1}
+      .side .grp{font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#93a0b2;
+                 padding:14px 10px 5px}
+      .side a{display:flex;align-items:center;gap:9px;padding:8px 11px;border-radius:8px;color:#33414f;
+              text-decoration:none;font-size:14px;font-weight:500;line-height:1.1}
+      .side a:hover{background:#eef4fb;color:var(--nav)}
+      .side a.on{background:var(--nav);color:#fff}
+      .side a .d{width:6px;height:6px;border-radius:50%;background:#c3ccd8;flex:0 0 6px}
+      .side a.on .d{background:#fff}
+      /* ---- main ---- */
+      .main{flex:1;min-width:0;display:flex;flex-direction:column}
+      .topbar2{display:flex;align-items:center;justify-content:space-between;gap:12px;
+               background:#fff;border-bottom:1px solid var(--navline);padding:11px 22px;position:sticky;top:0;z-index:5}
+      .topbar2 .pg{font-size:16px;font-weight:700;color:var(--nav)}
+      .topbar2 .who{display:flex;align-items:center;gap:12px;font-size:13px;color:var(--muted)}
+      .topbar2 .who b{color:var(--ink);font-weight:600}
+      .topbar2 .chip{background:#eef4fb;color:var(--nav);border-radius:999px;padding:2px 9px;font-size:11px;font-weight:600}
+      .topbar2 .out{border:1px solid var(--navline);border-radius:8px;padding:5px 12px;color:#33414f;text-decoration:none;font-weight:600}
+      .topbar2 .out:hover{background:#f3f6fb}
+      .content{padding:22px;max-width:1180px;width:100%;margin:0 auto;flex:1}
+      .foot2{padding:14px 22px;color:#9aa6b4;font-size:12px;border-top:1px solid var(--navline);background:#fff}
+      @media(max-width:820px){
+        .hrms{flex-direction:column}
+        .side{width:100%;flex:none;height:auto;position:static;flex-direction:column;border-right:0;border-bottom:1px solid var(--navline)}
+        .side nav{display:flex;flex-wrap:wrap;gap:2px}
+        .side .grp{width:100%;padding:8px 10px 2px}
+      }
     </style>
 </head>
 <body>
-<header class="topbar">
-    <a class="brand" href="<?= url('dashboard') ?>">
-        <span class="brand-mark">HR</span>
-        <span><?= e(\App\Core\Config::get('app.name')) ?><small><?= e(\App\Core\Config::get('app.org')) ?></small></span>
-    </a>
-    <nav class="topnav">
-        <a href="<?= url('dashboard') ?>">Dashboard</a>
-        <a href="<?= url('attendance') ?>">Attendance</a>
-        <?php if (Auth::atLeast('fa')): ?><a href="<?= url('payroll') ?>">Payroll</a><?php endif; ?>
-        <a href="<?= url('me') ?>">My Space</a>
-    </nav>
-    <div class="userbox">
-        <span><?= e(Auth::user()['full_name'] ?? '') ?> <em><?= e(Auth::role()) ?></em></span>
-        <a class="btn-ghost" href="<?= url('logout') ?>">Logout</a>
+<div class="hrms">
+    <aside class="side">
+        <div class="logo">
+            <a href="<?= url('dashboard') ?>"><img src="<?= url('assets/assh-logo.jpg') ?>" alt="Al Salam Specialist Hospital"></a>
+        </div>
+        <nav>
+            <div class="grp">Overview</div>
+            <a href="<?= url('dashboard') ?>"<?= $active('dashboard') ?>><span class="d"></span> Dashboard</a>
+
+            <div class="grp">Duty Roster</div>
+            <a href="<?= url('attendance') ?>"<?= $active('attendance') ?>><span class="d"></span> Attendance</a>
+            <a href="<?= url('overtime') ?>"<?= $active('overtime') ?>><span class="d"></span> Overtime</a>
+            <?php if (Auth::atLeast('dept_head')): ?>
+                <a href="<?= url('roster') ?>"<?= $active('roster') ?>><span class="d"></span> Duty Roster</a>
+                <a href="<?= url('shifts') ?>"<?= $active('shifts') ?>><span class="d"></span> Shifts</a>
+                <a href="<?= url('approvals') ?>"<?= $active('approvals') ?>><span class="d"></span> Approvals</a>
+            <?php endif; ?>
+            <?php if (Auth::isAdmin()): ?>
+                <a href="<?= url('employees') ?>"<?= $active('employees') ?>><span class="d"></span> Employees</a>
+                <a href="<?= url('departments') ?>"<?= $active('departments') ?>><span class="d"></span> Departments</a>
+            <?php endif; ?>
+
+            <?php if (Auth::atLeast('fa')): ?>
+                <div class="grp">Payroll</div>
+                <a href="<?= url('payroll') ?>"<?= $active('payroll') ?>><span class="d"></span> Payroll Runs</a>
+                <a href="<?= url('payroll/structures') ?>"<?= $active('payroll/structure') ?>><span class="d"></span> Salary Structures</a>
+                <a href="<?= url('payroll/payslip') ?>"<?= $active('payroll/payslip') ?>><span class="d"></span> Payslips</a>
+                <a href="<?= url('payroll/loans') ?>"<?= $active('payroll/loans') ?>><span class="d"></span> Loans</a>
+                <a href="<?= url('payroll/settlement') ?>"<?= $active('payroll/settlement') ?>><span class="d"></span> Settlement</a>
+                <a href="<?= url('payroll/holds') ?>"<?= $active('payroll/holds') ?>><span class="d"></span> Salary Hold</a>
+                <a href="<?= url('payroll/encashment') ?>"<?= $active('payroll/encashment') ?>><span class="d"></span> Leave Encashment</a>
+                <a href="<?= url('payroll/indemnity') ?>"<?= $active('payroll/indemnity') ?>><span class="d"></span> Indemnity</a>
+                <a href="<?= url('payroll/leave-provision') ?>"<?= $active('payroll/leave-provision') ?>><span class="d"></span> Leave Provision</a>
+                <a href="<?= url('payroll/wps') ?>"<?= $active('payroll/wps') ?>><span class="d"></span> Bank File (WPS)</a>
+                <a href="<?= url('payroll/employees') ?>"<?= $active('payroll/employees') ?>><span class="d"></span> HR Master</a>
+            <?php endif; ?>
+
+            <div class="grp">My Space</div>
+            <a href="<?= url('me/payslips') ?>"<?= $active('me/payslips') ?>><span class="d"></span> My Payslips</a>
+            <a href="<?= url('me/leave') ?>"<?= $active('me/leave') ?>><span class="d"></span> My Leave</a>
+            <a href="<?= url('me/cme') ?>"<?= $active('me/cme') ?>><span class="d"></span> My CME</a>
+
+            <?php if (Auth::atLeast('mrd')): ?>
+                <div class="grp">HR Desk</div>
+                <a href="<?= url('hr/leave') ?>"<?= $active('hr/leave') ?>><span class="d"></span> Leave Requests</a>
+                <a href="<?= url('hr/requests') ?>"<?= $active('hr/requests') ?>><span class="d"></span> HR Requests</a>
+                <a href="<?= url('hr/cme') ?>"<?= $active('hr/cme') ?>><span class="d"></span> CME Tracking</a>
+            <?php endif; ?>
+        </nav>
+    </aside>
+
+    <div class="main">
+        <div class="topbar2">
+            <div class="pg"><?= e($title ?? 'Dashboard') ?></div>
+            <div class="who">
+                <span><b><?= e(Auth::user()['full_name'] ?? '') ?></b></span>
+                <span class="chip"><?= e(Auth::role()) ?></span>
+                <a class="out" href="<?= url('logout') ?>">Logout</a>
+            </div>
+        </div>
+
+        <div class="content">
+            <?php foreach ($_SESSION['flash'] ?? [] as $f): ?>
+                <div class="flash flash-<?= e($f['type']) ?>"><?= e($f['msg']) ?></div>
+            <?php endforeach; unset($_SESSION['flash']); ?>
+            <?= $content ?>
+        </div>
+
+        <footer class="foot2">
+            <?= e(\App\Core\Config::get('app.name')) ?> · <?= date('Y') ?> <?= e(\App\Core\Config::get('app.org')) ?>
+        </footer>
     </div>
-</header>
-
-<div class="subnav">
-    <span class="grp">Duty&nbsp;Roster</span>
-    <a href="<?= url('dashboard') ?>">Dashboard</a>
-    <a href="<?= url('attendance') ?>">Attendance</a>
-    <a href="<?= url('overtime') ?>">Overtime</a>
-    <?php if (Auth::atLeast('dept_head')): ?>
-        <a href="<?= url('roster') ?>">Roster</a>
-        <a href="<?= url('shifts') ?>">Shifts</a>
-        <a href="<?= url('approvals') ?>">Approvals</a>
-    <?php endif; ?>
-    <?php if (Auth::isAdmin()): ?>
-        <a href="<?= url('employees') ?>">Employees</a>
-        <a href="<?= url('departments') ?>">Departments</a>
-    <?php endif; ?>
-
-    <?php if (Auth::atLeast('fa')): ?>
-        <span class="sep"></span><span class="grp">Payroll</span>
-        <a href="<?= url('payroll') ?>">Runs</a>
-        <a href="<?= url('payroll/structures') ?>">Structures</a>
-        <a href="<?= url('payroll/payslip') ?>">Payslips</a>
-        <a href="<?= url('payroll/loans') ?>">Loans</a>
-        <a href="<?= url('payroll/settlement') ?>">Settlement</a>
-        <a href="<?= url('payroll/holds') ?>">Holds</a>
-        <a href="<?= url('payroll/encashment') ?>">Encashment</a>
-        <a href="<?= url('payroll/indemnity') ?>">Indemnity</a>
-        <a href="<?= url('payroll/leave-provision') ?>">Leave Prov.</a>
-        <a href="<?= url('payroll/wps') ?>">Bank File</a>
-        <a href="<?= url('payroll/employees') ?>">HR Master</a>
-    <?php endif; ?>
-
-    <span class="sep"></span><span class="grp">Me</span>
-    <a href="<?= url('me/payslips') ?>">Payslips</a>
-    <a href="<?= url('me/leave') ?>">Leave</a>
-    <a href="<?= url('me/cme') ?>">CME</a>
-    <?php if (Auth::atLeast('mrd')): ?>
-        <span class="sep"></span><span class="grp">HR&nbsp;Desk</span>
-        <a href="<?= url('hr/leave') ?>">Leave</a>
-        <a href="<?= url('hr/requests') ?>">Requests</a>
-        <a href="<?= url('hr/cme') ?>">CME</a>
-    <?php endif; ?>
 </div>
-
-<main class="container">
-    <?php foreach ($_SESSION['flash'] ?? [] as $f): ?>
-        <div class="flash flash-<?= e($f['type']) ?>"><?= e($f['msg']) ?></div>
-    <?php endforeach; unset($_SESSION['flash']); ?>
-
-    <?= $content ?>
-</main>
-
-<footer class="foot">
-    <?= e(\App\Core\Config::get('app.name')) ?> ·
-    <?= date('Y') ?> <?= e(\App\Core\Config::get('app.org')) ?>
-</footer>
 </body>
 </html>
