@@ -21,19 +21,19 @@ $statusChip = [
 </div>
 
 <div class="tbl-wrap">
-<table class="tbl">
+<table class="tbl tbl--cards">
     <thead><tr><th>#</th><th>Period</th><th>Department</th><th>Section</th><th>Submitted By</th><th>Submitted</th><th>Status</th><th>Action</th></tr></thead>
     <tbody>
     <?php foreach ($subs as $s): ?>
         <tr>
-            <td><?= $s['id'] ?></td>
-            <td><?= e(period_label($s['period_key'])) ?></td>
-            <td><?= e($s['dept_name']) ?></td>
-            <td><?= e($s['section_name']) ?></td>
-            <td><?= e($s['submitted_name']) ?></td>
-            <td class="subtle"><?= $s['submitted_at']?date('d M Y', strtotime($s['submitted_at'])):'' ?></td>
-            <td><span class="chip <?= e($s['status_class'] ?? ($statusChip[$s['status']]??'pending')) ?>"><?= strtoupper(str_replace('_',' ',$s['status'])) ?></span></td>
-            <td>
+            <td data-label="#"><?= $s['id'] ?></td>
+            <td data-label="Period"><?= e(period_label($s['period_key'])) ?></td>
+            <td data-label="Department"><?= e($s['dept_name']) ?></td>
+            <td data-label="Section"><?= e($s['section_name']) ?></td>
+            <td data-label="Submitted By"><?= e($s['submitted_name']) ?></td>
+            <td data-label="Submitted" class="subtle"><?= $s['submitted_at']?date('d M Y', strtotime($s['submitted_at'])):'' ?></td>
+            <td data-label="Status"><span class="chip <?= e($s['status_class'] ?? ($statusChip[$s['status']]??'pending')) ?>"><?= strtoupper(str_replace('_',' ',$s['status'])) ?></span></td>
+            <td class="cell-actions">
                 <?php if ($s['can_act']): ?>
                 <form method="post" action="<?= url('approvals/act') ?>" class="actions" style="gap:6px;flex-wrap:wrap">
                     <?= csrf_field() ?>
@@ -55,18 +55,18 @@ $statusChip = [
 <h2 id="corrections" style="margin:22px 0 6px">Attendance Corrections</h2>
 <p class="subtle" style="margin-top:0">Chain: Dept Head → HR. Once applied, the punch shows the rostered time in View Attendance.</p>
 <div class="tbl-wrap">
-<table class="tbl">
+<table class="tbl tbl--cards">
     <thead><tr><th>#</th><th>Employee</th><th>Day</th><th>Correction</th><th>Reason</th><th>Status</th><th>Action</th></tr></thead>
     <tbody>
     <?php foreach ($corrections as $c): ?>
         <tr>
-            <td><?= $c['id'] ?></td>
-            <td><?= e(trim($c['emp_code'].' '.$c['emp_name'])) ?></td>
-            <td><?= $c['work_date'] ? date('d M', strtotime($c['work_date'])) : '' ?></td>
-            <td><?= e($c['change']) ?></td>
-            <td><?= e($c['reason']) ?></td>
-            <td><span class="chip <?= e($c['status_class']) ?>"><?= strtoupper($c['status']) ?></span></td>
-            <td>
+            <td data-label="#"><?= $c['id'] ?></td>
+            <td data-label="Employee"><?= e(trim($c['emp_code'].' '.$c['emp_name'])) ?></td>
+            <td data-label="Day"><?= $c['work_date'] ? date('d M', strtotime($c['work_date'])) : '' ?></td>
+            <td data-label="Correction"><?= e($c['change']) ?></td>
+            <td data-label="Reason"><?= e($c['reason']) ?></td>
+            <td data-label="Status"><span class="chip <?= e($c['status_class']) ?>"><?= strtoupper($c['status']) ?></span></td>
+            <td class="cell-actions">
                 <?php if ($c['can_act']): ?>
                 <form method="post" action="<?= url('approvals/correction') ?>" class="actions" style="gap:6px;flex-wrap:wrap">
                     <?= csrf_field() ?>
@@ -89,18 +89,18 @@ $statusChip = [
 <h2 id="schedule-changes" style="margin:22px 0 6px">Schedule Change Requests</h2>
 <p class="subtle" style="margin-top:0">Chain: Dept Head (or CNO/COO·MD for clinical staff) → HR apply. Once applied, the employee's roster for that day updates to the new shift.</p>
 <div class="tbl-wrap">
-<table class="tbl">
+<table class="tbl tbl--cards">
     <thead><tr><th>#</th><th>Employee</th><th>Day</th><th>Old Shift</th><th>New Shift</th><th>Status</th><th>Action</th></tr></thead>
     <tbody>
     <?php foreach ($scheduleChanges as $sc): ?>
         <tr>
-            <td><?= $sc['id'] ?></td>
-            <td><?= e(trim($sc['emp_code'].' '.$sc['emp_name'])) ?></td>
-            <td><?= $sc['work_date'] ? date('d M', strtotime($sc['work_date'])) : '' ?></td>
-            <td><?= e($sc['old_code'] ?? '—') ?></td>
-            <td><?= e($sc['new_code'] ?? '—') ?></td>
-            <td><span class="chip <?= e($sc['status_class']) ?>"><?= strtoupper($sc['status']) ?></span></td>
-            <td>
+            <td data-label="#"><?= $sc['id'] ?></td>
+            <td data-label="Employee"><?= e(trim($sc['emp_code'].' '.$sc['emp_name'])) ?></td>
+            <td data-label="Day"><?= $sc['work_date'] ? date('d M', strtotime($sc['work_date'])) : '' ?></td>
+            <td data-label="Old Shift"><?= e($sc['old_code'] ?? '—') ?></td>
+            <td data-label="New Shift"><?= e($sc['new_code'] ?? '—') ?></td>
+            <td data-label="Status"><span class="chip <?= e($sc['status_class']) ?>"><?= strtoupper($sc['status']) ?></span></td>
+            <td class="cell-actions">
                 <?php if ($sc['can_act']): ?>
                 <form method="post" action="<?= url('approvals/schedule-change') ?>" class="actions" style="gap:6px;flex-wrap:wrap">
                     <?= csrf_field() ?>

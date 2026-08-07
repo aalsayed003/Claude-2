@@ -62,22 +62,22 @@ $accept = '.' . implode(',.', array_map('strtolower', $allowedExt));
 </div>
 
 <div class="tbl-wrap">
-<table class="tbl">
+<table class="tbl tbl--cards">
     <thead><tr><th>Type</th><th>From</th><th>To</th><th class="num">Days</th><th>Reason</th><th>Doc</th><th>Status</th><th>Decision</th></tr></thead>
     <tbody>
     <?php foreach ($requests as $r): $st = (int) $r['StateID']; ?>
         <tr>
-            <td><?= e($r['LeaveType']) ?></td>
-            <td><?= date('d/m/Y', strtotime((string) $r['FromDate'])) ?></td>
-            <td><?= date('d/m/Y', strtotime((string) $r['ToDate'])) ?></td>
-            <td class="num"><?= (float) $r['Days'] ?></td>
-            <td class="subtle"><?= e($r['Reason']) ?></td>
-            <td><?php if (!empty($r['AttachmentPath'])): ?>
+            <td data-label="Type"><?= e($r['LeaveType']) ?></td>
+            <td data-label="From"><?= date('d/m/Y', strtotime((string) $r['FromDate'])) ?></td>
+            <td data-label="To"><?= date('d/m/Y', strtotime((string) $r['ToDate'])) ?></td>
+            <td data-label="Days" class="num"><?= (float) $r['Days'] ?></td>
+            <td data-label="Reason" class="subtle"><?= e($r['Reason']) ?></td>
+            <td data-label="Doc"><?php if (!empty($r['AttachmentPath'])): ?>
                 <a href="<?= url('me/leave/attachment?id=' . (int) $r['RequestID']) ?>" target="_blank" rel="noopener" title="<?= e($r['AttachmentName'] ?? 'attachment') ?>">📎 view</a>
             <?php else: ?><span class="subtle">—</span><?php endif; ?></td>
-            <td><span class="chip <?= $st === LR::APPROVED ? 'present' : ($st === LR::PENDING ? 'pending' : 'day_off') ?>">
+            <td data-label="Status"><span class="chip <?= $st === LR::APPROVED ? 'present' : ($st === LR::PENDING ? 'pending' : 'day_off') ?>">
                 <?= e(LR::STATE_LABELS[$st] ?? $st) ?></span></td>
-            <td class="subtle"><?= e($r['DecisionNote']) ?></td>
+            <td data-label="Decision" class="subtle"><?= e($r['DecisionNote']) ?></td>
         </tr>
     <?php endforeach; ?>
     <?php if (!$requests): ?><tr><td colspan="8" class="center subtle">No leave requests yet.</td></tr><?php endif; ?>
@@ -104,8 +104,8 @@ $accept = '.' . implode(',.', array_map('strtolower', $allowedExt));
             background:#eef4fb;color:#0f3f6b;font-size:13px;font-weight:600;cursor:pointer}
   .file-btn:hover{background:#e2eefb}
   .file-btn input{display:none}
-  .file-btn.cam{display:none}                      /* camera button only where a camera is likely */
-  @media(hover:none) and (pointer:coarse){ .file-btn.cam{display:inline-flex} }
+  .file-btn.cam{display:none}                      /* camera button shown on phones/touch */
+  @media (max-width:820px), (pointer:coarse){ .file-btn.cam{display:inline-flex} }
   .file-name{font-size:13px}
   .attach-hint{margin:8px 0 0;font-size:12px}
   .btn-primary{margin-top:12px;padding:9px 18px;background:#137fc4;color:#fff;border:0;border-radius:8px;font-weight:600;cursor:pointer}

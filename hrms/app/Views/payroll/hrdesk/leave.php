@@ -6,21 +6,21 @@
 </div></div>
 
 <div class="tbl-wrap">
-<table class="tbl">
+<table class="tbl tbl--cards">
     <thead><tr><th>Submitted</th><th>Employee</th><th>Department</th><th>Type</th><th>From</th><th>To</th>
         <th class="num">Days</th><th>Reason</th><th>Document</th><th style="min-width:260px">Decision</th></tr></thead>
     <tbody>
     <?php foreach ($pending as $r): ?>
         <tr>
-            <td class="subtle"><?= date('d/m/Y', strtotime((string) $r['CreatedAt'])) ?></td>
-            <td><?= e($r['emp_code'] . ' · ' . $r['emp_name']) ?></td>
-            <td class="subtle"><?= e($r['dept_name']) ?></td>
-            <td><?= e($r['LeaveType']) ?></td>
-            <td><?= date('d/m/Y', strtotime((string) $r['FromDate'])) ?></td>
-            <td><?= date('d/m/Y', strtotime((string) $r['ToDate'])) ?></td>
-            <td class="num"><?= (float) $r['Days'] ?></td>
-            <td class="subtle"><?= e($r['Reason']) ?></td>
-            <td>
+            <td data-label="Submitted" class="subtle"><?= date('d/m/Y', strtotime((string) $r['CreatedAt'])) ?></td>
+            <td data-label="Employee"><?= e($r['emp_code'] . ' · ' . $r['emp_name']) ?></td>
+            <td data-label="Department" class="subtle"><?= e($r['dept_name']) ?></td>
+            <td data-label="Type"><?= e($r['LeaveType']) ?></td>
+            <td data-label="From"><?= date('d/m/Y', strtotime((string) $r['FromDate'])) ?></td>
+            <td data-label="To"><?= date('d/m/Y', strtotime((string) $r['ToDate'])) ?></td>
+            <td data-label="Days" class="num"><?= (float) $r['Days'] ?></td>
+            <td data-label="Reason" class="subtle"><?= e($r['Reason']) ?></td>
+            <td data-label="Document">
                 <?php if (!empty($r['AttachmentPath'])): ?>
                     <a class="doc-link" href="<?= url('me/leave/attachment?id=' . (int) $r['RequestID']) ?>"
                        target="_blank" rel="noopener">📎 <?= e($r['AttachmentName'] ?: 'view') ?></a>
@@ -30,7 +30,7 @@
                     <?php endif; ?>
                 <?php else: ?><span class="subtle">—</span><?php endif; ?>
             </td>
-            <td>
+            <td class="cell-actions">
                 <form method="post" action="<?= url('hr/leave/decide') ?>" class="inline" style="gap:6px">
                     <?= csrf_field() ?>
                     <input type="hidden" name="request_id" value="<?= (int) $r['RequestID'] ?>">
