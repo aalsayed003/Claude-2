@@ -62,7 +62,21 @@ $pdo->exec("CREATE TABLE CurrentMonth (Empid INT, CurrentMonth TEXT, Deleted INT
     . "NoofDaysattended NUMERIC, LEAVE NUMERIC, NHoliDays NUMERIC, payabledays NUMERIC, absentdays NUMERIC, "
     . "unpaidleavedays NUMERIC, bankid INT, Accno TEXT, Mode INT, "
     . $colDefs($regCols + $structCols) . ")");
-$pdo->exec("CREATE TABLE MonthlyAllowances (Empid INT, CurrentMonth TEXT, Deleted INT DEFAULT 0, Amount NUMERIC, Remarks TEXT)");
+// MonthlyAllowances: base + every config 'monthly' column + the legacy
+// adjustment columns the engine reads, so input-driven components have a home.
+$monthlyCols = [];
+foreach ($cfg['payroll']['components'] as $v) {
+    if (is_array($v) && !empty($v['monthly'])) $monthlyCols[$v['monthly']] = 1;
+}
+foreach (['PositiveAdjust','NegativeAdjust','PhoneBills','ElecBills','OtherDed',
+          'LatesRefund','UndertimesRefund','AbsencesRefund'] as $c) $monthlyCols[$c] = 1;
+$pdo->exec("CREATE TABLE MonthlyAllowances (Empid INT, CurrentMonth TEXT, Deleted INT DEFAULT 0, "
+    . "Amount NUMERIC, Remarks TEXT, " . $colDefs($monthlyCols) . ")");
+// Seed monthly inputs for the component test: 9001 = FTE, 9002 = PTE.
+$pdo->exec("INSERT INTO MonthlyAllowances (Empid, CurrentMonth, Deleted, EWA, HousingRecovery, Refund)
+            VALUES (9001, '2026-07-01', 0, 15, 50, 100)");
+$pdo->exec("INSERT INTO MonthlyAllowances (Empid, CurrentMonth, Deleted, NHRA, LMRA, MedicalCharges, CprLmra, AttendanceRefund)
+            VALUES (9002, '2026-07-01', 0, 22, 25, 12, 5, 30)");
 
 /* -------- 4) Payroll seed (GOSI, banks) + one salary structure --------------- */
 $seed = file_get_contents('/home/user/Claude-2/hrms/database/payroll/seed.sqlserver.sql');

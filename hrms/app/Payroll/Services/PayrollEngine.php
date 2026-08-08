@@ -177,6 +177,7 @@ class PayrollEngine
         $cfg   = (array) Config::get('payroll.components', []);
         $divisor = $this->divisor($summary, $month);
         $hoursPerDay = (float) Config::get('payroll.hours_per_day', 8);
+        $empType = $this->empType($emp);
 
         $fullBasic = SalaryStructureRepository::basicOf($structure);
         $fullGross = SalaryStructureRepository::grossOf($structure);
@@ -190,6 +191,9 @@ class PayrollEngine
             if (($c['type'] ?? 'earning') !== 'earning' || empty($c['structure'])) {
                 continue;
             }
+            if (!$this->profileAllows($c, $empType)) {
+                continue;
+            }
             $amount = (float) ($structure[$c['structure']] ?? 0);
             if (!empty($c['prorate'])) {
                 $amount *= $factor;
@@ -200,6 +204,17 @@ class PayrollEngine
             }
             if (!empty($c['gosi'])) {
                 $contributoryWage += $amount;
+            }
+        }
+
+        // ---- input-driven monthly components (recurring/ad-hoc) -------------
+        // Config components with a 'monthly' column are read from the monthly
+        // input row and applied by type (earning +, deduction −), honouring the
+        // employee's FTE/PTE profile. This is what carries EWA, housing/transport
+        // recovery, CPR-LMRA, NHRA, LMRA, medical charges, and refunds.
+        foreach ($this->monthlyInputComponents((int) $emp['id'], $month, $cfg, $empType, $factor) as $key => $amount) {
+            if ($amount != 0.0) {
+                $components[$key] = money_round(($components[$key] ?? 0) + $amount);
             }
         }
 
@@ -392,6 +407,55 @@ class PayrollEngine
      *   scheduled   the employee's rostered days
      *   fixed       a flat divisor (payroll.fixed_month_days, default 30)
      */
+    /** FTE or PTE for this employee, from CategoryID against the configured list. */
+    public function empType(array $emp): string
+    {
+        $partTime = array_map('intval', (array) Config::get('payroll.part_time_categories', []));
+        $cat = (int) ($emp['category_id'] ?? 0);
+        if ($partTime && in_array($cat, $partTime, true)) {
+            return 'pte';
+        }
+        return (string) Config::get('payroll.employee_type_default', 'fte');
+    }
+
+    /** Whether a component applies to this population (profile 'both'/absent = all). */
+    private function profileAllows(array $c, string $empType): bool
+    {
+        $p = $c['profile'] ?? 'both';
+        return $p === 'both' || $p === $empType;
+    }
+
+    /**
+     * Config-driven monthly input components (those with a 'monthly' column),
+     * read from the monthly-allowances row and returned keyed by component. The
+     * amount is positive; the totals pass classifies it as earning/deduction by
+     * the component's configured type. PTE-only components are skipped for FTE.
+     */
+    private function monthlyInputComponents(int $empId, string $month, array $cfg, string $empType, float $factor): array
+    {
+        $row = $this->payroll->monthlyAllowances($empId, $month);
+        if (!$row) {
+            return [];
+        }
+        $lower = array_change_key_case($row, CASE_LOWER);   // tolerate column-case differences
+        $out = [];
+        foreach ($cfg as $key => $c) {
+            $col = $c['monthly'] ?? null;
+            if (!$col || !$this->profileAllows($c, $empType)) {
+                continue;
+            }
+            $amount = (float) ($lower[strtolower($col)] ?? 0);
+            if ($amount == 0.0) {
+                continue;
+            }
+            if (!empty($c['prorate'])) {
+                $amount = $amount * $factor;
+            }
+            $out[$key] = money_round($amount);
+        }
+        return $out;
+    }
+
     private function divisor(array $summary, ?string $month = null): float
     {
         switch (Config::get('payroll.day_rate_basis', 'fixed')) {

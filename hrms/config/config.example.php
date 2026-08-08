@@ -645,7 +645,7 @@ return array (
         'prorate' => false,
         'gosi' => false,
       ),
-      'neg_adjust' => 
+      'neg_adjust' =>
       array (
         'label' => 'Negative Adjustment',
         'structure' => NULL,
@@ -654,8 +654,110 @@ return array (
         'prorate' => false,
         'gosi' => false,
       ),
+      // ---- ASSH paysheet components (July-2026 FTE/PTE manual) --------------
+      // 'profile' limits a component to a population: 'both' (default), 'fte',
+      // or 'pte'. 'monthly' names a column in MonthlyAllowances for input-driven
+      // amounts (recurring/ad-hoc deductions, refunds); structure stays NULL.
+      // NOTE: structure/register/monthly column names follow the app convention
+      // and must be reconciled against the production CurrentDetails /
+      // CurrentMonth / MonthlyAllowances schema before go-live.
+      'general' =>
+      array (
+        'label' => 'General Allowance',
+        'structure' => 'GeneralAllowance',
+        'register' => 'GeneralAllowance',
+        'type' => 'earning', 'prorate' => true, 'gosi' => false, 'profile' => 'both',
+      ),
+      'shift_oncall' =>
+      array (
+        'label' => 'Shift & on-Call Allowance',
+        'structure' => 'ShiftOnCallAllowance',
+        'register' => 'ShiftOnCallAllowance',
+        'type' => 'earning', 'prorate' => true, 'gosi' => false, 'profile' => 'both',
+      ),
+      'hod_allow' =>
+      array (
+        'label' => 'HOD Allowance',
+        'structure' => 'HodAllowance',
+        'register' => 'HodAllowance',
+        'type' => 'earning', 'prorate' => true, 'gosi' => false, 'profile' => 'pte',
+      ),
+      'ticket' =>
+      array (
+        'label' => 'Ticket',
+        'structure' => 'TicketAllowance',
+        'register' => 'TicketAllowance',
+        'type' => 'earning', 'prorate' => false, 'gosi' => false, 'profile' => 'pte',
+      ),
+      'refund' =>
+      array (
+        'label' => 'Refund',
+        'structure' => NULL, 'monthly' => 'Refund', 'register' => 'Refund',
+        'type' => 'earning', 'prorate' => false, 'gosi' => false, 'profile' => 'both',
+      ),
+      'attendance_refund' =>
+      array (
+        'label' => 'Attendance Refund',
+        'structure' => NULL, 'monthly' => 'AttendanceRefund', 'register' => 'AttendanceRefund',
+        'type' => 'earning', 'prorate' => false, 'gosi' => false, 'profile' => 'pte',
+      ),
+      'ewa' =>
+      array (
+        'label' => 'EWA (utilities)',
+        'structure' => NULL, 'monthly' => 'EWA', 'register' => 'EWA',
+        'type' => 'deduction', 'prorate' => false, 'gosi' => false, 'profile' => 'both',
+      ),
+      'housing_recovery' =>
+      array (
+        'label' => 'Housing Recovery',
+        'structure' => NULL, 'monthly' => 'HousingRecovery', 'register' => 'HousingDed',
+        'type' => 'deduction', 'prorate' => false, 'gosi' => false, 'profile' => 'both',
+      ),
+      'transport_recovery' =>
+      array (
+        'label' => 'Transport Recovery',
+        'structure' => NULL, 'monthly' => 'TransportRecovery', 'register' => 'TransportDed',
+        'type' => 'deduction', 'prorate' => false, 'gosi' => false, 'profile' => 'both',
+      ),
+      'cpr_lmra' =>
+      array (
+        'label' => 'CPR / LMRA',
+        'structure' => NULL, 'monthly' => 'CprLmra', 'register' => 'CprLmra',
+        'type' => 'deduction', 'prorate' => false, 'gosi' => false, 'profile' => 'pte',
+      ),
+      'nhra' =>
+      array (
+        'label' => 'NHRA',
+        'structure' => NULL, 'monthly' => 'NHRA', 'register' => 'NHRA',
+        'type' => 'deduction', 'prorate' => false, 'gosi' => false, 'profile' => 'pte',
+      ),
+      'lmra' =>
+      array (
+        'label' => 'LMRA',
+        'structure' => NULL, 'monthly' => 'LMRA', 'register' => 'LMRA',
+        'type' => 'deduction', 'prorate' => false, 'gosi' => false, 'profile' => 'pte',
+      ),
+      'medical' =>
+      array (
+        'label' => 'Medical Charges',
+        'structure' => NULL, 'monthly' => 'MedicalCharges', 'register' => 'MedicalCharges',
+        'type' => 'deduction', 'prorate' => false, 'gosi' => false, 'profile' => 'pte',
+      ),
+      'other_deduction' =>
+      array (
+        'label' => 'Others (deduction)',
+        'structure' => NULL, 'monthly' => 'OtherDeduction', 'register' => 'OtherDeductionAmt',
+        'type' => 'deduction', 'prorate' => false, 'gosi' => false, 'profile' => 'both',
+      ),
     ),
-    'gosi' => 
+    // FTE vs PTE populations. Employees whose CategoryID is listed here are
+    // treated as part-time (PTE); everyone else is full-time (FTE). PTE-only
+    // components (HOD, Ticket, NHRA, LMRA, Medical …) apply only to PTE.
+    'part_time_categories' =>
+    array (
+    ),
+    'employee_type_default' => 'fte',
+    'gosi' =>
     array (
       'enabled' => true,
       'post_employer_share' => false,
