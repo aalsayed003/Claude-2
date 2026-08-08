@@ -276,7 +276,10 @@ return array (
       'required_hours_per_year' => 50,
     ),
     'month_is_period_end' => false,
-    'day_rate_basis' => 'fixed',
+    // ASSH manual paysheet prorates every component by No.of.Days / days-in-month
+    // (July = 31), so day/hour rates divide by the actual calendar days of the
+    // payroll month. Use 'fixed' + fixed_month_days for a flat 30-day divisor.
+    'day_rate_basis' => 'month_days',
     'fixed_month_days' => 30,
     'day_rate_on' => 'gross',
     'penalty_rate_on' => 'basic',

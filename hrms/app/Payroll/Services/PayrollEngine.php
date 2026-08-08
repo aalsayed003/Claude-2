@@ -175,7 +175,7 @@ class PayrollEngine
         ?array $stat, array $loansDue, array $extra = []
     ): array {
         $cfg   = (array) Config::get('payroll.components', []);
-        $divisor = $this->divisor($summary);
+        $divisor = $this->divisor($summary, $month);
         $hoursPerDay = (float) Config::get('payroll.hours_per_day', 8);
 
         $fullBasic = SalaryStructureRepository::basicOf($structure);
@@ -382,10 +382,22 @@ class PayrollEngine
         return array_filter($out, fn($v) => $v != 0.0);
     }
 
-    /** Days in the month used as the divisor for day and hour rates. */
-    private function divisor(array $summary): float
+    /**
+     * Days in the month used as the divisor for day and hour rates.
+     *
+     *   month_days  actual calendar days in the payroll month (Jul=31, Feb=28/29)
+     *               — matches the ASSH manual paysheet, which prorates every
+     *               component by  No.of.Days / days-in-month.
+     *   calendar    days in the attendance period (may be a 16th-15th cutoff)
+     *   scheduled   the employee's rostered days
+     *   fixed       a flat divisor (payroll.fixed_month_days, default 30)
+     */
+    private function divisor(array $summary, ?string $month = null): float
     {
         switch (Config::get('payroll.day_rate_basis', 'fixed')) {
+            case 'month_days':
+                return (float) self::daysInPayrollMonth(
+                    $month ?: (string) ($summary['period_to'] ?? date('Y-m-d')));
             case 'calendar':
                 return (float) max(1, $summary['calendar_days']);
             case 'scheduled':
@@ -394,6 +406,22 @@ class PayrollEngine
             default:
                 return (float) Config::get('payroll.fixed_month_days', 30);
         }
+    }
+
+    /** Calendar days in a payroll month (Jul=31, Feb=28/29). */
+    public static function daysInPayrollMonth(string $month): int
+    {
+        return (int) date('t', strtotime(substr($month, 0, 7) . '-01'));
+    }
+
+    /**
+     * Prorate one monthly amount to a paysheet figure: amount × paidDays ÷
+     * monthDays, at the currency's precision. This is the ASSH manual-paysheet
+     * rule (No.of.Days / days-in-month) made testable.
+     */
+    public static function proratedEarning(float $amount, float $paidDays, float $monthDays): float
+    {
+        return $monthDays > 0 ? money_round($amount * $paidDays / $monthDays) : 0.0;
     }
 
     /**
