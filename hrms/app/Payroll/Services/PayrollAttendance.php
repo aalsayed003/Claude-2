@@ -138,11 +138,17 @@ class PayrollAttendance
                     continue;
                 }
                 $this->attendance[$code][$date] = [
-                    'first_in'    => $a['act_first_in']   ?? null,
-                    'first_out'   => $a['act_first_out']  ?? null,
-                    'second_in'   => $a['act_second_in']  ?? null,
-                    'second_out'  => $a['act_second_out'] ?? null,
-                    'punch_count' => (int) ($a['punch_count'] ?? 0),
+                    'first_in'     => $a['act_first_in']   ?? null,
+                    'first_out'    => $a['act_first_out']  ?? null,
+                    'second_in'    => $a['act_second_in']  ?? null,
+                    'second_out'   => $a['act_second_out'] ?? null,
+                    'punch_count'  => (int) ($a['punch_count'] ?? 0),
+                    // Keep the pairer's own late/early + odd-punch flag so payroll
+                    // charges exactly what the Attendance screen shows.
+                    'is_odd_punch' => (int) ($a['is_odd_punch']  ?? 0),
+                    'late_in_min'  => (int) ($a['late_in_min']   ?? 0),
+                    'early_out_min'=> (int) ($a['early_out_min'] ?? 0),
+                    'from_pairer'  => true,
                 ];
             }
         }
@@ -180,6 +186,7 @@ class PayrollAttendance
             'worked_minutes'   => 0,
             'ot_minutes'       => ['normal' => 0, 'night' => 0, 'restday' => 0, 'holiday' => 0],
             'days'             => [],
+            'late_detail'      => [],   // per-day audit of every late/early charge
         ];
 
         $roster  = $this->roster[$empId] ?? [];
@@ -232,7 +239,7 @@ class PayrollAttendance
             $s['days'][$date] = 'present';
             $s['worked_minutes'] += $this->workedMinutes($punch);
 
-            $m = $this->lateAndUndertime($date, $shift, $punch, $empId);
+            $m = $this->dayLateEarly($date, $shift, $punch, $empId);
             if ($m['late'] > 0) {
                 $s['late_minutes'] += $m['late'];
                 $s['late_days']++;
@@ -240,6 +247,19 @@ class PayrollAttendance
             if ($m['undertime'] > 0) {
                 $s['undertime_minutes'] += $m['undertime'];
                 $s['undertime_days']++;
+            }
+            if ($m['late'] > 0 || $m['undertime'] > 0 || (int) ($punch['is_odd_punch'] ?? 0) === 1) {
+                $schedOut = ($shift['second_out'] ?: $shift['first_out']);
+                $s['late_detail'][] = [
+                    'date'      => $date,
+                    'sched_in'  => $shift['first_in'] ?: null,
+                    'sched_out' => $schedOut ?: null,
+                    'act_in'    => $this->hm($punch['first_in'] ?? null),
+                    'act_out'   => $this->hm($punch['second_out'] ?: ($punch['first_out'] ?? null)),
+                    'late'      => (int) $m['late'],
+                    'early'     => (int) $m['undertime'],
+                    'odd'       => (int) ($punch['is_odd_punch'] ?? 0),
+                ];
             }
         }
 
@@ -289,6 +309,7 @@ class PayrollAttendance
             'ot_minutes_total' => 0,
             'payable_days'     => $days,
             'days'             => [],
+            'late_detail'      => [],
             'no_roster_link'   => true,
         ];
     }
@@ -459,10 +480,39 @@ class PayrollAttendance
 
     // ---------------------------------------------------------- day metrics --
 
+    /**
+     * Late-in / early-out for a day. When the punches came from the schedule-
+     * aware pairer (the normal raw-feed path) we use the pairer's own numbers —
+     * the exact figures HR sees on the Attendance screen — so a deduction can
+     * never disagree with what attendance shows. Only the legacy Atten_ fallback
+     * recomputes here. Approved corrections waive the charge either way.
+     */
+    private function dayLateEarly(string $date, array $shift, array $punch, int $empId): array
+    {
+        if (empty($punch['from_pairer'])) {
+            return $this->lateAndUndertime($date, $shift, $punch, $empId);
+        }
+        $late  = (int) ($punch['late_in_min']   ?? 0);
+        $under = (int) ($punch['early_out_min'] ?? 0);
+        if (isset($this->corrections[$empId][$date . '|late']))      $late  = 0;
+        if (isset($this->corrections[$empId][$date . '|undertime'])) $under = 0;
+        return ['late' => $late, 'undertime' => $under];
+    }
+
+    /** 'H:i' from a stored datetime/time, or null. */
+    private function hm($dt): ?string
+    {
+        if (!$dt) return null;
+        $ts = strtotime((string) $dt);
+        return $ts ? date('H:i', $ts) : null;
+    }
+
     private function lateAndUndertime(string $date, array $shift, array $punch, int $empId): array
     {
-        $graceLate  = (int) Config::get('attendance.grace_late_min', 0);
-        $graceEarly = (int) Config::get('attendance.grace_early_min', 0);
+        // Match the pairer's default grace (15 min) so the Atten_ fallback path
+        // agrees with the raw-feed path and the Attendance screen.
+        $graceLate  = (int) Config::get('attendance.grace_late_min', 15);
+        $graceEarly = (int) Config::get('attendance.grace_early_min', 15);
 
         $schedIn  = $shift['first_in']  ? $date . ' ' . $shift['first_in']  . ':00' : null;
         $schedOut = ($shift['second_out'] ?: $shift['first_out'])
