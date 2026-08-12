@@ -287,10 +287,28 @@ CREATE TABLE Pay_LeaveRequest (
     DecidedBy    VARCHAR(20)   NULL,
     DecidedAt    DATETIME      NULL,
     DecisionNote VARCHAR(300)  NULL,
+    AttachmentName VARCHAR(255) NULL,                 -- original filename of a supporting document (e.g. sick note)
+    AttachmentPath VARCHAR(400) NULL,                 -- stored path under the app upload dir
+    AttachmentOcr  VARCHAR(MAX) NULL,                 -- text extracted from the attachment (best-effort OCR)
     CreatedAt    DATETIME      NOT NULL DEFAULT GETDATE()
 );
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name='IX_Pay_LeaveReq' AND object_id=OBJECT_ID('dbo.Pay_LeaveRequest'))
 CREATE INDEX IX_Pay_LeaveReq ON Pay_LeaveRequest (EmployeeID, StateID);
+
+-- ---- Leave balances: entitlement / used / pending per employee-type-year ----
+IF OBJECT_ID(N'dbo.Pay_LeaveBalance', N'U') IS NULL
+CREATE TABLE Pay_LeaveBalance (
+    BalanceID    INT IDENTITY(1,1) PRIMARY KEY,
+    EmployeeID   INT           NOT NULL,
+    LeaveType    VARCHAR(40)   NOT NULL,
+    LeaveYear    INT           NOT NULL,
+    Entitlement  NUMERIC(9,2)  NOT NULL DEFAULT 0,    -- days granted for the year
+    Used         NUMERIC(9,2)  NOT NULL DEFAULT 0,    -- days consumed by approved leave
+    Pending      NUMERIC(9,2)  NOT NULL DEFAULT 0,    -- days held by submitted-but-undecided requests
+    UpdatedAt    DATETIME      NOT NULL DEFAULT GETDATE()
+);
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name='UX_Pay_LeaveBal' AND object_id=OBJECT_ID('dbo.Pay_LeaveBalance'))
+CREATE UNIQUE INDEX UX_Pay_LeaveBal ON Pay_LeaveBalance (EmployeeID, LeaveType, LeaveYear);
 
 -- ---- Employee self-service: requests to HR --------------------------
 IF OBJECT_ID(N'dbo.Pay_HrRequest', N'U') IS NULL

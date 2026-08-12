@@ -102,6 +102,8 @@ $r->post('payroll/lock',      [PayrollController::class, 'lock']);
 $r->post('payroll/reopen',    [PayrollController::class, 'reopen']);
 $r->get('payroll/register',   [PayrollController::class, 'register']);
 $r->get('payroll/wps',        [PayrollController::class, 'wps']);
+$r->get('payroll/bank',       [PayrollController::class, 'bank']);
+$r->get('payroll/bank/file',  [PayrollController::class, 'bankFile']);
 
 $r->get('payroll/structures',      [SalaryStructureController::class, 'index']);
 $r->get('payroll/structure',       [SalaryStructureController::class, 'edit']);
@@ -144,6 +146,7 @@ $r->get('me',              [EssController::class, 'home']);
 $r->get('me/payslips',     [EssController::class, 'payslips']);
 $r->get('me/leave',        [EssController::class, 'leave']);
 $r->post('me/leave/save',  [EssController::class, 'leaveSave']);
+$r->get('me/leave/attachment', [EssController::class, 'leaveAttachment']);
 $r->get('me/hr',           [EssController::class, 'hr']);
 $r->post('me/hr/save',     [EssController::class, 'hrSave']);
 $r->get('me/cme',          [EssController::class, 'cme']);

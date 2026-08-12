@@ -5,6 +5,7 @@ use App\Core\Controller;
 use App\Core\Auth;
 use App\Core\Config;
 use App\Payroll\Repositories\LeaveRequestRepository;
+use App\Payroll\Repositories\LeaveBalanceRepository;
 use App\Payroll\Repositories\HrRequestRepository;
 use App\Payroll\Repositories\CmeRepository;
 
@@ -33,10 +34,20 @@ class HrDeskController extends Controller
         $req  = $repo->find((int) $this->input('request_id'));
         if (!$req) { $this->flash('error', 'Request not found.'); $this->redirect('hr/leave'); }
 
-        $state = $this->input('decision') === 'approve'
-            ? LeaveRequestRepository::APPROVED : LeaveRequestRepository::REJECTED;
+        $approve = $this->input('decision') === 'approve';
+        $state = $approve ? LeaveRequestRepository::APPROVED : LeaveRequestRepository::REJECTED;
         $repo->decide((int) $req['RequestID'], $state, $this->user(), $this->input('note') ?: null);
-        $this->flash('success', 'Leave request ' . ($state === LeaveRequestRepository::APPROVED ? 'approved' : 'rejected') . '.');
+
+        // Settle the balance: approval consumes the reserved days, rejection frees them.
+        $bal  = new LeaveBalanceRepository($this->db);
+        $eid  = (int) $req['EmployeeID'];
+        $type = (string) $req['LeaveType'];
+        $days = (float) $req['Days'];
+        $year = (int) date('Y', strtotime((string) ($req['FromDate'] ?? 'now')));
+        if ($approve) $bal->commit($eid, $type, $days, $year);
+        else          $bal->release($eid, $type, $days, $year);
+
+        $this->flash('success', 'Leave request ' . ($approve ? 'approved' : 'rejected') . '.');
         $this->redirect('hr/leave');
     }
 
@@ -45,9 +56,12 @@ class HrDeskController extends Controller
     public function requests(): void
     {
         $this->requireRole('process');
+        $category = $this->input('category') ?: null;
         $this->view('hrdesk/hr', [
-            'title' => 'HR Requests',
-            'queue' => (new HrRequestRepository($this->db))->queue(),
+            'title'          => 'HR Requests',
+            'queue'          => (new HrRequestRepository($this->db))->queue($category),
+            'filterCategory' => $category,
+            'categories'     => (array) Config::get('payroll.hr_request_categories', []),
         ]);
     }
 

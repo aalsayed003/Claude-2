@@ -85,6 +85,22 @@ class ScheduleChangeRepository
     }
 
     /** Schedule-change requests still in the approval chain (pending or first-gate-approved). */
+    /** Count of schedule-change requests still awaiting approval (dashboard tile). */
+    public function pendingCount(string $from, string $to): int
+    {
+        $t  = lt('change_sched');
+        $st = \App\Roster\Services\ScheduleChangeFlow::states();
+        $in = implode(',', [(int) $st['pending'], (int) $st['head_ok']]);
+        try {
+            return (int) $this->db->value(
+                "SELECT COUNT(*) FROM {$t}
+                  WHERE StateID IN ({$in}) AND RequestDate BETWEEN :a AND :b",
+                [':a' => $from . ' 00:00:00', ':b' => $to . ' 23:59:59']);
+        } catch (\Throwable $e) {
+            return 0;
+        }
+    }
+
     public function pendingForApproval(string $from, string $to): array
     {
         $t   = lt('change_sched');

@@ -187,3 +187,35 @@ function money_round($v): float
 {
     return round((float) $v, (int) \App\Core\Config::get('payroll.decimals', 3));
 }
+
+/**
+ * Count of duty-roster items a department head (or above) can still act on:
+ * roster submissions + schedule-change + attendance-correction requests.
+ * Used for the mobile bottom-nav "Approvals" badge. Never throws.
+ */
+function hod_pending_count(): int
+{
+    try {
+        if (!\App\Core\Auth::atLeast('dept_head')) return 0;
+        $db   = \App\Core\Database::app();
+        $from = '2000-01-01';
+        $to   = date('Y-m-d', strtotime('+1 day'));
+        $n  = (new \App\Roster\Repositories\ScheduleRequestRepository($db))->pendingCount();
+        $n += (new \App\Roster\Repositories\ScheduleChangeRepository($db))->pendingCount($from, $to);
+        $n += (new \App\Roster\Repositories\CorrectionRepository($db))->pendingCount($from, $to);
+        return (int) $n;
+    } catch (\Throwable $e) {
+        return 0;
+    }
+}
+
+/**
+ * Truncate (round toward zero) to the payroll currency's precision — the
+ * ROUNDDOWN the ASSH bank files use so the transferred fils never round up.
+ */
+function money_floor($v, ?int $dp = null): float
+{
+    $dp = $dp ?? (int) \App\Core\Config::get('payroll.decimals', 3);
+    $f = 10 ** $dp;
+    return ($v < 0 ? ceil((float) $v * $f) : floor((float) $v * $f)) / $f;
+}

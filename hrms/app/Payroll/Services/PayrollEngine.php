@@ -175,8 +175,9 @@ class PayrollEngine
         ?array $stat, array $loansDue, array $extra = []
     ): array {
         $cfg   = (array) Config::get('payroll.components', []);
-        $divisor = $this->divisor($summary);
+        $divisor = $this->divisor($summary, $month);
         $hoursPerDay = (float) Config::get('payroll.hours_per_day', 8);
+        $empType = $this->empType($emp);
 
         $fullBasic = SalaryStructureRepository::basicOf($structure);
         $fullGross = SalaryStructureRepository::grossOf($structure);
@@ -190,6 +191,9 @@ class PayrollEngine
             if (($c['type'] ?? 'earning') !== 'earning' || empty($c['structure'])) {
                 continue;
             }
+            if (!$this->profileAllows($c, $empType)) {
+                continue;
+            }
             $amount = (float) ($structure[$c['structure']] ?? 0);
             if (!empty($c['prorate'])) {
                 $amount *= $factor;
@@ -200,6 +204,17 @@ class PayrollEngine
             }
             if (!empty($c['gosi'])) {
                 $contributoryWage += $amount;
+            }
+        }
+
+        // ---- input-driven monthly components (recurring/ad-hoc) -------------
+        // Config components with a 'monthly' column are read from the monthly
+        // input row and applied by type (earning +, deduction −), honouring the
+        // employee's FTE/PTE profile. This is what carries EWA, housing/transport
+        // recovery, CPR-LMRA, NHRA, LMRA, medical charges, and refunds.
+        foreach ($this->monthlyInputComponents((int) $emp['id'], $month, $cfg, $empType, $factor) as $key => $amount) {
+            if ($amount != 0.0) {
+                $components[$key] = money_round(($components[$key] ?? 0) + $amount);
             }
         }
 
@@ -382,10 +397,71 @@ class PayrollEngine
         return array_filter($out, fn($v) => $v != 0.0);
     }
 
-    /** Days in the month used as the divisor for day and hour rates. */
-    private function divisor(array $summary): float
+    /**
+     * Days in the month used as the divisor for day and hour rates.
+     *
+     *   month_days  actual calendar days in the payroll month (Jul=31, Feb=28/29)
+     *               — matches the ASSH manual paysheet, which prorates every
+     *               component by  No.of.Days / days-in-month.
+     *   calendar    days in the attendance period (may be a 16th-15th cutoff)
+     *   scheduled   the employee's rostered days
+     *   fixed       a flat divisor (payroll.fixed_month_days, default 30)
+     */
+    /** FTE or PTE for this employee, from CategoryID against the configured list. */
+    public function empType(array $emp): string
+    {
+        $partTime = array_map('intval', (array) Config::get('payroll.part_time_categories', []));
+        $cat = (int) ($emp['category_id'] ?? 0);
+        if ($partTime && in_array($cat, $partTime, true)) {
+            return 'pte';
+        }
+        return (string) Config::get('payroll.employee_type_default', 'fte');
+    }
+
+    /** Whether a component applies to this population (profile 'both'/absent = all). */
+    private function profileAllows(array $c, string $empType): bool
+    {
+        $p = $c['profile'] ?? 'both';
+        return $p === 'both' || $p === $empType;
+    }
+
+    /**
+     * Config-driven monthly input components (those with a 'monthly' column),
+     * read from the monthly-allowances row and returned keyed by component. The
+     * amount is positive; the totals pass classifies it as earning/deduction by
+     * the component's configured type. PTE-only components are skipped for FTE.
+     */
+    private function monthlyInputComponents(int $empId, string $month, array $cfg, string $empType, float $factor): array
+    {
+        $row = $this->payroll->monthlyAllowances($empId, $month);
+        if (!$row) {
+            return [];
+        }
+        $lower = array_change_key_case($row, CASE_LOWER);   // tolerate column-case differences
+        $out = [];
+        foreach ($cfg as $key => $c) {
+            $col = $c['monthly'] ?? null;
+            if (!$col || !$this->profileAllows($c, $empType)) {
+                continue;
+            }
+            $amount = (float) ($lower[strtolower($col)] ?? 0);
+            if ($amount == 0.0) {
+                continue;
+            }
+            if (!empty($c['prorate'])) {
+                $amount = $amount * $factor;
+            }
+            $out[$key] = money_round($amount);
+        }
+        return $out;
+    }
+
+    private function divisor(array $summary, ?string $month = null): float
     {
         switch (Config::get('payroll.day_rate_basis', 'fixed')) {
+            case 'month_days':
+                return (float) self::daysInPayrollMonth(
+                    $month ?: (string) ($summary['period_to'] ?? date('Y-m-d')));
             case 'calendar':
                 return (float) max(1, $summary['calendar_days']);
             case 'scheduled':
@@ -394,6 +470,22 @@ class PayrollEngine
             default:
                 return (float) Config::get('payroll.fixed_month_days', 30);
         }
+    }
+
+    /** Calendar days in a payroll month (Jul=31, Feb=28/29). */
+    public static function daysInPayrollMonth(string $month): int
+    {
+        return (int) date('t', strtotime(substr($month, 0, 7) . '-01'));
+    }
+
+    /**
+     * Prorate one monthly amount to a paysheet figure: amount × paidDays ÷
+     * monthDays, at the currency's precision. This is the ASSH manual-paysheet
+     * rule (No.of.Days / days-in-month) made testable.
+     */
+    public static function proratedEarning(float $amount, float $paidDays, float $monthDays): float
+    {
+        return $monthDays > 0 ? money_round($amount * $paidDays / $monthDays) : 0.0;
     }
 
     /**

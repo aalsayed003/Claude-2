@@ -186,6 +186,7 @@ return array (
       'indemnity_prov' => 'Pay_IndemnityProvision',
       'leave_prov' => 'Pay_LeaveProvision',
       'leave_request' => 'Pay_LeaveRequest',
+      'leave_balance' => 'Pay_LeaveBalance',
       'hr_request' => 'Pay_HrRequest',
       'cme_req' => 'Pay_CmeRequirement',
       'cme_activity' => 'Pay_CmeActivity',
@@ -215,7 +216,7 @@ return array (
       4 => 'Maternity',
       5 => 'Bereavement',
     ),
-    'hr_request_categories' => 
+    'hr_request_categories' =>
     array (
       0 => 'Salary certificate',
       1 => 'Experience letter',
@@ -224,12 +225,61 @@ return array (
       4 => 'Bank / IBAN update',
       5 => 'Other',
     ),
+    // Category treated as the "salary certificate" queue on the dashboard tile.
+    'salary_certificate_category' => 'Salary certificate',
+    // Yearly entitlement (days) per leave type. Types not listed here (e.g.
+    // Unpaid) do not draw from a balance.
+    'leave_entitlement' =>
+    array (
+      'Annual' => 30,
+      'Sick' => 15,
+      'Emergency' => 5,
+      'Maternity' => 70,
+      'Bereavement' => 5,
+    ),
+    // Leave types that must have enough balance to be requested and that
+    // consume the balance once approved.
+    'leave_balance_types' =>
+    array (
+      0 => 'Annual',
+      1 => 'Sick',
+      2 => 'Emergency',
+      3 => 'Maternity',
+      4 => 'Bereavement',
+    ),
+    // Leave types for which a supporting document (e.g. a medical note) can be
+    // attached. Sick leave prompts for it; the field is optional for others.
+    'leave_attachment_types' =>
+    array (
+      0 => 'Sick',
+    ),
+    // Uploaded supporting documents (leave notes etc.).
+    'uploads' =>
+    array (
+      'dir' => '',                       // '' -> <app>/storage/uploads
+      'max_bytes' => 5242880,            // 5 MB
+      'allowed_ext' =>
+      array (
+        0 => 'pdf', 1 => 'jpg', 2 => 'jpeg', 3 => 'png', 4 => 'gif', 5 => 'webp', 6 => 'heic',
+      ),
+    ),
+    // Best-effort OCR of image attachments (free Tesseract CLI). If the binary
+    // is missing the attachment is still stored; only the extracted text is skipped.
+    'ocr' =>
+    array (
+      'enabled' => true,
+      'bin' => 'tesseract',
+      'lang' => 'eng',
+    ),
     'cme' => 
     array (
       'required_hours_per_year' => 50,
     ),
     'month_is_period_end' => false,
-    'day_rate_basis' => 'fixed',
+    // ASSH manual paysheet prorates every component by No.of.Days / days-in-month
+    // (July = 31), so day/hour rates divide by the actual calendar days of the
+    // payroll month. Use 'fixed' + fixed_month_days for a flat 30-day divisor.
+    'day_rate_basis' => 'month_days',
     'fixed_month_days' => 30,
     'day_rate_on' => 'gross',
     'penalty_rate_on' => 'basic',
@@ -595,7 +645,7 @@ return array (
         'prorate' => false,
         'gosi' => false,
       ),
-      'neg_adjust' => 
+      'neg_adjust' =>
       array (
         'label' => 'Negative Adjustment',
         'structure' => NULL,
@@ -604,8 +654,131 @@ return array (
         'prorate' => false,
         'gosi' => false,
       ),
+      // ---- ASSH paysheet components (July-2026 FTE/PTE manual) --------------
+      // 'profile' limits a component to a population: 'both' (default), 'fte',
+      // or 'pte'. 'monthly' names a column in MonthlyAllowances for input-driven
+      // amounts (recurring/ad-hoc deductions, refunds); structure stays NULL.
+      // NOTE: structure/register/monthly column names follow the app convention
+      // and must be reconciled against the production CurrentDetails /
+      // CurrentMonth / MonthlyAllowances schema before go-live.
+      'general' =>
+      array (
+        'label' => 'General Allowance',
+        'structure' => 'GeneralAllowance',
+        'register' => 'GeneralAllowance',
+        'type' => 'earning', 'prorate' => true, 'gosi' => false, 'profile' => 'both',
+      ),
+      'shift_oncall' =>
+      array (
+        'label' => 'Shift & on-Call Allowance',
+        'structure' => 'ShiftOnCallAllowance',
+        'register' => 'ShiftOnCallAllowance',
+        'type' => 'earning', 'prorate' => true, 'gosi' => false, 'profile' => 'both',
+      ),
+      'hod_allow' =>
+      array (
+        'label' => 'HOD Allowance',
+        'structure' => 'HodAllowance',
+        'register' => 'HodAllowance',
+        'type' => 'earning', 'prorate' => true, 'gosi' => false, 'profile' => 'pte',
+      ),
+      'ticket' =>
+      array (
+        'label' => 'Ticket',
+        'structure' => 'TicketAllowance',
+        'register' => 'TicketAllowance',
+        'type' => 'earning', 'prorate' => false, 'gosi' => false, 'profile' => 'pte',
+      ),
+      'refund' =>
+      array (
+        'label' => 'Refund',
+        'structure' => NULL, 'monthly' => 'Refund', 'register' => 'Refund',
+        'type' => 'earning', 'prorate' => false, 'gosi' => false, 'profile' => 'both',
+      ),
+      'attendance_refund' =>
+      array (
+        'label' => 'Attendance Refund',
+        'structure' => NULL, 'monthly' => 'AttendanceRefund', 'register' => 'AttendanceRefund',
+        'type' => 'earning', 'prorate' => false, 'gosi' => false, 'profile' => 'pte',
+      ),
+      'ewa' =>
+      array (
+        'label' => 'EWA (utilities)',
+        'structure' => NULL, 'monthly' => 'EWA', 'register' => 'EWA',
+        'type' => 'deduction', 'prorate' => false, 'gosi' => false, 'profile' => 'both',
+      ),
+      'housing_recovery' =>
+      array (
+        'label' => 'Housing Recovery',
+        'structure' => NULL, 'monthly' => 'HousingRecovery', 'register' => 'HousingDed',
+        'type' => 'deduction', 'prorate' => false, 'gosi' => false, 'profile' => 'both',
+      ),
+      'transport_recovery' =>
+      array (
+        'label' => 'Transport Recovery',
+        'structure' => NULL, 'monthly' => 'TransportRecovery', 'register' => 'TransportDed',
+        'type' => 'deduction', 'prorate' => false, 'gosi' => false, 'profile' => 'both',
+      ),
+      'cpr_lmra' =>
+      array (
+        'label' => 'CPR / LMRA',
+        'structure' => NULL, 'monthly' => 'CprLmra', 'register' => 'CprLmra',
+        'type' => 'deduction', 'prorate' => false, 'gosi' => false, 'profile' => 'pte',
+      ),
+      'nhra' =>
+      array (
+        'label' => 'NHRA',
+        'structure' => NULL, 'monthly' => 'NHRA', 'register' => 'NHRA',
+        'type' => 'deduction', 'prorate' => false, 'gosi' => false, 'profile' => 'pte',
+      ),
+      'lmra' =>
+      array (
+        'label' => 'LMRA',
+        'structure' => NULL, 'monthly' => 'LMRA', 'register' => 'LMRA',
+        'type' => 'deduction', 'prorate' => false, 'gosi' => false, 'profile' => 'pte',
+      ),
+      'medical' =>
+      array (
+        'label' => 'Medical Charges',
+        'structure' => NULL, 'monthly' => 'MedicalCharges', 'register' => 'MedicalCharges',
+        'type' => 'deduction', 'prorate' => false, 'gosi' => false, 'profile' => 'pte',
+      ),
+      'other_deduction' =>
+      array (
+        'label' => 'Others (deduction)',
+        'structure' => NULL, 'monthly' => 'OtherDeduction', 'register' => 'OtherDeductionAmt',
+        'type' => 'deduction', 'prorate' => false, 'gosi' => false, 'profile' => 'both',
+      ),
     ),
-    'gosi' => 
+    // FTE vs PTE populations. Employees whose CategoryID is listed here are
+    // treated as part-time (PTE); everyone else is full-time (FTE). PTE-only
+    // components (HOD, Ticket, NHRA, LMRA, Medical …) apply only to PTE.
+    'part_time_categories' =>
+    array (
+    ),
+    'employee_type_default' => 'fte',
+    // Bank of Payment + per-bank transfer files (BBK / KHCB / …). The 4-char
+    // bank identifier is read from the IBAN (chars 5-8 of a Bahrain IBAN) and
+    // mapped to a bank + a transfer-file group. Net is truncated (ROUNDDOWN) to
+    // the currency precision, matching the manual sheet.
+    'bank' =>
+    array (
+      'iban_length' => 22,          // Bahrain IBAN length
+      'iban_code_start' => 5,       // 1-based position of the 4-char bank code
+      'iban_code_len' => 4,
+      'name_max' => 30,             // bank name-field limit for QA
+      'net_round' => 'down',        // 'down' = ROUNDDOWN; 'nearest' = round half
+      'codes' =>
+      array (
+        'NBOB' => array ('name' => 'National Bank of Bahrain', 'file' => 'NBB'),
+        'BBKU' => array ('name' => 'Bank of Bahrain and Kuwait', 'file' => 'BBK'),
+        'KHCB' => array ('name' => 'Khaleeji Commercial Bank', 'file' => 'KHCB'),
+        'SALA' => array ('name' => 'Al Salam Bank', 'file' => 'SALAM'),
+        'AUBB' => array ('name' => 'Ahli United Bank', 'file' => 'AUB'),
+        'BMAG' => array ('name' => 'Bahrain Middle East Bank', 'file' => 'BMEB'),
+      ),
+    ),
+    'gosi' =>
     array (
       'enabled' => true,
       'post_employer_share' => false,

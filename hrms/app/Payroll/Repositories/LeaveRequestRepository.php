@@ -35,15 +35,26 @@ class LeaveRequestRepository
     public function create(array $d): int
     {
         return $this->db->insert(pt('leave_request'), [
-            'EmployeeID' => (int) $d['employee_id'],
-            'LeaveType'  => $d['leave_type'],
-            'FromDate'   => $d['from'],
-            'ToDate'     => $d['to'],
-            'Days'       => (float) $d['days'],
-            'Reason'     => $d['reason'] ?? null,
-            'Contact'    => $d['contact'] ?? null,
-            'StateID'    => self::PENDING,
+            'EmployeeID'     => (int) $d['employee_id'],
+            'LeaveType'      => $d['leave_type'],
+            'FromDate'       => $d['from'],
+            'ToDate'         => $d['to'],
+            'Days'           => (float) $d['days'],
+            'Reason'         => $d['reason'] ?? null,
+            'Contact'        => $d['contact'] ?? null,
+            'AttachmentName' => $d['attachment_name'] ?? null,
+            'AttachmentPath' => $d['attachment_path'] ?? null,
+            'AttachmentOcr'  => $d['attachment_ocr'] ?? null,
+            'StateID'        => self::PENDING,
         ]);
+    }
+
+    /** Count of leave requests still awaiting an HR decision. */
+    public function pendingCount(): int
+    {
+        return (int) $this->db->value(
+            "SELECT COUNT(*) FROM " . pt('leave_request') . " WHERE StateID = :s",
+            [':s' => self::PENDING]);
     }
 
     /** Pending requests across all staff, with names, for the HR desk. */

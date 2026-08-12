@@ -15,6 +15,16 @@ $active = function (string $path) use ($cur) {
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title><?= e($title ?? 'HRMS') ?> · <?= e(\App\Core\Config::get('app.org')) ?></title>
     <link rel="stylesheet" href="<?= url('assets/app.css') ?>">
+    <link rel="stylesheet" href="<?= url('assets/mobile.css') ?>">
+    <!-- Installable PWA (Add to Home Screen) -->
+    <link rel="manifest" href="<?= url('manifest.webmanifest') ?>">
+    <meta name="theme-color" content="#0f3f6b">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="ASSH HRMS">
+    <link rel="apple-touch-icon" href="<?= url('assets/icons/apple-touch-180.png') ?>">
+    <link rel="icon" type="image/png" sizes="192x192" href="<?= url('assets/icons/icon-192.png') ?>">
     <style>
       :root{ --nav:#0f3f6b; --navbg:#ffffff; --navline:#e4e9f1; --ink:#1f2a37; --muted:#6b7787; --accent:#137fc4; }
       *{box-sizing:border-box}
@@ -56,6 +66,7 @@ $active = function (string $path) use ($cur) {
 </head>
 <body>
 <div class="hrms">
+    <div class="drawer-backdrop" onclick="document.body.classList.remove('nav-open')"></div>
     <aside class="side">
         <div class="logo">
             <a href="<?= url('dashboard') ?>"><img src="<?= url('assets/assh-logo.jpg') ?>" alt="Al Salam Specialist Hospital"></a>
@@ -108,7 +119,11 @@ $active = function (string $path) use ($cur) {
 
     <div class="main">
         <div class="topbar2">
-            <div class="pg"><?= e($title ?? 'Dashboard') ?></div>
+            <div style="display:flex;align-items:center;gap:10px;min-width:0">
+                <button class="m-burger m-only" type="button" aria-label="Menu"
+                        onclick="document.body.classList.toggle('nav-open')">☰</button>
+                <div class="pg"><?= e($title ?? 'Dashboard') ?></div>
+            </div>
             <div class="who">
                 <span><b><?= e(Auth::user()['full_name'] ?? '') ?></b></span>
                 <span class="chip"><?= e(Auth::role()) ?></span>
@@ -127,6 +142,43 @@ $active = function (string $path) use ($cur) {
             <?= e(\App\Core\Config::get('app.name')) ?> · <?= date('Y') ?> <?= e(\App\Core\Config::get('app.org')) ?>
         </footer>
     </div>
+
+    <?php
+      // ---- mobile bottom tab bar (thumb zone) ----
+      $isHod = Auth::atLeast('dept_head');
+      $badge = hod_pending_count();
+      $tabOn = fn(string $p) => ($cur === $p || str_starts_with($cur, $p . '/')) ? ' on' : '';
+      $tab = function (string $href, string $path, string $icon, string $label, int $badge = 0) use ($tabOn) {
+          echo '<a href="' . url($href) . '" class="m-tab' . $tabOn($path) . '">'
+             . '<span class="ic">' . $icon . '</span>'
+             . ($badge > 0 ? '<span class="badge">' . ($badge > 99 ? '99+' : $badge) . '</span>' : '')
+             . '<span>' . e($label) . '</span></a>';
+      };
+    ?>
+    <nav class="m-tabbar m-only">
+        <?php $tab('dashboard', 'dashboard', '&#127968;', 'Home'); ?>
+        <?php if ($isHod): ?>
+            <?php $tab('approvals', 'approvals', '&#128203;', 'Approvals', $badge); ?>
+            <?php $tab('me/leave', 'me/leave', '&#127796;', 'Leave'); ?>
+        <?php else: ?>
+            <?php $tab('me/leave', 'me/leave', '&#127796;', 'My Leave'); ?>
+            <?php $tab('attendance', 'attendance', '&#128337;', 'Attendance'); ?>
+        <?php endif; ?>
+        <a href="#" class="m-tab" onclick="document.body.classList.toggle('nav-open');return false;">
+            <span class="ic">&#9776;</span><span>Menu</span></a>
+    </nav>
 </div>
+<script>
+  // Register the service worker for installability + fast static loads.
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', function () {
+      navigator.serviceWorker.register('<?= url('sw.js') ?>').catch(function () {});
+    });
+  }
+  // Tapping any drawer link closes the drawer.
+  document.querySelectorAll('.side a').forEach(function (a) {
+    a.addEventListener('click', function () { document.body.classList.remove('nav-open'); });
+  });
+</script>
 </body>
 </html>

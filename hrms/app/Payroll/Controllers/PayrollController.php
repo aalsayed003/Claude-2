@@ -8,6 +8,7 @@ use App\Payroll\Repositories\PayrollRepository;
 use App\Payroll\Repositories\StatutoryRepository;
 use App\Payroll\Services\PayrollEngine;
 use App\Payroll\Services\WpsExporter;
+use App\Payroll\Services\BankFile;
 
 /**
  * Payroll runs: open a month, calculate it, review the register, approve,
@@ -210,6 +211,47 @@ class PayrollController extends Controller
     }
 
     /** Build and download the WPS / bank transfer file for a locked run. */
+    /** Bank of Payment register + per-bank transfer files with QA checks. */
+    public function bank(): void
+    {
+        $this->requireRole('approve');
+        $run = $this->repo->findRun((int) $this->input('id'));
+        if (!$run) {
+            $this->flash('error', 'Payroll run not found.');
+            $this->redirect('payroll');
+        }
+        if ((int) $run['StateID'] < PayrollRepository::APPROVED) {
+            $this->flash('error', 'Approve the payroll before producing bank files.');
+            $this->redirect('payroll/run?id=' . $run['RunID']);
+        }
+        $bf = new BankFile($this->db);
+        $this->view('payroll/bank', [
+            'title' => 'Bank of Payment — ' . date('F Y', strtotime((string) $run['PayrollMonth'])),
+            'run'   => $run,
+            'reg'   => $bf->register($run),
+            'files' => $bf->transferFiles($run),
+        ]);
+    }
+
+    /** Download one bank's transfer file. */
+    public function bankFile(): void
+    {
+        $this->requireRole('approve');
+        $run = $this->repo->findRun((int) $this->input('id'));
+        if (!$run) { http_response_code(404); echo 'Payroll run not found.'; return; }
+        $files = (new BankFile($this->db))->transferFiles($run);
+        $group = (string) $this->input('group');
+        if (!isset($files[$group])) {
+            $this->flash('error', 'No transfer file for that bank.');
+            $this->redirect('payroll/bank?id=' . $run['RunID']);
+        }
+        $f = $files[$group];
+        header('Content-Type: text/csv; charset=utf-8');
+        header('Content-Disposition: attachment; filename="' . $f['filename'] . '"');
+        echo $f['content'];
+        exit;
+    }
+
     public function wps(): void
     {
         $this->requireRole('approve');
