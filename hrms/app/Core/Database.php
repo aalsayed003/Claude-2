@@ -69,9 +69,45 @@ class Database
 
     public function run(string $sql, array $params = []): \PDOStatement
     {
+        [$sql, $params] = $this->expandRepeatedParams($sql, $params);
         $stmt = $this->pdo->prepare($sql);
         $stmt->execute($params);
         return $stmt;
+    }
+
+    /**
+     * pdo_sqlsrv (unlike mysql/sqlite) rejects a named placeholder used more
+     * than once in a statement ("COUNT field incorrect or syntax error").
+     * Rewrite each repeated :name after its first use to a unique placeholder
+     * and bind the same value, so app queries can reuse a param portably.
+     * No-op for positional (?) params or names that appear only once.
+     */
+    private function expandRepeatedParams(string $sql, array $params): array
+    {
+        if ($params === [] || array_is_list($params)) {
+            return [$sql, $params];
+        }
+        $out = $params;
+        foreach (array_keys($params) as $key) {
+            $name = ltrim((string) $key, ':');
+            if ($name === '') {
+                continue;
+            }
+            $pat = '/(?<![:\w]):' . preg_quote($name, '/') . '\b/';
+            if (preg_match_all($pat, $sql) <= 1) {
+                continue;
+            }
+            $i = 0;
+            $sql = preg_replace_callback($pat, function ($m) use (&$i, $name, &$out, $params, $key) {
+                if (++$i === 1) {
+                    return $m[0];                 // leave the first occurrence
+                }
+                $nk = ':' . $name . '_r' . $i;
+                $out[$nk] = $params[$key];        // bind the same value under a fresh name
+                return $nk;
+            }, $sql);
+        }
+        return [$sql, $out];
     }
 
     public function all(string $sql, array $params = []): array
