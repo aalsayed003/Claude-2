@@ -92,6 +92,7 @@ $active = function (string $path) use ($cur) {
                 <div class="grp">Payroll</div>
                 <a href="<?= url('payroll') ?>"<?= $active('payroll') ?>><span class="d"></span> Payroll Runs</a>
                 <a href="<?= url('payroll/structures') ?>"<?= $active('payroll/structure') ?>><span class="d"></span> Salary Structures</a>
+                <a href="<?= url('payroll/gosi-rates') ?>"<?= $active('payroll/gosi-rates') ?>><span class="d"></span> GOSI Rates</a>
                 <a href="<?= url('payroll/payslip') ?>"<?= $active('payroll/payslip') ?>><span class="d"></span> Payslips</a>
                 <a href="<?= url('payroll/loans') ?>"<?= $active('payroll/loans') ?>><span class="d"></span> Loans</a>
                 <a href="<?= url('payroll/settlement') ?>"<?= $active('payroll/settlement') ?>><span class="d"></span> Settlement</a>

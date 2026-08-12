@@ -12,12 +12,15 @@ IF NOT EXISTS (SELECT 1 FROM Pay_Users WHERE username='admin')
 -- GOSI / SIO rates — PROVISIONAL. Confirm against the current SIO circular
 -- before the first live run; correct these rows, no code change needed.
 IF NOT EXISTS (SELECT 1 FROM Pay_GosiRate)
-    INSERT INTO Pay_GosiRate (EffectiveFrom, IsBahraini, EmployeePct, EmployerPct, MinWage, MaxWage, Notes)
+    INSERT INTO Pay_GosiRate
+      (EffectiveFrom, Category, IsBahraini, SocialEmpPct, UnempEmpPct, SocialErPct, UnempErPct, EmployeePct, EmployerPct, MinWage, MaxWage, Notes)
     VALUES
-      ('2024-05-01', 1, 8.000, 13.000, 0, 4000, 'PROVISIONAL Bahraini - confirm with SIO'),
-      ('2025-01-01', 1, 8.000, 14.000, 0, 4000, 'PROVISIONAL Bahraini 2024 reform step - confirm with SIO'),
-      ('2026-01-01', 1, 8.000, 15.000, 0, 4000, 'PROVISIONAL Bahraini - confirm with SIO'),
-      ('2024-05-01', 0, 1.000, 4.000, 0, 4000, 'PROVISIONAL Expat - confirm with SIO');
+      -- Bahraini: employee 7% SI + 1% unemployment (=8%); employer 17% SI + 1% unemployment (=18%).
+      ('2024-05-01', 'bahraini', 1, 7.000, 1.000, 17.000, 1.000, 8.000, 18.000, 0, 4000, 'Bahraini employee 8% (7 SI + 1 unemployment), employer 18%.'),
+      -- Bahraini retiree / pensioner: employee 1% SI, no employer share.
+      ('2024-05-01', 'retiree', 1, 1.000, 0.000, 0.000, 0.000, 1.000, 0.000, 0, 4000, 'Bahraini retiree employee 1% SI, no employer share.'),
+      -- Expat: employee 1% SI, employer 3%.
+      ('2024-05-01', 'expat', 0, 1.000, 0.000, 3.000, 0.000, 1.000, 3.000, 0, 4000, 'Expat employee 1% SI, employer 3%.');
 
 -- Common Bahrain banks for the WPS file (extend as needed).
 IF NOT EXISTS (SELECT 1 FROM Pay_Bank WHERE Code='BBK')  INSERT INTO Pay_Bank (Code, Name, SwiftCode) VALUES ('BBK','Bank of Bahrain and Kuwait','BBKUBHBM');

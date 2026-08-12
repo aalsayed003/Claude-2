@@ -50,7 +50,13 @@ class PayrollController extends Controller
         $period = period_of_payroll_month($month);
         [$from, $to] = period_bounds($period);
 
-        $run = $this->repo->createRun($month . '-01', $from, $to, $this->userName());
+        try {
+            $run = $this->repo->createRun($month . '-01', $from, $to, $this->userName());
+        } catch (\Throwable $e) {
+            $this->flash('error', 'Could not open the payroll month: ' . $e->getMessage());
+            $this->redirect('payroll');
+            return;
+        }
         $this->flash('success', 'Payroll month ' . date('F Y', strtotime($month . '-01')) .
                                 ' opened for the cycle ' . $from . ' .. ' . $to . '.');
         $this->redirect('payroll/run?id=' . $run['RunID']);
@@ -66,24 +72,32 @@ class PayrollController extends Controller
         }
         $month = date('Y-m-01', strtotime((string) $run['PayrollMonth']));
 
-        $employees  = $this->repo->payableEmployees($month);
-        $exceptions = (new StatutoryRepository($this->db))->exceptions($employees);
-        $held       = (new \App\Payroll\Repositories\SalaryHoldRepository($this->db))->activeForMonth($month);
-
-        $this->view('payroll/run', [
-            'title'      => 'Payroll — ' . date('F Y', strtotime($month)),
-            'run'        => $run,
-            'month'      => $month,
-            'totals'     => $this->repo->registerTotals($month),
-            'headcount'  => count($employees),
-            'heldCount'  => count($held),
-            'exceptions' => $exceptions,
-            'audit'      => $this->repo->auditTrail((int) $run['RunID'], 30),
-            'wps'        => (new WpsExporter($this->db))->history((int) $run['RunID']),
-            'canProcess' => $this->allowed('process'),
-            'canApprove' => $this->allowed('approve'),
-            'editable'   => $this->repo->isEditable($run),
-        ]);
+        // Build the page defensively: a data/schema problem should show a clear
+        // message (which is safe to send on for support), not a blank 500.
+        try {
+            $employees  = $this->repo->payableEmployees($month);
+            $exceptions = (new StatutoryRepository($this->db))->exceptions($employees);
+            $held       = (new \App\Payroll\Repositories\SalaryHoldRepository($this->db))->activeForMonth($month);
+            $data = [
+                'title'      => 'Payroll — ' . date('F Y', strtotime($month)),
+                'run'        => $run,
+                'month'      => $month,
+                'totals'     => $this->repo->registerTotals($month),
+                'headcount'  => count($employees),
+                'heldCount'  => count($held),
+                'exceptions' => $exceptions,
+                'audit'      => $this->repo->auditTrail((int) $run['RunID'], 30),
+                'wps'        => (new WpsExporter($this->db))->history((int) $run['RunID']),
+                'canProcess' => $this->allowed('process'),
+                'canApprove' => $this->allowed('approve'),
+                'editable'   => $this->repo->isEditable($run),
+            ];
+        } catch (\Throwable $e) {
+            $this->flash('error', 'Could not open this payroll run: ' . $e->getMessage());
+            $this->redirect('payroll');
+            return;
+        }
+        $this->view('payroll/run', $data);
     }
 
     public function calculate(): void

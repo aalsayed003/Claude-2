@@ -37,8 +37,8 @@ class GosiCalculator
             return array_merge($zero, ['source' => 'excluded']);
         }
 
-        $isBahraini = (bool) (int) ($stat['IsBahraini'] ?? 0);
-        $rate = $this->statutory->gosiRate($isBahraini, $onDate);
+        $category = self::category($stat);
+        $rate = $this->statutory->gosiRate($category, $onDate);
 
         $wage = $contributoryWage;
         if ($rate['min_wage'] !== null && $wage > 0 && $wage < $rate['min_wage']) {
@@ -48,14 +48,31 @@ class GosiCalculator
             $wage = $rate['max_wage'];
         }
 
+        $social = money_round($wage * ($rate['social_emp_pct'] ?? 0) / 100);
+        $unemp  = money_round($wage * ($rate['unemp_emp_pct'] ?? 0) / 100);
+
         return [
-            'employee'     => money_round($wage * $rate['employee_pct'] / 100),
-            'employer'     => money_round($wage * $rate['employer_pct'] / 100),
-            'wage'         => money_round($wage),
-            'employee_pct' => $rate['employee_pct'],
-            'employer_pct' => $rate['employer_pct'],
-            'is_bahraini'  => $isBahraini,
-            'source'       => $rate['source'],
+            'employee'            => money_round($social + $unemp),
+            'employer'            => money_round($wage * $rate['employer_pct'] / 100),
+            'wage'                => money_round($wage),
+            'employee_pct'        => $rate['employee_pct'],
+            'employer_pct'        => $rate['employer_pct'],
+            'category'            => $category,
+            'is_bahraini'         => $category !== 'expat',
+            'social_employee'     => $social,
+            'unemployment_employee' => $unemp,
+            'social_pct'          => $rate['social_emp_pct'] ?? 0,
+            'unemployment_pct'    => $rate['unemp_emp_pct'] ?? 0,
+            'source'              => $rate['source'],
         ];
+    }
+
+    /** GOSI category from the statutory row: retiree > bahraini > expat. */
+    public static function category(?array $stat): string
+    {
+        if ($stat && (int) ($stat['IsRetiree'] ?? 0) === 1) {
+            return 'retiree';
+        }
+        return ($stat && (int) ($stat['IsBahraini'] ?? 0) === 1) ? 'bahraini' : 'expat';
     }
 }
