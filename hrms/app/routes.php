@@ -102,6 +102,8 @@ $r->post('payroll/lock',      [PayrollController::class, 'lock']);
 $r->post('payroll/reopen',    [PayrollController::class, 'reopen']);
 $r->get('payroll/register',   [PayrollController::class, 'register']);
 $r->get('payroll/wps',        [PayrollController::class, 'wps']);
+$r->get('payroll/bank',       [PayrollController::class, 'bank']);
+$r->get('payroll/bank/file',  [PayrollController::class, 'bankFile']);
 
 $r->get('payroll/structures',      [SalaryStructureController::class, 'index']);
 $r->get('payroll/structure',       [SalaryStructureController::class, 'edit']);

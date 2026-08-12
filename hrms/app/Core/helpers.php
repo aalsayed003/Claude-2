@@ -208,3 +208,14 @@ function hod_pending_count(): int
         return 0;
     }
 }
+
+/**
+ * Truncate (round toward zero) to the payroll currency's precision — the
+ * ROUNDDOWN the ASSH bank files use so the transferred fils never round up.
+ */
+function money_floor($v, ?int $dp = null): float
+{
+    $dp = $dp ?? (int) \App\Core\Config::get('payroll.decimals', 3);
+    $f = 10 ** $dp;
+    return ($v < 0 ? ceil((float) $v * $f) : floor((float) $v * $f)) / $f;
+}

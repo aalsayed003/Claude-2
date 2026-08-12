@@ -757,6 +757,27 @@ return array (
     array (
     ),
     'employee_type_default' => 'fte',
+    // Bank of Payment + per-bank transfer files (BBK / KHCB / …). The 4-char
+    // bank identifier is read from the IBAN (chars 5-8 of a Bahrain IBAN) and
+    // mapped to a bank + a transfer-file group. Net is truncated (ROUNDDOWN) to
+    // the currency precision, matching the manual sheet.
+    'bank' =>
+    array (
+      'iban_length' => 22,          // Bahrain IBAN length
+      'iban_code_start' => 5,       // 1-based position of the 4-char bank code
+      'iban_code_len' => 4,
+      'name_max' => 30,             // bank name-field limit for QA
+      'net_round' => 'down',        // 'down' = ROUNDDOWN; 'nearest' = round half
+      'codes' =>
+      array (
+        'NBOB' => array ('name' => 'National Bank of Bahrain', 'file' => 'NBB'),
+        'BBKU' => array ('name' => 'Bank of Bahrain and Kuwait', 'file' => 'BBK'),
+        'KHCB' => array ('name' => 'Khaleeji Commercial Bank', 'file' => 'KHCB'),
+        'SALA' => array ('name' => 'Al Salam Bank', 'file' => 'SALAM'),
+        'AUBB' => array ('name' => 'Ahli United Bank', 'file' => 'AUB'),
+        'BMAG' => array ('name' => 'Bahrain Middle East Bank', 'file' => 'BMEB'),
+      ),
+    ),
     'gosi' =>
     array (
       'enabled' => true,
