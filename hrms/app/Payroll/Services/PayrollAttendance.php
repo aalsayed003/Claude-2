@@ -72,82 +72,49 @@ class PayrollAttendance
      */
     private function loadAttendanceFromPunches(string $from, string $to): bool
     {
-        $attRepo = new \App\Roster\Repositories\AttendanceRepository($this->db);
-        if (!$attRepo->punchSourceAvailable()) {
-            return false;
-        }
-        // Employee codes/pins for everyone in the roster this cycle.
         $empIds = array_keys($this->roster);
         if (!$empIds) {
-            return true;   // roster empty -> nothing to pair, but source is present
+            return true;   // nothing rostered this cycle
         }
         $empT = lt('employee');
         $in   = implode(',', array_map('intval', $empIds));
-        $erows = $this->db->all(
-            "SELECT ID AS id, EmployeeId AS emp_id, EmpCode AS emp_code FROM {$empT} WHERE ID IN ({$in})"
-        );
-        $codeOf = [];       // empId => emp_code (storage key)
-        $pinsOf = [];       // empId => [candidate pins]
-        foreach ($erows as $e) {
-            $id = (int) $e['id'];
-            $codeOf[$id] = (string) ($e['emp_code'] ?? '');
-            $pinsOf[$id] = array_values(array_unique(array_filter([
-                pin_from_code((string) ($e['emp_id'] ?? '')),
-                $e['emp_id'] ?? null, $e['emp_code'] ?? null,
-            ], fn($v) => $v !== null && $v !== '')));
-        }
-
-        // One day-bounded punch query for all pins, grouped by pin.
-        $table   = Config::get('legacy.punch_table', 'checkinout');
-        $pinCol  = Config::get('legacy.punch_pin_col', 'pin');
-        $timeCol = Config::get('legacy.punch_time_col', 'checktime');
-        $wFrom = $from . ' 00:00:00';
-        $wTo   = date('Y-m-d', strtotime($to . ' +1 day')) . ' 12:00:00';   // catch overnight outs
-        $byPin = [];
         try {
-            foreach ($this->db->all(
-                "SELECT {$pinCol} AS pin, {$timeCol} AS t FROM {$table}
-                  WHERE {$timeCol} BETWEEN :a AND :b", [':a' => $wFrom, ':b' => $wTo]) as $r) {
-                $u = strtotime((string) $r['t']);
-                if ($u !== false) $byPin[(string) $r['pin']][] = $u;
-            }
+            $erows = $this->db->all(
+                "SELECT ID AS id, EmployeeId AS emp_id, EmpCode AS emp_code FROM {$empT} WHERE ID IN ({$in})"
+            );
         } catch (\Throwable $e) {
-            return false;   // source vanished mid-run -> fall back
+            return false;
         }
-        foreach ($byPin as &$list) { $list = array_values(array_unique($list)); sort($list); }
-        unset($list);
 
-        // Pair each employee/day against their shift (consume punches so an
-        // overnight out isn't recounted the next day).
-        foreach ($this->roster as $empId => $days) {
-            $code = $codeOf[$empId] ?? '';
-            $available = [];
-            foreach ($pinsOf[$empId] ?? [] as $p) {
-                if (isset($byPin[$p])) $available = array_merge($available, $byPin[$p]);
+        // Delegate per employee to the roster module's AttendanceView::legacyRows —
+        // the SAME builder the "View Attendance" screen renders. It makes the
+        // identical raw-feed-vs-Atten_ source decision, uses the same pins, the
+        // same PunchPairer, the same 15-minute grace, and applies approved
+        // corrections. Consuming its output (instead of re-pairing here) means a
+        // payroll late/early deduction can never disagree with what HR sees on the
+        // Attendance screen. (Per-employee cost; payroll runs in batch, not per
+        // request.) Returns false only if the shared builder cannot run at all.
+        foreach ($erows as $e) {
+            $code = (string) ($e['emp_code'] ?? '');
+            try {
+                $rows = \App\Roster\Services\AttendanceView::legacyRows($this->db, $e, (int) $e['id'], $from, $to);
+            } catch (\Throwable $ex) {
+                return false;   // fall back to the pre-paired Atten_ tables
             }
-            $available = array_values(array_unique($available));
-            sort($available);
-            for ($ts = strtotime($from); $ts <= strtotime($to); $ts = strtotime('+1 day', $ts)) {
-                $date  = date('Y-m-d', $ts);
-                $shift = $days[$date] ?? null;
-                $a = \App\Roster\Services\PunchPairer::pair($date, $shift, $available);
-                if (!empty($a['used_ts'])) {
-                    $available = array_values(array_diff($available, $a['used_ts']));
-                }
-                if (($a['punch_count'] ?? 0) === 0) {
-                    continue;
-                }
-                $this->attendance[$code][$date] = [
-                    'first_in'     => $a['act_first_in']   ?? null,
-                    'first_out'    => $a['act_first_out']  ?? null,
-                    'second_in'    => $a['act_second_in']  ?? null,
-                    'second_out'   => $a['act_second_out'] ?? null,
-                    'punch_count'  => (int) ($a['punch_count'] ?? 0),
-                    // Keep the pairer's own late/early + odd-punch flag so payroll
-                    // charges exactly what the Attendance screen shows.
-                    'is_odd_punch' => (int) ($a['is_odd_punch']  ?? 0),
-                    'late_in_min'  => (int) ($a['late_in_min']   ?? 0),
-                    'early_out_min'=> (int) ($a['early_out_min'] ?? 0),
+            foreach ($rows as $r) {
+                $filled = array_filter([
+                    $r['act_first_in'] ?? null, $r['act_first_out'] ?? null,
+                    $r['act_second_in'] ?? null, $r['act_second_out'] ?? null,
+                ], fn($v) => $v !== null && $v !== '');
+                $this->attendance[$code][$r['work_date']] = [
+                    'first_in'     => $r['act_first_in']   ?? null,
+                    'first_out'    => $r['act_first_out']  ?? null,
+                    'second_in'    => $r['act_second_in']  ?? null,
+                    'second_out'   => $r['act_second_out'] ?? null,
+                    'punch_count'  => count($filled),
+                    'is_odd_punch' => (int) ($r['is_odd_punch']  ?? 0),
+                    'late_in_min'  => (int) ($r['late_in_min']   ?? 0),
+                    'early_out_min'=> (int) ($r['early_out_min'] ?? 0),
                     'from_pairer'  => true,
                 ];
             }
