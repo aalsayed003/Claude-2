@@ -107,6 +107,7 @@ $r->get('payroll/bank/file',  [PayrollController::class, 'bankFile']);
 
 $r->get('payroll/gosi-rates',      [\App\Payroll\Controllers\GosiRateController::class, 'index']);
 $r->post('payroll/gosi-rates/save',[\App\Payroll\Controllers\GosiRateController::class, 'save']);
+$r->get('payroll/gosi-report',     [\App\Payroll\Controllers\GosiRateController::class, 'report']);
 
 $r->get('payroll/structures',      [SalaryStructureController::class, 'index']);
 $r->get('payroll/structure',       [SalaryStructureController::class, 'edit']);

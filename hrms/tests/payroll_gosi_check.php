@@ -43,6 +43,17 @@ $ok('retiree 500 -> 5', $ret['employee'] == 5.0 && $ret['category'] === 'retiree
 $exp = $gosi->compute(500, ['IsBahraini' => 0], '2026-08-01');
 $ok('expat 500 -> 5', $exp['employee'] == 5.0 && $exp['category'] === 'expat');
 
+// employer share (not deducted; total staff cost): Bahraini 18%, Expat 3%, Retiree none
+$ok('bahraini employer 18%', $repo->gosiRate('bahraini', '2026-08-01')['employer_pct'] == 18);
+$ok('expat employer 3%',     $repo->gosiRate('expat', '2026-08-01')['employer_pct'] == 3);
+$ok('retiree employer 0%',   $repo->gosiRate('retiree', '2026-08-01')['employer_pct'] == 0);
+$ok('bahraini 500 -> employer 90', $bhr['employer'] == 90.0, '(' . $bhr['employer'] . ')');
+$ok('expat 500 -> employer 15',    $exp['employer'] == 15.0, '(' . $exp['employer'] . ')');
+$ok('retiree 500 -> employer 0',   $ret['employer'] == 0.0);
+// reconciliation ratio: employer derivable from stored employee GOSI
+$ok('employer = employee x er/emp (bahraini)',
+    money_round($bhr['employee'] * $bhr['employer_pct'] / $bhr['employee_pct']) == 90.0);
+
 // effective-dating: add a future Bahraini 9% SI rate, 2030-02
 $repo->saveGosiRate([
     'effective_from' => '2030-02-01', 'category' => 'bahraini',

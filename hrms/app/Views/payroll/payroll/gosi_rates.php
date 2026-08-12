@@ -4,7 +4,8 @@ $fmt = fn($v) => rtrim(rtrim(number_format((float) $v, 3), '0'), '.');
 ?>
 <div class="page-head"><div><h1>GOSI / SIO Rates</h1>
     <p class="subtle">Effective-dated. Adding a rate applies it to payroll months on or after its date —
-        months already paid keep the rate that was in force then.</p></div></div>
+        months already paid keep the rate that was in force then.</p></div>
+    <a class="btn-ghost btn-sm" href="<?= url('payroll/gosi-report') ?>">Monthly reconciliation →</a></div>
 
 <div class="card">
     <h2 class="panel-title">Add / change a rate</h2>
@@ -26,7 +27,8 @@ $fmt = fn($v) => rtrim(rtrim(number_format((float) $v, 3), '0'), '.');
         </div>
         <button type="submit" class="btn-primary">Save rate</button>
     </form>
-    <p class="muted-note">Reference (employee): Bahraini 7% SI + 1% unemployment · Bahraini retiree 1% SI · Expat 1% SI.</p>
+    <p class="muted-note">Reference — employee: Bahraini 7% SI + 1% unemployment · retiree 1% SI · expat 1% SI.
+        Employer (not deducted; total staff cost): Bahraini 18% · expat 3% · retiree none.</p>
 </div>
 
 <?php foreach ($cats as $key => $label):
