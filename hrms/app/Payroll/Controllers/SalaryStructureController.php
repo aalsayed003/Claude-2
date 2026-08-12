@@ -183,6 +183,7 @@ class SalaryStructureController extends Controller
 
         (new StatutoryRepository($this->db))->save($empId, [
             'IsBahraini'   => $this->input('is_bahraini') ? 1 : 0,
+            'IsRetiree'    => $this->input('is_retiree') ? 1 : 0,
             'CPR'          => $this->input('cpr') ?: null,
             'GosiNumber'   => $this->input('gosi_number') ?: null,
             'GosiJoinDate' => $this->input('gosi_join_date') ?: null,

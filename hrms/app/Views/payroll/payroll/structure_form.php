@@ -66,6 +66,9 @@ $gross = SS::grossOf($current);
             <input type="checkbox" name="is_bahraini" value="1" <?= !empty($statutory['IsBahraini']) ? 'checked' : '' ?>>
             Bahraini national <span class="subtle">— selects the GOSI rate set</span></label></div>
         <div class="checkbox"><label>
+            <input type="checkbox" name="is_retiree" value="1" <?= !empty($statutory['IsRetiree']) ? 'checked' : '' ?>>
+            Bahraini retiree <span class="subtle">— 1% Social Insurance only (no unemployment)</span></label></div>
+        <div class="checkbox"><label>
             <input type="checkbox" name="exclude_gosi" value="1" <?= !empty($statutory['ExcludeGosi']) ? 'checked' : '' ?>>
             Exclude from GOSI</label></div>
 
