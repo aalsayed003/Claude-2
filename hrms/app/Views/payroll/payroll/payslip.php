@@ -128,6 +128,29 @@ $net    = $row ? (float) $row['NetPayment']     : (float) ($preview['totals']['n
         </tbody></table>
     </div>
 
+    <?php if (!empty($preview['summary']['late_detail'])): ?>
+        <h3 class="panel-title">Late-in / early-out — day by day</h3>
+        <p class="muted-note" style="margin-top:0">These are the exact days behind the late/early-out deductions,
+            using the same punches and grace shown on the Attendance screen. A ⚠ marks a day with an odd number of
+            punches (a missing in/out) — worth an attendance correction.</p>
+        <div class="tbl-wrap"><table class="tbl">
+            <thead><tr><th>Date</th><th>Scheduled</th><th>Actual</th>
+                <th class="num">Late (min)</th><th class="num">Early-out (min)</th><th>Note</th></tr></thead>
+            <tbody>
+            <?php foreach ($preview['summary']['late_detail'] as $d): ?>
+                <tr>
+                    <td><?= e(date('d/m/Y D', strtotime($d['date']))) ?></td>
+                    <td class="subtle"><?= e(($d['sched_in'] ?: '—') . ' → ' . ($d['sched_out'] ?: '—')) ?></td>
+                    <td><?= e(($d['act_in'] ?: '—') . ' → ' . ($d['act_out'] ?: '—')) ?></td>
+                    <td class="num"><?= $d['late'] ?: '' ?></td>
+                    <td class="num"><?= $d['early'] ?: '' ?></td>
+                    <td><?= $d['odd'] ? '<span style="color:#c0392b">⚠ odd punch</span>' : '' ?></td>
+                </tr>
+            <?php endforeach; ?>
+            </tbody>
+        </table></div>
+    <?php endif; ?>
+
     <?php if ($preview['ot_detail']): ?>
         <h3 class="panel-title">Overtime</h3>
         <table class="tbl">
