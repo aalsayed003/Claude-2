@@ -105,6 +105,9 @@ $r->get('payroll/wps',        [PayrollController::class, 'wps']);
 $r->get('payroll/bank',       [PayrollController::class, 'bank']);
 $r->get('payroll/bank/file',  [PayrollController::class, 'bankFile']);
 
+$r->get('payroll/gosi-rates',      [\App\Payroll\Controllers\GosiRateController::class, 'index']);
+$r->post('payroll/gosi-rates/save',[\App\Payroll\Controllers\GosiRateController::class, 'save']);
+
 $r->get('payroll/structures',      [SalaryStructureController::class, 'index']);
 $r->get('payroll/structure',       [SalaryStructureController::class, 'edit']);
 $r->post('payroll/structure/save', [SalaryStructureController::class, 'save']);

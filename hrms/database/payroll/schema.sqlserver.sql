@@ -77,6 +77,7 @@ CREATE TABLE Pay_EmployeeStatutory (
     GosiJoinDate DATETIME     NULL,
     ExcludeGosi  TINYINT      NOT NULL DEFAULT 0,
     LmraId       VARCHAR(20)  NULL,
+    IsRetiree    TINYINT      NOT NULL DEFAULT 0,   -- Bahraini pensioner: 1% social insurance only
     BankID       INT          NULL,
     IBAN         VARCHAR(34)  NULL,
     AccountNo    VARCHAR(50)  NULL,
@@ -104,9 +105,14 @@ IF OBJECT_ID(N'dbo.Pay_GosiRate', N'U') IS NULL
 CREATE TABLE Pay_GosiRate (
     RateID        INT IDENTITY(1,1) PRIMARY KEY,
     EffectiveFrom DATETIME      NOT NULL,
-    IsBahraini    TINYINT       NOT NULL,
-    EmployeePct   NUMERIC(6,3)  NOT NULL,
-    EmployerPct   NUMERIC(6,3)  NOT NULL,
+    Category      VARCHAR(20)   NOT NULL DEFAULT 'expat',  -- bahraini | retiree | expat
+    IsBahraini    TINYINT       NULL,                      -- legacy / reporting
+    SocialEmpPct  NUMERIC(6,3)  NOT NULL DEFAULT 0,        -- employee social-insurance %
+    UnempEmpPct   NUMERIC(6,3)  NOT NULL DEFAULT 0,        -- employee unemployment %
+    SocialErPct   NUMERIC(6,3)  NOT NULL DEFAULT 0,        -- employer social-insurance %
+    UnempErPct    NUMERIC(6,3)  NOT NULL DEFAULT 0,        -- employer unemployment %
+    EmployeePct   NUMERIC(6,3)  NOT NULL DEFAULT 0,        -- total employee % (= Social + Unemp)
+    EmployerPct   NUMERIC(6,3)  NOT NULL DEFAULT 0,        -- total employer %
     MinWage       NUMERIC(18,3) NULL,
     MaxWage       NUMERIC(18,3) NULL,
     Notes         VARCHAR(200)  NULL

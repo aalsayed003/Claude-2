@@ -166,12 +166,18 @@ $net    = $row ? (float) $row['NetPayment']     : (float) ($preview['totals']['n
         </table>
     <?php endif; ?>
 
-    <?php if (!empty($preview['gosi']['wage'])): ?>
+    <?php if (!empty($preview['gosi']['wage'])): $g = $preview['gosi']; ?>
         <p class="muted-note">
-            GOSI: <?= money($preview['gosi']['wage']) ?> contributory wage ·
-            employee <?= $preview['gosi']['employee_pct'] ?>% = <?= money($preview['gosi']['employee']) ?> ·
-            employer <?= $preview['gosi']['employer_pct'] ?>% = <?= money($preview['gosi']['employer']) ?>
-            <span class="subtle">(<?= e($preview['gosi']['source']) ?>)</span>
+            GOSI (<?= e(ucfirst($g['category'] ?? '')) ?>): <?= money($g['wage']) ?> contributory wage ·
+            <?php if (!empty($g['unemployment_pct'])): ?>
+                social insurance <?= $g['social_pct'] ?>% = <?= money($g['social_employee']) ?>
+                + unemployment <?= $g['unemployment_pct'] ?>% = <?= money($g['unemployment_employee']) ?>
+                = employee <?= $g['employee_pct'] ?>% (<?= money($g['employee']) ?>)
+            <?php else: ?>
+                employee <?= $g['employee_pct'] ?>% = <?= money($g['employee']) ?>
+            <?php endif; ?>
+            · employer <?= $g['employer_pct'] ?>% = <?= money($g['employer']) ?>
+            <span class="subtle">(<?= e($g['source']) ?>)</span>
         </p>
     <?php endif; ?>
 </div>
