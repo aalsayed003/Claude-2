@@ -11,6 +11,7 @@ from datetime import datetime
 from . import __version__
 from .ai import AIError, NoAI, build_ai
 from .config import Config, ConfigError, Rule, load_config, load_dotenv
+from .graph_mail import GraphReader
 from .mail import Email, MailReader
 from .rules import matching_rules
 from .state import State
@@ -59,13 +60,17 @@ def process_email(cfg: Config, mail: Email, rules: list[Rule], ai, sender, state
     return sent
 
 
+def build_reader(cfg: Config):
+    return GraphReader(cfg.email) if cfg.email.provider == "graph" else MailReader(cfg.email)
+
+
 def run_once(cfg: Config, ai, sender, state: State) -> int:
-    gmail_queries = [r.match.gmail_query for r in cfg.rules if r.match.gmail_query]
+    queries = [r.match.query for r in cfg.rules if r.match.query]
     total_sent = 0
-    with MailReader(cfg.email) as reader:
+    with build_reader(cfg) as reader:
         candidates = reader.base_uids()
-        gmail_hits = {q: reader.gmail_uids(q) for q in gmail_queries}
-        for hits in gmail_hits.values():
+        search_hits = {q: reader.search_uids(q) for q in queries}
+        for hits in search_hits.values():
             candidates |= hits
         uids = reader.cap(candidates)
         log.info("%d candidate email(s) in %s", len(uids), cfg.email.folder)
@@ -75,7 +80,7 @@ def run_once(cfg: Config, ai, sender, state: State) -> int:
                 continue
             if state.is_processed(mail.key):
                 continue
-            rules = matching_rules(cfg.rules, mail, gmail_hits)
+            rules = matching_rules(cfg.rules, mail, search_hits)
             if not rules:
                 state.mark(mail.key)  # never re-evaluate an email that matched nothing
                 continue
@@ -102,6 +107,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--interval", type=int, help="seconds between polls (overrides config)")
     p.add_argument("--dry-run", action="store_true", help="print messages instead of sending")
     p.add_argument("--test-whatsapp", metavar="PHONE", help="send a test message to PHONE and exit")
+    p.add_argument("--login", action="store_true", help="sign in to Microsoft 365 (provider=graph) and exit")
     p.add_argument("-v", "--verbose", action="store_true")
     return p
 
@@ -119,6 +125,12 @@ def main(argv: list[str] | None = None) -> int:
         sender = build_sender(cfg.whatsapp, dry_run=args.dry_run)
         if args.test_whatsapp:
             send_test(cfg, sender, args.test_whatsapp)
+            return 0
+        if args.login:
+            if cfg.email.provider != "graph":
+                log.error("--login only applies to email.provider = graph")
+                return 2
+            GraphReader(cfg.email).auth.device_login()
             return 0
         ai = build_ai(cfg.ai)
     except ConfigError as e:

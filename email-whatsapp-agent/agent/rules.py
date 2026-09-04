@@ -16,7 +16,7 @@ def _any_in(needles: list[str], haystack: str) -> bool:
 def matches(match: Match, mail: Email) -> bool:
     """All configured conditions must hold (AND); inside a list, any value matches (OR).
 
-    A rule whose match block only has gmail_query relies on the server-side search
+    A rule whose match block only has query relies on the server-side search
     having returned the email, so it accepts everything here.
     """
     if match.from_ and not _any_in(match.from_, f"{mail.from_name} {mail.from_addr}"):
@@ -34,17 +34,17 @@ def matches(match: Match, mail: Email) -> bool:
     return True
 
 
-def matching_rules(rules: list[Rule], mail: Email, gmail_hits: dict[str, set[str]] | None = None) -> list[Rule]:
+def matching_rules(rules: list[Rule], mail: Email, search_hits: dict[str, set[str]] | None = None) -> list[Rule]:
     """Return rules that match `mail`.
 
-    `gmail_hits` maps a rule's gmail_query to the set of UIDs the server returned for it, so a
-    rule with a gmail_query only matches emails that came back from that query.
+    `search_hits` maps a rule's server-side query to the set of UIDs the server returned for it,
+    so a rule with a query only matches emails that came back from that query.
     """
     out: list[Rule] = []
     for rule in rules:
-        q = rule.match.gmail_query
+        q = rule.match.query
         if q:
-            if gmail_hits is None or mail.uid not in gmail_hits.get(q, set()):
+            if search_hits is None or mail.uid not in search_hits.get(q, set()):
                 continue
         if matches(rule.match, mail):
             out.append(rule)

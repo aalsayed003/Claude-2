@@ -58,6 +58,7 @@ _BLANKS_RE = re.compile(r"\n\s*\n\s*\n+")
 def html_to_text(raw: str) -> str:
     text = _SCRIPT_RE.sub("", raw)
     text = re.sub(r"<br\s*/?>", "\n", text, flags=re.I)
+    text = re.sub(r"</t[dh]>", "  ", text, flags=re.I)
     text = re.sub(r"</(p|div|tr|li|h\d)>", "\n", text, flags=re.I)
     text = _TAG_RE.sub("", text)
     text = html.unescape(text)
@@ -192,7 +193,7 @@ class MailReader:
             crit.insert(0, "UNSEEN")
         return set(self._search(*crit))
 
-    def gmail_uids(self, query: str) -> set[str]:
+    def search_uids(self, query: str) -> set[str]:
         """UIDs matching a Gmail search string (from:, subject:, label:, newer_than:, ...)."""
         # X-GM-RAW is Gmail's IMAP extension for its full search syntax.
         crit = ["X-GM-RAW", f'"{query}"']

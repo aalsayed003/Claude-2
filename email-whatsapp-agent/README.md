@@ -38,10 +38,11 @@ The AI step is optional and also free by default:
 - An Android phone (iOS cannot run background scripts like this; see the bottom of this page).
 - **Termux** and **Termux:API**, both from [F-Droid](https://f-droid.org/packages/com.termux/)
   (the Play Store versions are outdated and broken). Termux:Boot too if you want auto-start after reboot.
-- A Gmail account with 2-step verification, so you can create an **App Password**
-  (Google account → Security → App passwords). Any other IMAP mailbox works too, as long as it
-  accepts a plain password. Office 365 / Outlook.com no longer do; use a Gmail forwarding rule
-  to bring those emails into Gmail.
+- A mailbox the agent can read:
+  - **Gmail / any IMAP server**: Gmail needs 2-step verification so you can create an **App Password**
+    (Google account → Security → App passwords).
+  - **Outlook / Microsoft 365**: Microsoft blocks plain IMAP passwords, so the agent uses the
+    Microsoft Graph API with a one-time browser sign-in. See *Outlook / Microsoft 365* below.
 
 ## Install (10 minutes)
 
@@ -57,9 +58,13 @@ bash scripts/install-termux.sh
 Then edit two files:
 
 ```bash
-nano .env          # EMAIL_PASSWORD=<your 16-char Gmail app password>
+nano .env          # EMAIL_PASSWORD=<your 16-char Gmail app password>   (Gmail / IMAP only)
 nano config.yaml   # your email address, contacts and rules (see below)
 ```
+
+The repo ships a ready `config.yaml` for the Al Salam nurse-call alerts (Outlook → one WhatsApp
+number, which you put in `.env` as `NURSE_CALL_WHATSAPP`); copy `config.example.yaml` over it if you
+want to start from the generic template instead.
 
 Test the WhatsApp hand-off and the email side separately:
 
@@ -107,18 +112,83 @@ rules:
 
   - name: HR roster
     match:
-      gmail_query: "from:hr@company.com subject:roster newer_than:1d"   # full Gmail search syntax
+      query: "from:hr@company.com subject:roster newer_than:1d"   # server-side search
     send_to: [hr_manager]
     forward_if: "the email announces a change to next week's roster"     # needs an AI provider
 ```
 
 - Every condition inside `match` must hold; inside a list, any value matches.
-- `gmail_query` uses Gmail's own search language (`from:`, `subject:`, `label:`, `has:attachment`,
-  `newer_than:`) through the X-GM-RAW IMAP extension. Gmail only.
+- `query` runs a server-side search: Gmail's own syntax (`from:`, `subject:`, `label:`,
+  `has:attachment`, `newer_than:`) on Gmail/IMAP, Outlook KQL (`from:`, `subject:`, `received>=`)
+  on Microsoft 365.
 - `forward_if` lets the model act as a gate: it reads the email and only forwards when the
   condition is true. Rules without it always forward once they match.
 - Each email is forwarded at most once per rule. Processed IDs live in `state.json`, so restarts
   never double-send.
+
+## Outlook / Microsoft 365
+
+Microsoft 365 rejects password logins over IMAP, so the agent talks to the Microsoft Graph API
+instead. It needs an *app registration* in your Microsoft tenant (free, five minutes) and a
+one-time sign-in from the phone.
+
+1. Go to <https://entra.microsoft.com> → **App registrations** → **New registration**.
+   Name: `email-whatsapp-agent`. Supported account types: *Accounts in this organizational
+   directory only*. Leave Redirect URI empty. Register.
+2. On the app's **Authentication** page → *Advanced settings* → **Allow public client flows: Yes** → Save.
+3. On **API permissions** → *Add a permission* → *Microsoft Graph* → *Delegated* → tick `Mail.Read`
+   (and `Mail.ReadWrite` if you set `mark_as_read: true`). `User.Read` is already there.
+4. Copy the **Application (client) ID** from the Overview page into `config.yaml`:
+   ```yaml
+   email:
+     provider: graph
+     user: CEO@alsalam.care
+     client_id: "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+     tenant: organizations
+   ```
+5. Sign in once from the phone:
+   ```bash
+   python -m agent --login
+   ```
+   It prints a code and the URL `https://microsoft.com/devicelogin`. Open the URL in any browser,
+   enter the code, sign in with the mailbox account and accept the permissions. The refresh token is
+   cached in `graph_token.json` (git-ignored) and renews itself; you only repeat this if IT revokes it.
+
+If your IT team has disabled "users can register applications", ask them to create the app
+registration for you with the settings above, or to approve it once (some tenants show
+*"Need admin approval"* at step 5). No secret or certificate is involved, so the app cannot be used
+by anyone who doesn't sign in themselves.
+
+**Plan B without any admin help:** create an Outlook rule that forwards the matching emails to a
+Gmail address and run the agent against Gmail with `provider: imap`. Many organisations block
+external auto-forwarding, so check that a test forward actually arrives.
+
+### The Al Salam nurse-call setup
+
+The committed `config.yaml` is already set for this: it watches the CEO mailbox for subjects starting
+with `Repeat Nurse Call` (roughly ten a day) and sends each one, with a 🚨 prefix, to the number in
+`.env` under `NURSE_CALL_WHATSAPP`. Only that number and the client ID need to be filled in. The
+message looks like:
+
+```
+🚨 📧 *Repeat Nurse Call - WARD 8 NURSE STATION & PHYSIO / 051: Room 811 (called again after 16 min)*
+From: nursecall@alsalam.care
+04 Sep 2026 13:15
+
+The same room has called again shortly after a previous call.
+Ward  WARD 8 NURSE STATION & PHYSIO
+Address  051: Room 811
+Channel  004: 8THNurseStation
+Call type  Call
+This call was at  9/4/2026, 11:44:51 AM
+Time since previous call  16 min
+```
+
+At ten alerts a day the default `intent` backend means ten taps a day. For hands-free delivery,
+switch to `backend: cloud_api` and add the number as a verified test recipient (next section but
+one); it stays free because it is a single recipient.
+
+Phone numbers and personal addresses are kept out of git on purpose: this repository is public.
 
 ## Turning on AI (free tier)
 
@@ -170,7 +240,7 @@ which `mode: text` works and keeps the line breaks.
 
 ```
 python -m agent [--config config.yaml] [--env .env] [--once] [--interval N] [--dry-run]
-                [--test-whatsapp +PHONE] [-v]
+                [--test-whatsapp +PHONE] [--login] [-v]
 ```
 
 ## Layout
@@ -178,11 +248,13 @@ python -m agent [--config config.yaml] [--env .env] [--once] [--interval N] [--d
 ```
 agent/config.py     config.yaml + .env loading and validation
 agent/mail.py       IMAP connection, search, parsing (plain/HTML, attachments)
+agent/graph_mail.py Microsoft 365 / Outlook via Microsoft Graph (device-code sign-in)
 agent/rules.py      rule matching
 agent/ai.py         none / gemini / anthropic decision + summary
 agent/whatsapp.py   console / intent / cloud_api senders
 agent/state.py      de-duplication store
 agent/main.py       polling loop and CLI
+config.yaml         the live Al Salam nurse-call configuration
 scripts/            Termux install, run loop, boot script
 tests/              pytest suite (no network needed)
 ```

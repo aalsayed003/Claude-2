@@ -35,8 +35,8 @@ def test_empty_match_accepts_everything():
     assert matches(Match(), make_mail())
 
 
-def test_gmail_query_rule_only_matches_server_hits():
-    rule = Rule(name="r", send_to=["+97312345678"], match=Match(gmail_query="from:hr@x.com"))
+def test_query_rule_only_matches_server_hits():
+    rule = Rule(name="r", send_to=["+97312345678"], match=Match(query="from:hr@x.com"))
     mail = make_mail(uid="10")
     assert matching_rules([rule], mail, {"from:hr@x.com": {"10"}}) == [rule]
     assert matching_rules([rule], mail, {"from:hr@x.com": {"11"}}) == []
@@ -108,3 +108,34 @@ def test_load_dotenv(tmp_path, monkeypatch):
     import os
 
     assert os.environ["EMAIL_PASSWORD"] == "abcd efgh"
+
+
+def test_contact_from_env(tmp_path, monkeypatch):
+    p = tmp_path / "c.yaml"
+    p.write_text(MINIMAL.replace('boss: "+973 1234 5678"', 'boss: "${BOSS_PHONE}"'))
+    monkeypatch.delenv("BOSS_PHONE", raising=False)
+    with pytest.raises(ConfigError, match="BOSS_PHONE"):
+        load_config(p)
+    monkeypatch.setenv("BOSS_PHONE", "+97355555555")
+    cfg = load_config(p)
+    assert cfg.resolve_recipients(cfg.rules[0])[0] == "+97355555555"
+
+
+def test_shipped_nurse_call_config(monkeypatch):
+    from pathlib import Path
+
+    monkeypatch.setenv("NURSE_CALL_WHATSAPP", "+97333333333")
+    cfg = load_config(Path(__file__).resolve().parents[1] / "config.yaml")
+    assert cfg.email.provider == "graph"
+    rule = cfg.rules[0]
+    assert cfg.resolve_recipients(rule) == ["+97333333333"]
+    from agent.rules import matches
+    from agent.mail import Email
+
+    def mail(subject):
+        return Email(uid="1", message_id="<x>", from_name="", from_addr="a@b.com", to="", subject=subject,
+                     date=None, body="")
+
+    assert matches(rule.match, mail("Repeat Nurse Call - WARD 9 NURSE STATION / 003: Room 902 (called again after 7 min)"))
+    assert not matches(rule.match, mail("RE: Repeat Nurse Call - WARD 9"))
+    assert not matches(rule.match, mail("Nurse Call summary"))

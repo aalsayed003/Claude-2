@@ -1,0 +1,47 @@
+# Al Salam: forward "Repeat Nurse Call" alerts from Outlook to WhatsApp.
+# The WhatsApp number and any secrets live in .env (git-ignored); the Microsoft sign-in token is
+# cached in graph_token.json (also git-ignored).
+
+email:
+  provider: graph               # Microsoft 365 mailbox via Microsoft Graph (IMAP passwords are blocked by M365)
+  user: CEO@alsalam.care
+  client_id: "PASTE-YOUR-ENTRA-APP-CLIENT-ID-HERE"   # README -> "Outlook / Microsoft 365"
+  tenant: organizations
+  token_file: graph_token.json
+  folder: Inbox
+  unread_only: false            # alerts are forwarded even if you already opened them in Outlook
+  lookback_minutes: 180         # on first start, only alerts from the last 3 hours
+  mark_as_read: false
+  max_fetch: 50
+
+ai:
+  provider: none                # the alert already says everything; no summary needed
+
+whatsapp:
+  backend: intent               # one tap per alert. For hands-free delivery (~10 alerts/day) switch to
+  # backend: cloud_api          # Meta Cloud API and add the number as a test recipient (README).
+  max_chars: 3000
+  cloud_api:
+    phone_number_id_env: WA_PHONE_NUMBER_ID
+    token_env: WA_ACCESS_TOKEN
+    mode: template
+    template_name: email_forward
+    template_language: en_US
+
+contacts:
+  nurse_call_alerts: "${NURSE_CALL_WHATSAPP}"   # set in .env, e.g. NURSE_CALL_WHATSAPP=+973XXXXXXXX
+
+rules:
+  - name: Repeat nurse calls
+    match:
+      # Alerts look like: "Repeat Nurse Call - WARD 8 NURSE STATION & PHYSIO / 051: Room 811 (called again after 16 min)"
+      # Matching on the subject prefix keeps working if the sending mailbox changes and ignores
+      # replies ("RE: Repeat Nurse Call ...").
+      subject_regex: "^Repeat Nurse Call"
+    send_to: [nurse_call_alerts]
+    prefix: "🚨"
+
+polling:
+  interval_seconds: 60
+
+state_file: state.json

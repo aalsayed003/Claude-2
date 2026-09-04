@@ -42,6 +42,7 @@ def secret(env_name: str, required: bool = True) -> str:
 
 @dataclass
 class EmailConfig:
+    provider: str = "imap"  # imap (Gmail, any IMAP server) | graph (Microsoft 365 / Outlook)
     host: str = "imap.gmail.com"
     port: int = 993
     user: str = ""
@@ -51,6 +52,16 @@ class EmailConfig:
     lookback_minutes: int = 1440
     mark_as_read: bool = False
     max_fetch: int = 50
+    # provider=graph only
+    client_id: str = ""
+    tenant: str = "organizations"
+    token_file: str = "graph_token.json"
+
+    def __post_init__(self) -> None:
+        if self.provider not in ("imap", "graph"):
+            raise ConfigError(f"email.provider must be imap or graph (got {self.provider!r})")
+        if self.provider == "graph" and not self.client_id:
+            raise ConfigError("email.client_id is required for provider=graph (see README, Outlook section)")
 
     @property
     def password(self) -> str:
@@ -109,7 +120,7 @@ class Match:
     subject_regex: str = ""
     body: list[str] = field(default_factory=list)
     body_regex: str = ""
-    gmail_query: str = ""
+    query: str = ""  # Gmail search syntax on IMAP/Gmail, Outlook KQL on Graph
     has_attachment: bool | None = None
 
     def __post_init__(self) -> None:
@@ -160,6 +171,20 @@ class Config:
         return out
 
 
+_ENV_REF = re.compile(r"^\$\{?([A-Za-z_][A-Za-z0-9_]*)\}?$")
+
+
+def _resolve_env(value: str, where: str) -> str:
+    """Allow "${VAR}" / "$VAR" so phone numbers can live in .env instead of a committed file."""
+    m = _ENV_REF.match(value.strip())
+    if not m:
+        return value
+    resolved = os.environ.get(m.group(1), "")
+    if not resolved:
+        raise ConfigError(f"{where} refers to ${m.group(1)}, which is not set in .env / the environment")
+    return resolved
+
+
 def _pick(d: dict, key: str, default):
     return d.get(key, default) if isinstance(d, dict) else default
 
@@ -180,7 +205,7 @@ def _build_match(raw: dict | None) -> Match:
         subject_regex=raw.get("subject_regex", "") or "",
         body=_as_list(raw.get("body")),
         body_regex=raw.get("body_regex", "") or "",
-        gmail_query=raw.get("gmail_query", "") or "",
+        query=raw.get("query") or raw.get("gmail_query") or "",
         has_attachment=raw.get("has_attachment"),
     )
 
@@ -206,7 +231,7 @@ def load_config(path: str | os.PathLike) -> Config:
         max_chars=int(wa_raw.get("max_chars", 3000)),
     )
 
-    contacts = {str(k): str(v) for k, v in (raw.get("contacts") or {}).items()}
+    contacts = {str(k): _resolve_env(str(v), f"contacts.{k}") for k, v in (raw.get("contacts") or {}).items()}
 
     rules: list[Rule] = []
     for i, r in enumerate(raw.get("rules") or []):

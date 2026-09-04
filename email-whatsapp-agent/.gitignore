@@ -1,5 +1,5 @@
 .env
-config.yaml
+graph_token.json
 state.json
 state.json.tmp
 __pycache__/

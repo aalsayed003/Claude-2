@@ -1,10 +1,15 @@
 # Copy this file to config.yaml and edit. Secrets go in .env (see .env.example), never here.
 
 email:
-  host: imap.gmail.com          # any IMAP server works; Gmail needs an App Password
+  provider: imap                # imap (Gmail / any IMAP server) | graph (Microsoft 365 / Outlook)
+  host: imap.gmail.com          # imap only; Gmail needs an App Password
   port: 993
   user: you@gmail.com
-  password_env: EMAIL_PASSWORD  # name of the variable in .env that holds the app password
+  password_env: EMAIL_PASSWORD  # imap only: name of the variable in .env that holds the app password
+  # provider: graph             # Outlook / Microsoft 365 (see README). Sign in once with: python -m agent --login
+  # client_id: "00000000-0000-0000-0000-000000000000"   # Application (client) ID of your Entra app registration
+  # tenant: organizations       # or your tenant ID
+  # token_file: graph_token.json
   folder: INBOX
   unread_only: true             # only look at unread mail
   lookback_minutes: 1440        # ignore anything older than this on first run
@@ -55,9 +60,9 @@ rules:
     ai_instruction: "Mention the amount, the supplier and the due date."
     prefix: "💰"
 
-  - name: HR roster (Gmail search syntax)
+  - name: HR roster (server-side search)
     match:
-      gmail_query: "from:hr@company.com subject:roster newer_than:1d"
+      query: "from:hr@company.com subject:roster newer_than:1d"   # Gmail syntax on imap, Outlook KQL on graph
     send_to: [hr_manager]
     # forward_if needs an AI provider; the model decides whether to forward at all
     # forward_if: "the email announces a change to next week's roster"
