@@ -10,12 +10,13 @@ import time
 from datetime import datetime
 
 from . import __version__
-from .ai import AIError, NoAI, build_ai
+from .ai import AIError, NoAI, build_ai, clean_body
 from .config import Config, ConfigError, Rule, load_config, load_dotenv
 from .graph_mail import GraphReader
 from .mail import Email, MailReader
 from .rules import matching_rules
 from .state import State
+from .template import render
 from .whatsapp import Outgoing, SendError, build_sender, normalize_phone, truncate
 
 log = logging.getLogger("agent")
@@ -28,6 +29,8 @@ def format_message(mail: Email, summary: str, rule: Rule, max_chars: int) -> str
     when = mail.date.strftime("%d %b %Y %H:%M") if isinstance(mail.date, datetime) else ""
     header = f"{rule.prefix} " if rule.prefix else ""
     subject = _FWD_PREFIX_RE.sub("", mail.subject) or "(no subject)"
+    if rule.template:
+        return truncate(render(rule, mail, subject, clean_body(mail.body), summary), max_chars)
     lines = [f"{header}📧 *{subject}*", f"From: {mail.from_display}"]
     if when:
         lines.append(when)

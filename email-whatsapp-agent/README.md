@@ -123,6 +123,12 @@ rules:
   on Microsoft 365.
 - `forward_if` lets the model act as a gate: it reads the email and only forwards when the
   condition is true. Rules without it always forward once they match.
+- `extract` + `template` turn a machine-generated alert into a human message without any AI:
+  each `extract` entry is a regex run over the subject and body (first capture group, or all
+  groups joined with a space; `title: true` fixes SHOUTING CASE; `default` fills in when it
+  doesn't match), and `template` uses them as `{field}` placeholders alongside the built-ins
+  `{subject}`, `{from}`, `{date}`, `{body}` and `{summary}`. See the nurse-call rule in
+  `config.yaml` for a worked example.
 - Each email is forwarded at most once per rule. Processed IDs live in `state.json`, so restarts
   never double-send.
 

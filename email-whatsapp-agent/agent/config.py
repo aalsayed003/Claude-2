@@ -134,6 +134,21 @@ class Match:
 
 
 @dataclass
+class Extract:
+    """A named field pulled out of the email with a regex, for use in a rule's template."""
+
+    pattern: str
+    title: bool = False  # convert SHOUTING text to Title Case
+    default: str = ""
+
+    def __post_init__(self) -> None:
+        try:
+            re.compile(self.pattern)
+        except re.error as e:
+            raise ConfigError(f"Invalid extract pattern {self.pattern!r}: {e}") from e
+
+
+@dataclass
 class Rule:
     name: str
     send_to: list[str]
@@ -142,6 +157,8 @@ class Rule:
     forward_if: str = ""
     include_body: bool = True
     prefix: str = ""
+    extract: dict[str, Extract] = field(default_factory=dict)
+    template: str = ""  # when set, replaces the default subject/from/body layout
 
     def __post_init__(self) -> None:
         if not self.send_to:
@@ -197,6 +214,22 @@ def _as_list(value) -> list[str]:
     return [str(v) for v in value]
 
 
+def _build_extract(raw: dict | None, rule_name: str) -> dict[str, Extract]:
+    out: dict[str, Extract] = {}
+    for name, spec in (raw or {}).items():
+        if isinstance(spec, str):
+            out[str(name)] = Extract(pattern=spec)
+        elif isinstance(spec, dict) and spec.get("pattern"):
+            out[str(name)] = Extract(
+                pattern=str(spec["pattern"]),
+                title=bool(spec.get("title", False)),
+                default=str(spec.get("default", "") or ""),
+            )
+        else:
+            raise ConfigError(f"Rule {rule_name!r}: extract.{name} needs a regex string or a mapping with `pattern`")
+    return out
+
+
 def _build_match(raw: dict | None) -> Match:
     raw = raw or {}
     return Match(
@@ -246,6 +279,8 @@ def load_config(path: str | os.PathLike) -> Config:
                 forward_if=r.get("forward_if", "") or "",
                 include_body=bool(r.get("include_body", True)),
                 prefix=r.get("prefix", "") or "",
+                extract=_build_extract(r.get("extract"), str(r.get("name") or f"rule-{i + 1}")),
+                template=str(r.get("template") or "").strip(),
             )
         )
     if not rules:

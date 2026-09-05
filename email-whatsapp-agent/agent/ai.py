@@ -41,9 +41,22 @@ _FORWARD_HEADER_RE = re.compile(
 )
 
 
+_NOISE_LINE_RE = re.compile(
+    r"^(?:Sent from (?:Outlook|my|Mail) [^\n]*|_{5,}|-{5,}|Get Outlook for [^\n]*)\s*$\n?",
+    re.I | re.M,
+)
+
+
 def strip_forward_header(body: str) -> str:
     """Drop the From/Sent/To/Subject block Outlook and Gmail prepend to forwarded emails."""
     return _FORWARD_HEADER_RE.sub("", body, count=1).strip()
+
+
+def clean_body(body: str) -> str:
+    """strip_forward_header plus mobile signatures and divider lines, with blank lines collapsed."""
+    text = strip_forward_header(body)
+    text = _NOISE_LINE_RE.sub("", text)
+    return re.sub(r"\n\s*\n\s*\n+", "\n\n", text).strip()
 
 
 def trim_body(body: str, max_words: int) -> str:
@@ -107,7 +120,7 @@ class NoAI:
         self.cfg = cfg
 
     def decide(self, mail: Email, instruction: str = "", forward_if: str = "") -> Decision:
-        return Decision(forward=True, message=trim_body(strip_forward_header(mail.body), self.cfg.max_words), reason="no AI")
+        return Decision(forward=True, message=trim_body(clean_body(mail.body), self.cfg.max_words), reason="no AI")
 
 
 class Gemini:
