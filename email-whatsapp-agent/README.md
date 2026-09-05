@@ -161,16 +161,20 @@ registration for you with the settings above, or to approve it once (some tenant
 *"Need admin approval"* at step 5). No secret or certificate is involved, so the app cannot be used
 by anyone who doesn't sign in themselves.
 
-**Plan B without any admin help:** create an Outlook rule that forwards the matching emails to a
-Gmail address and run the agent against Gmail with `provider: imap`. Many organisations block
-external auto-forwarding, so check that a test forward actually arrives.
+**Plan B without any admin help (what the shipped config uses):** create an Outlook rule that
+redirects the matching emails to a Gmail address and run the agent against Gmail with
+`provider: imap`. In Outlook on the web: gear icon → **Mail** → **Rules** → **Add new rule**;
+condition *Subject includes* `Repeat Nurse Call`; action **Redirect to** your Gmail address
+(falls back to *Forward to* if Redirect is missing; the shipped rule accepts the `FW:` prefix).
+Some organisations block external auto-forwarding, so send yourself a test and check it arrives
+in Gmail, and check the Gmail spam folder the first time.
 
 ### The Al Salam nurse-call setup
 
-The committed `config.yaml` is already set for this: it watches the CEO mailbox for subjects starting
-with `Repeat Nurse Call` (roughly ten a day) and sends each one, with a 🚨 prefix, to the number in
-`.env` under `NURSE_CALL_WHATSAPP`. Only that number and the client ID need to be filled in. The
-message looks like:
+The committed `config.yaml` is already set for this: an Outlook rule redirects the alerts (subjects
+starting with `Repeat Nurse Call`, roughly ten a day) to Gmail, the agent reads Gmail over IMAP and
+sends each one, with a 🚨 prefix, to the number in `.env` under `NURSE_CALL_WHATSAPP`. Only that
+number and the Gmail app password (`EMAIL_PASSWORD`) need to be filled in. The message looks like:
 
 ```
 🚨 📧 *Repeat Nurse Call - WARD 8 NURSE STATION & PHYSIO / 051: Room 811 (called again after 16 min)*

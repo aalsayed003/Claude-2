@@ -1,15 +1,21 @@
-# Al Salam: forward "Repeat Nurse Call" alerts from Outlook to WhatsApp.
-# The WhatsApp number and any secrets live in .env (git-ignored); the Microsoft sign-in token is
-# cached in graph_token.json (also git-ignored).
+# Al Salam: forward "Repeat Nurse Call" alerts to WhatsApp.
+# An Outlook rule redirects the alerts from the CEO mailbox to Gmail; the agent reads Gmail over IMAP.
+# The WhatsApp number and the Gmail app password live in .env (git-ignored).
 
 email:
-  provider: graph               # Microsoft 365 mailbox via Microsoft Graph (IMAP passwords are blocked by M365)
-  user: CEO@alsalam.care
-  client_id: "PASTE-YOUR-ENTRA-APP-CLIENT-ID-HERE"   # README -> "Outlook / Microsoft 365"
-  tenant: alsalam.care          # single-tenant app: use your tenant domain or Directory (tenant) ID
-  token_file: graph_token.json
-  folder: Inbox
-  unread_only: false            # alerts are forwarded even if you already opened them in Outlook
+  provider: imap
+  host: imap.gmail.com
+  port: 993
+  user: aalsayed003@gmail.com
+  password_env: EMAIL_PASSWORD  # Gmail App Password, set in .env
+  # To read the Microsoft 365 mailbox directly instead (needs IT admin consent, see README):
+  # provider: graph
+  # user: CEO@alsalam.care
+  # client_id: "<Application (client) ID>"
+  # tenant: alsalam.care
+  # token_file: graph_token.json
+  folder: INBOX
+  unread_only: false            # alerts are forwarded even if you already opened them
   lookback_minutes: 180         # on first start, only alerts from the last 3 hours
   mark_as_read: false
   max_fetch: 50
@@ -35,9 +41,9 @@ rules:
   - name: Repeat nurse calls
     match:
       # Alerts look like: "Repeat Nurse Call - WARD 8 NURSE STATION & PHYSIO / 051: Room 811 (called again after 16 min)"
-      # Matching on the subject prefix keeps working if the sending mailbox changes and ignores
-      # replies ("RE: Repeat Nurse Call ...").
-      subject_regex: "^Repeat Nurse Call"
+      # Matches the original subject and Outlook's forwarded form ("FW: Repeat Nurse Call ..."),
+      # but not replies ("RE: ..."). Works whichever mailbox sends the alert.
+      subject_regex: "^(?:FWD?\\s*:\\s*)?Repeat Nurse Call"
     send_to: [nurse_call_alerts]
     prefix: "🚨"
 

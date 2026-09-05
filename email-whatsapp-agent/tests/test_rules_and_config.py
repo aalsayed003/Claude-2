@@ -126,7 +126,7 @@ def test_shipped_nurse_call_config(monkeypatch):
 
     monkeypatch.setenv("NURSE_CALL_WHATSAPP", "+97333333333")
     cfg = load_config(Path(__file__).resolve().parents[1] / "config.yaml")
-    assert cfg.email.provider == "graph"
+    assert cfg.email.provider == "imap"
     rule = cfg.rules[0]
     assert cfg.resolve_recipients(rule) == ["+97333333333"]
     from agent.rules import matches
@@ -137,5 +137,7 @@ def test_shipped_nurse_call_config(monkeypatch):
                      date=None, body="")
 
     assert matches(rule.match, mail("Repeat Nurse Call - WARD 9 NURSE STATION / 003: Room 902 (called again after 7 min)"))
+    assert matches(rule.match, mail("FW: Repeat Nurse Call - WARD 9 NURSE STATION / 003: Room 902 (called again after 7 min)"))
+    assert matches(rule.match, mail("Fwd: Repeat Nurse Call - EMERGENCY / 008: BED 08"))
     assert not matches(rule.match, mail("RE: Repeat Nurse Call - WARD 9"))
     assert not matches(rule.match, mail("Nurse Call summary"))
