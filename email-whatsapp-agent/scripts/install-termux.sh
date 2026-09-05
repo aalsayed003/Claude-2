@@ -4,10 +4,10 @@ set -e
 
 echo "==> Updating packages"
 pkg update -y
-pkg install -y python git termux-api termux-tools
+pkg install -y python python-yaml git termux-api termux-tools
 
 echo "==> Installing Python deps"
-pip install --upgrade pip
+# Termux forbids `pip install --upgrade pip`; python-yaml above provides PyYAML prebuilt.
 pip install -r "$(dirname "$0")/../requirements.txt"
 
 cd "$(dirname "$0")/.."
