@@ -55,10 +55,10 @@ rules:
       call_type: { pattern: "^Call type\\s+(.+?)\\s*$", default: "Call" }
       time:      { pattern: "This call was at\\s+\\S+\\s+(\\d+:\\d+)(?::\\d+)?\\s*(AM|PM)", default: "" }
     template: |
-      🚨 *Repeat nurse call: {room}, {ward}*
+      *Repeat nurse call: {room}, {ward}*
       The call button was pressed again {gap} after the previous call ({call_type} at {time}).
 
-      Could you please check on the patient now and send me a quick update here once they've been seen? Thank you 🙏
+      Could you please check on the patient now and send me a quick update here once they've been seen? Thank you.
 
 polling:
   interval_seconds: 60

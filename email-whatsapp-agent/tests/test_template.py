@@ -54,7 +54,8 @@ def test_shipped_nurse_call_template_renders(monkeypatch):
     cfg = load_config(Path(__file__).resolve().parents[1] / "config.yaml")
     rule = cfg.rules[0]
     text = format_message(_mail(), "", rule, 3000)
-    assert text.splitlines()[0] == "🚨 *Repeat nurse call: Room 806, Ward 8 Nurse Station & Physio*"
+    assert text.splitlines()[0] == "*Repeat nurse call: Room 806, Ward 8 Nurse Station & Physio*"
+    assert "🚨" not in text and "🙏" not in text
     assert "pressed again 8 min after the previous call (Call at 7:10 PM)" in text
     assert "send me a quick update" in text
     assert "FW:" not in text and "Sent from" not in text and "nursecall@" not in text
