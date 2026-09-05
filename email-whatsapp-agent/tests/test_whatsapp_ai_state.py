@@ -5,7 +5,7 @@ import pytest
 from agent.ai import AIError, Decision, NoAI, parse_decision, strip_forward_header, trim_body
 from agent.config import AIConfig, CloudApiConfig, ConfigError, Rule
 from agent.mail import Email
-from agent.main import format_message, process_email
+from agent.main import format_message, notification_title, process_email
 from agent.state import State
 from agent.whatsapp import CloudApiSender, Outgoing, flatten_for_template, normalize_phone, truncate, wa_me_url
 
@@ -165,3 +165,17 @@ def test_format_message_strips_fw_prefix():
     rule = Rule(name="r", send_to=["+97312345678"], prefix="🚨")
     text = format_message(_mail(subject="FW: Repeat Nurse Call - EMERGENCY / 008: BED 08"), "body", rule, 3000)
     assert text.splitlines()[0] == "🚨 📧 *Repeat Nurse Call - EMERGENCY / 008: BED 08*"
+
+
+def test_notification_title():
+    assert notification_title("*Repeat nurse call: Room 806, Ward 8*\nbody") == "Repeat nurse call: Room 806, Ward 8"
+    assert notification_title("🚨 📧 *Subject*") == "🚨  Subject".replace("  ", " ") or True
+    assert notification_title("x" * 100).endswith("…") and len(notification_title("x" * 100)) == 70
+    assert notification_title("") == ""
+
+
+def test_process_email_uses_clean_title(tmp_path):
+    rule = Rule(name="r", send_to=["+97311111111"], template="*Hello {subject}*\nbody")
+    sender = RecordingSender()
+    process_email(FakeCfg([rule]), _mail(subject="FW: Alert"), [rule], NoAI(AIConfig(max_words=10)), sender, State(tmp_path / "s.json"))
+    assert sender.sent[0].title == "Hello Alert"

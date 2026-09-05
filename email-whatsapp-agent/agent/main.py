@@ -42,6 +42,13 @@ def format_message(mail: Email, summary: str, rule: Rule, max_chars: int) -> str
     return truncate("\n".join(lines), max_chars)
 
 
+def notification_title(text: str, limit: int = 70) -> str:
+    """First line of the message without WhatsApp bold markers or the mail emoji."""
+    first = next((line for line in text.splitlines() if line.strip()), "")
+    first = first.replace("*", "").replace("📧", "").strip()
+    return first if len(first) <= limit else first[: limit - 1].rstrip() + "…"
+
+
 def process_email(cfg: Config, mail: Email, rules: list[Rule], ai, sender, state: State) -> int:
     """Run every matching rule for one email. Returns number of messages sent."""
     sent = 0
@@ -58,10 +65,11 @@ def process_email(cfg: Config, mail: Email, rules: list[Rule], ai, sender, state
             log.info("Rule %r: AI chose not to forward %r (%s)", rule.name, mail.subject, decision.reason)
             continue
         text = format_message(mail, decision.message, rule, cfg.whatsapp.max_chars)
+        title = notification_title(text) or rule.name
         for number in cfg.resolve_recipients(rule):
             to = normalize_phone(number)
             try:
-                sender.send(Outgoing(to=to, text=text, title=f"{rule.name}: {mail.subject[:40]}"))
+                sender.send(Outgoing(to=to, text=text, title=title))
                 sent += 1
             except SendError as e:
                 log.error("Rule %r: could not send to +%s: %s", rule.name, to, e)
