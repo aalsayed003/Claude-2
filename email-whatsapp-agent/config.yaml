@@ -6,7 +6,7 @@ email:
   provider: graph               # Microsoft 365 mailbox via Microsoft Graph (IMAP passwords are blocked by M365)
   user: CEO@alsalam.care
   client_id: "PASTE-YOUR-ENTRA-APP-CLIENT-ID-HERE"   # README -> "Outlook / Microsoft 365"
-  tenant: organizations
+  tenant: alsalam.care          # single-tenant app: use your tenant domain or Directory (tenant) ID
   token_file: graph_token.json
   folder: Inbox
   unread_only: false            # alerts are forwarded even if you already opened them in Outlook

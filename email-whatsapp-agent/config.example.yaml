@@ -8,7 +8,7 @@ email:
   password_env: EMAIL_PASSWORD  # imap only: name of the variable in .env that holds the app password
   # provider: graph             # Outlook / Microsoft 365 (see README). Sign in once with: python -m agent --login
   # client_id: "00000000-0000-0000-0000-000000000000"   # Application (client) ID of your Entra app registration
-  # tenant: organizations       # or your tenant ID
+  # tenant: yourcompany.com     # your tenant domain or Directory (tenant) ID (single-tenant apps need this)
   # token_file: graph_token.json
   folder: INBOX
   unread_only: true             # only look at unread mail

@@ -144,8 +144,10 @@ one-time sign-in from the phone.
      provider: graph
      user: CEO@alsalam.care
      client_id: "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-     tenant: organizations
+     tenant: alsalam.care        # your organisation's domain, or the Directory (tenant) ID
    ```
+   A single-tenant app must name its tenant here; the generic `organizations` value gives
+   error AADSTS50059.
 5. Sign in once from the phone:
    ```bash
    python -m agent --login
