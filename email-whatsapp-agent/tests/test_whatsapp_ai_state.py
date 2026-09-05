@@ -2,7 +2,7 @@ import json
 
 import pytest
 
-from agent.ai import AIError, Decision, NoAI, parse_decision, trim_body
+from agent.ai import AIError, Decision, NoAI, parse_decision, strip_forward_header, trim_body
 from agent.config import AIConfig, CloudApiConfig, ConfigError, Rule
 from agent.mail import Email
 from agent.main import format_message, process_email
@@ -138,3 +138,30 @@ def test_state_roundtrip_and_prune(tmp_path):
     assert s2.is_processed("<a>")
     assert not s2.is_processed("<old>")
     assert len(s2) == 1
+
+
+FORWARDED = """From: nursecall@alsalam.care <nursecall@alsalam.care>
+Sent: Saturday, 5 September 2026 19:10
+To: Ahmed AlSayed <CEO@alsalam.care>; Nurse Shift Supervisor <shift.supervisor@alsalam.care>
+Subject: Repeat Nurse Call - WARD 8 NURSE STATION & PHYSIO / 011: Room 806 (called again after 8 min)
+
+
+The same room has called again shortly after a previous call.
+
+Ward\tWARD 8 NURSE STATION & PHYSIO
+Address\t011: Room 806"""
+
+
+def test_strip_forward_header():
+    out = strip_forward_header(FORWARDED)
+    assert out.startswith("The same room has called again")
+    assert "shift.supervisor" not in out
+    assert "Address\t011: Room 806" in out
+    assert strip_forward_header("plain body") == "plain body"
+    assert strip_forward_header("-----Original Message-----\nFrom: a@b.com\nSubject: x\nhello") == "hello"
+
+
+def test_format_message_strips_fw_prefix():
+    rule = Rule(name="r", send_to=["+97312345678"], prefix="🚨")
+    text = format_message(_mail(subject="FW: Repeat Nurse Call - EMERGENCY / 008: BED 08"), "body", rule, 3000)
+    assert text.splitlines()[0] == "🚨 📧 *Repeat Nurse Call - EMERGENCY / 008: BED 08*"

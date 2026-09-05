@@ -34,6 +34,18 @@ class AIError(Exception):
     pass
 
 
+_FORWARD_HEADER_RE = re.compile(
+    r"^\s*(?:-{2,}\s*(?:Original Message|Forwarded message)\s*-{2,}\s*)?"
+    r"From:.*?^Subject:[^\n]*\n",
+    re.S | re.I | re.M,
+)
+
+
+def strip_forward_header(body: str) -> str:
+    """Drop the From/Sent/To/Subject block Outlook and Gmail prepend to forwarded emails."""
+    return _FORWARD_HEADER_RE.sub("", body, count=1).strip()
+
+
 def trim_body(body: str, max_words: int) -> str:
     words = body.split()
     if len(words) <= max_words:
@@ -95,7 +107,7 @@ class NoAI:
         self.cfg = cfg
 
     def decide(self, mail: Email, instruction: str = "", forward_if: str = "") -> Decision:
-        return Decision(forward=True, message=trim_body(mail.body, self.cfg.max_words), reason="no AI")
+        return Decision(forward=True, message=trim_body(strip_forward_header(mail.body), self.cfg.max_words), reason="no AI")
 
 
 class Gemini:

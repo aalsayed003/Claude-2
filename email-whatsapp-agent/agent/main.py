@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import logging
+import re
 import sys
 import time
 from datetime import datetime
@@ -20,10 +21,14 @@ from .whatsapp import Outgoing, SendError, build_sender, normalize_phone, trunca
 log = logging.getLogger("agent")
 
 
+_FWD_PREFIX_RE = re.compile(r"^\s*(?:FWD?|Fw)\s*:\s*", re.I)
+
+
 def format_message(mail: Email, summary: str, rule: Rule, max_chars: int) -> str:
     when = mail.date.strftime("%d %b %Y %H:%M") if isinstance(mail.date, datetime) else ""
     header = f"{rule.prefix} " if rule.prefix else ""
-    lines = [f"{header}📧 *{mail.subject or '(no subject)'}*", f"From: {mail.from_display}"]
+    subject = _FWD_PREFIX_RE.sub("", mail.subject) or "(no subject)"
+    lines = [f"{header}📧 *{subject}*", f"From: {mail.from_display}"]
     if when:
         lines.append(when)
     if mail.attachments:
