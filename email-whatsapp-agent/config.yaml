@@ -24,8 +24,8 @@ ai:
   provider: none                # the alert already says everything; no summary needed
 
 whatsapp:
-  backend: intent               # one tap per alert. For hands-free delivery (~10 alerts/day) switch to
-  # backend: cloud_api          # Meta Cloud API and add the number as a test recipient (README).
+  # backend: intent             # one tap per alert (fallback: opens WhatsApp on this phone)
+  backend: cloud_api             # Meta Cloud API: fully automatic, needs the number verified as a test recipient (README).
   max_chars: 3000
   cloud_api:
     phone_number_id_env: WA_PHONE_NUMBER_ID
