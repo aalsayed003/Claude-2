@@ -1,0 +1,73 @@
+# Copy this file to config.yaml and edit. Secrets go in .env (see .env.example), never here.
+
+email:
+  provider: imap                # imap (Gmail / any IMAP server) | graph (Microsoft 365 / Outlook)
+  host: imap.gmail.com          # imap only; Gmail needs an App Password
+  port: 993
+  user: you@gmail.com
+  password_env: EMAIL_PASSWORD  # imap only: name of the variable in .env that holds the app password
+  # provider: graph             # Outlook / Microsoft 365 (see README). Sign in once with: python -m agent --login
+  # client_id: "00000000-0000-0000-0000-000000000000"   # Application (client) ID of your Entra app registration
+  # tenant: yourcompany.com     # your tenant domain or Directory (tenant) ID (single-tenant apps need this)
+  # token_file: graph_token.json
+  folder: INBOX
+  unread_only: true             # only look at unread mail
+  lookback_minutes: 1440        # ignore anything older than this on first run
+  mark_as_read: false           # set true to mark forwarded emails as read
+  max_fetch: 50                 # safety cap per poll
+
+ai:
+  provider: none                # none | gemini | anthropic
+  # provider: gemini            # free tier -> https://aistudio.google.com/apikey  (GEMINI_API_KEY in .env)
+  # model: gemini-2.5-flash
+  # provider: anthropic         # paid -> ANTHROPIC_API_KEY in .env, needs `pip install anthropic`
+  # model: claude-opus-5
+  max_words: 120                # target length of the WhatsApp summary
+
+whatsapp:
+  backend: intent               # intent | cloud_api | console
+  max_chars: 3000
+  # intent   : opens WhatsApp on the phone with the text pre-filled, you tap Send (free, official)
+  # cloud_api: Meta WhatsApp Cloud API, fully automatic (free for 5 test recipients)
+  # console  : print only
+  cloud_api:
+    phone_number_id_env: WA_PHONE_NUMBER_ID
+    token_env: WA_ACCESS_TOKEN
+    mode: template              # template (works any time) | text (only inside a 24h reply window)
+    template_name: email_forward
+    template_language: en_US
+
+# Friendly names for numbers. Always international format.
+contacts:
+  me: "+97300000000"
+  finance_team: "+97300000001"
+  hr_manager: "+97300000002"
+
+# Each rule = which emails to catch + who gets them on WhatsApp.
+# Inside `match`, every listed condition must hold; inside a list, any value matches.
+rules:
+  - name: Bank alerts to me
+    match:
+      from: ["alerts@bank.com", "noreply@bank.com"]
+      subject: ["transaction", "OTP"]
+    send_to: [me]
+
+  - name: Invoices to finance
+    match:
+      subject_regex: "invoice|payment due"
+      has_attachment: true
+    send_to: [finance_team, me]
+    ai_instruction: "Mention the amount, the supplier and the due date."
+    prefix: "💰"
+
+  - name: HR roster (server-side search)
+    match:
+      query: "from:hr@company.com subject:roster newer_than:1d"   # Gmail syntax on imap, Outlook KQL on graph
+    send_to: [hr_manager]
+    # forward_if needs an AI provider; the model decides whether to forward at all
+    # forward_if: "the email announces a change to next week's roster"
+
+polling:
+  interval_seconds: 120
+
+state_file: state.json

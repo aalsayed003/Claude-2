@@ -1,0 +1,3 @@
+PyYAML>=6.0.2
+# Optional, only for ai.provider = anthropic:
+# anthropic>=0.40.0

@@ -1,0 +1,66 @@
+# Al Salam: forward "Repeat Nurse Call" alerts to WhatsApp.
+# An Outlook rule redirects the alerts from the CEO mailbox to Gmail; the agent reads Gmail over IMAP.
+# The WhatsApp number and the Gmail app password live in .env (git-ignored).
+
+email:
+  provider: imap
+  host: imap.gmail.com
+  port: 993
+  user: aalsayed003@gmail.com
+  password_env: EMAIL_PASSWORD  # Gmail App Password, set in .env
+  # To read the Microsoft 365 mailbox directly instead (needs IT admin consent, see README):
+  # provider: graph
+  # user: CEO@alsalam.care
+  # client_id: "<Application (client) ID>"
+  # tenant: alsalam.care
+  # token_file: graph_token.json
+  folder: INBOX
+  unread_only: false            # alerts are forwarded even if you already opened them
+  lookback_minutes: 180         # on first start, only alerts from the last 3 hours
+  mark_as_read: false
+  max_fetch: 50
+
+ai:
+  provider: none                # the alert already says everything; no summary needed
+
+whatsapp:
+  # backend: intent             # one tap per alert (fallback: opens WhatsApp on this phone)
+  backend: cloud_api             # Meta Cloud API: fully automatic, needs the number verified as a test recipient (README).
+  max_chars: 3000
+  cloud_api:
+    phone_number_id_env: WA_PHONE_NUMBER_ID
+    token_env: WA_ACCESS_TOKEN
+    mode: template
+    template_name: email_forward
+    template_language: en_US
+
+contacts:
+  nurse_call_alerts: "${NURSE_CALL_WHATSAPP}"   # set in .env, e.g. NURSE_CALL_WHATSAPP=+973XXXXXXXX
+
+rules:
+  - name: Repeat nurse calls
+    match:
+      # Alerts look like: "Repeat Nurse Call - WARD 8 NURSE STATION & PHYSIO / 051: Room 811 (called again after 16 min)"
+      # Matches the original subject and Outlook's forwarded form ("FW: Repeat Nurse Call ..."),
+      # but not replies ("RE: ..."). Works whichever mailbox sends the alert.
+      subject_regex: "^(?:FWD?\\s*:\\s*)?Repeat Nurse Call"
+    send_to: [nurse_call_alerts]
+    # Pull the details out of the alert (regexes run over subject + body; first group wins,
+    # several groups are joined with a space) and write a short human message instead of
+    # forwarding the raw table.
+    extract:
+      ward:      { pattern: "Repeat Nurse Call - (.+?) /", title: true, default: "the ward" }
+      room:      { pattern: "/ \\d+: (.+?) \\(called", title: true, default: "a room" }
+      gap:       { pattern: "called again after (.+?)\\)", default: "a few minutes" }
+      call_type: { pattern: "^Call type\\s+(.+?)\\s*$", default: "Call" }
+      time:      { pattern: "This call was at\\s+\\S+\\s+(\\d+:\\d+)(?::\\d+)?\\s*(AM|PM)", default: "" }
+    template: |
+      *Repeat nurse call: {room}, {ward}*
+      The call button was pressed again {gap} after the previous call ({call_type} at {time}).
+
+      Could you please check on the patient now and send me a quick update here once they've been seen? Thank you.
+
+polling:
+  interval_seconds: 60
+
+state_file: state.json
