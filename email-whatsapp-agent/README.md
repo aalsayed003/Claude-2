@@ -178,29 +178,23 @@ in Gmail, and check the Gmail spam folder the first time.
 ### The Al Salam nurse-call setup
 
 The committed `config.yaml` is already set for this: an Outlook rule redirects the alerts (subjects
-starting with `Repeat Nurse Call`, roughly ten a day) to Gmail, the agent reads Gmail over IMAP and
-sends each one, with a 🚨 prefix, to the number in `.env` under `NURSE_CALL_WHATSAPP`. Only that
-number and the Gmail app password (`EMAIL_PASSWORD`) need to be filled in. The message looks like:
+starting with `Repeat Nurse Call`, roughly ten a day) to Gmail, the agent reads Gmail over IMAP,
+pulls the ward/room/gap/time out of the alert with the `extract` block, and sends a short human
+message (not the raw table) through the WhatsApp Cloud API to the number in `.env` under
+`NURSE_CALL_WHATSAPP`. The message looks like:
 
 ```
-🚨 📧 *Repeat Nurse Call - WARD 8 NURSE STATION & PHYSIO / 051: Room 811 (called again after 16 min)*
-From: nursecall@alsalam.care
-04 Sep 2026 13:15
+*Repeat nurse call: Room 806, Ward 8 Nurse Station & Physio*
+The call button was pressed again 8 min after the previous call (Call at 7:10 PM).
 
-The same room has called again shortly after a previous call.
-Ward  WARD 8 NURSE STATION & PHYSIO
-Address  051: Room 811
-Channel  004: 8THNurseStation
-Call type  Call
-This call was at  9/4/2026, 11:44:51 AM
-Time since previous call  16 min
+Could you please check on the patient now and send me a quick update here once they've been seen? Thank you.
 ```
-
-At ten alerts a day the default `intent` backend means ten taps a day. For hands-free delivery,
-switch to `backend: cloud_api` and add the number as a verified test recipient (next section but
-one); it stays free because it is a single recipient.
 
 Phone numbers and personal addresses are kept out of git on purpose: this repository is public.
+
+**Running this without a phone at all:** `gas/` has the same rule ported to Google Apps Script,
+running on a 1-minute schedule under your own Gmail account instead of on Termux — no phone,
+no battery/permission settings, and it's private since nothing is published. See `gas/README.md`.
 
 ## Turning on AI (free tier)
 
