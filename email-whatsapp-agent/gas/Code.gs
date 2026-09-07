@@ -1,18 +1,21 @@
 /**
  * Nurse-call alerts -> WhatsApp, running entirely inside Google Apps Script.
  *
- * No phone, no Termux, no server: this runs on Google's infrastructure under your own
- * Gmail account, on a 1-minute time-driven trigger. See gas/README.md for setup.
+ * No phone, no Termux, no server, and no auto-forwarding out of Outlook: a Power Automate
+ * flow ("Nurse call") reads the Outlook mailbox directly and appends each matching email's
+ * Timestamp/Subject/Body into a Google Sheet. This script polls that sheet on a 1-minute
+ * time-driven trigger and sends new alerts to WhatsApp. See gas/README.md for setup.
  *
  * Config lives in Script Properties (Project Settings -> Script Properties), never in code:
  *   WA_PHONE_NUMBER_ID   Meta Cloud API phone number ID
  *   WA_ACCESS_TOKEN      Meta Cloud API access token
  *   NURSE_CALL_WHATSAPP  recipient in international format, e.g. +97333592461
+ *   SHEET_URL            full URL of the Google Sheet the Power Automate flow writes to
+ *   SHEET_NAME           default "Sheet1"
  *   TEMPLATE_NAME        default "email_forward"
  *   TEMPLATE_LANGUAGE    default "en_US"
  *   GRAPH_API_VERSION    default "v21.0"
- *   PROCESSED_LABEL      default "nurse-call-processed"
- *   LOOKBACK_DAYS        default "1"
+ *   LAST_ROW             set automatically; the last sheet row already processed
  */
 
 var MATCH_RE = /^(?:FWD?\s*:\s*)?Repeat Nurse Call/i;
@@ -21,24 +24,25 @@ var SMALL_WORDS = {and: 1, or: 1, of: 1, the: 1, in: 1, at: 1, on: 1, for: 1, to
 function checkNurseCalls() {
   var props = PropertiesService.getScriptProperties();
   var recipient = normalizePhone_(requireProp_(props, 'NURSE_CALL_WHATSAPP'));
-  var labelName = props.getProperty('PROCESSED_LABEL') || 'nurse-call-processed';
-  var lookbackDays = props.getProperty('LOOKBACK_DAYS') || '1';
+  var sheetName = props.getProperty('SHEET_NAME') || 'Sheet1';
+  var ss = SpreadsheetApp.openByUrl(requireProp_(props, 'SHEET_URL'));
+  var sheet = ss.getSheetByName(sheetName);
+  if (!sheet) throw new Error('Worksheet "' + sheetName + '" not found in the sheet');
 
-  var label = GmailApp.getUserLabelByName(labelName);
-  if (!label) label = GmailApp.createLabel(labelName);
+  var lastRow = sheet.getLastRow();
+  var startRow = Number(props.getProperty('LAST_ROW') || '1') + 1;
+  if (startRow > lastRow) return; // nothing new since the last run
 
-  var query = 'subject:"Repeat Nurse Call" -label:' + labelName + ' newer_than:' + lookbackDays + 'd';
-  var threads = GmailApp.search(query, 0, 50);
+  // Columns: A Timestamp, B Subject, C Body (Power Automate's "Insert row" action appends here).
+  var rows = sheet.getRange(startRow, 1, lastRow - startRow + 1, 3).getValues();
+  var processedThrough = startRow - 1;
 
-  threads.forEach(function (thread) {
-    var sentAny = false;
-    var sendFailed = false;
-    thread.getMessages().forEach(function (message) {
-      var subject = message.getSubject() || '';
-      if (!MATCH_RE.test(subject)) return;
+  for (var i = 0; i < rows.length; i++) {
+    var subject = String(rows[i][1] || '');
+    var bodyRaw = String(rows[i][2] || '');
 
-      var body = message.getPlainBody() || '';
-      var haystack = subject + '\n' + body;
+    if (MATCH_RE.test(subject)) {
+      var haystack = subject + '\n' + htmlToText_(bodyRaw);
       var fields = {
         ward: extractField_(/Repeat Nurse Call - (.+?) \//i, haystack, {title: true, def: 'the ward'}),
         room: extractField_(/\/ \d+: (.+?) \(called/i, haystack, {title: true, def: 'a room'}),
@@ -46,18 +50,14 @@ function checkNurseCalls() {
         call_type: extractField_(/^Call type\s+(.+?)\s*$/im, haystack, {def: 'Call'}),
         time: extractField_(/This call was at\s+\S+\s+(\d+:\d+)(?::\d+)?\s*(AM|PM)/i, haystack, {def: ''}),
       };
-
       var text = renderTemplate_(fields);
-      if (sendWhatsAppTemplate_(props, recipient, text)) {
-        sentAny = true;
-      } else {
-        sendFailed = true;
+      if (!sendWhatsAppTemplate_(props, recipient, text)) {
+        break; // stop here so this row (and any after it) is retried on the next run
       }
-    });
-    // Only mark the thread processed once every matching message in it sent successfully,
-    // so a failed send is retried on the next run instead of being silently dropped.
-    if (sentAny && !sendFailed) thread.addLabel(label);
-  });
+    }
+    processedThrough = startRow + i;
+  }
+  props.setProperty('LAST_ROW', String(processedThrough));
 }
 
 function requireProp_(props, name) {
@@ -68,6 +68,24 @@ function requireProp_(props, name) {
 
 function normalizePhone_(raw) {
   return raw.replace(/\D/g, '');
+}
+
+var HTML_ENTITIES_ = {
+  '&nbsp;': ' ', '&lt;': '<', '&gt;': '>', '&quot;': '"', '&#39;': "'", '&apos;': "'", '&amp;': '&',
+};
+
+function htmlToText_(html) {
+  var text = html.replace(/<(script|style)[^>]*>[\s\S]*?<\/\1>/gi, '');
+  text = text.replace(/<br\s*\/?>/gi, '\n');
+  text = text.replace(/<\/t[dh]>/gi, '  '); // two spaces between a table label and its value
+  text = text.replace(/<\/(p|div|tr|li|h\d)>/gi, '\n');
+  text = text.replace(/<[^>]+>/g, '');
+  text = text.replace(/&[a-z#0-9]+;/gi, function (m) { return HTML_ENTITIES_[m.toLowerCase()] || m; });
+  text = text
+    .split('\n')
+    .map(function (l) { return l.replace(/[ \t]+$/, '').replace(/^[ \t]+/, ''); })
+    .join('\n');
+  return text.replace(/\n\s*\n\s*\n+/g, '\n\n').trim();
 }
 
 function smartTitle_(text) {

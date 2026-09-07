@@ -1,49 +1,72 @@
-# Nurse-call alerts on Google Apps Script (no phone needed)
+# Nurse-call alerts on Google Apps Script (no phone, no auto-forwarding)
 
-Same rule as the Termux agent — "Repeat Nurse Call" alerts forwarded into Gmail get turned into a
-short WhatsApp message via the Meta Cloud API — but running on Google's servers under your own
-Gmail account instead of on your phone. No Termux, no battery settings, no app permissions to
-fight. Free, and checks mail every minute.
+"Repeat Nurse Call" alerts turn into a short WhatsApp message via the Meta Cloud API — running
+on Google's servers, not on a phone, and reading Outlook directly rather than auto-forwarding
+mail out of the hospital's mailbox. Two free services do the work:
 
-## Why this instead of the phone or GitHub Actions
+```
+Outlook  --[Power Automate]-->  Google Sheet  --[Apps Script, every 1 min]-->  WhatsApp
+```
 
-- **Private.** The code lives only in your Google account. Nothing is published anywhere.
-- **Free.** Well within Apps Script's free daily quota for ten alerts a day.
-- **Fast enough.** Supports a genuine 1-minute schedule — GitHub Actions' shortest reliable
-  interval is several minutes with real timing drift, too slow for an urgent repeat-call alert.
-- **No app password.** It reads Gmail as you, the way opening gmail.com does — no IMAP, no
-  `EMAIL_PASSWORD`.
+**Power Automate** reads the Outlook mailbox directly with its built-in, free "When a new email
+arrives" trigger and appends each matching alert's timestamp/subject/body as a row in a Google
+Sheet (also a free, standard action). **Apps Script** (`Code.gs`) checks that sheet once a minute,
+extracts the ward/room/timing exactly like the Termux agent did, and sends the WhatsApp message.
 
-## Setup (10 minutes)
+## Why this shape
 
-1. Go to <https://script.google.com> signed in as **aalsayed003@gmail.com** (the mailbox the
-   Outlook rule forwards alerts into). Click **New project**.
-2. Delete the placeholder code and paste in the contents of `Code.gs` from this folder.
-3. Rename the project (top left, "Untitled project") to `nurse-call-agent`.
-4. **Project Settings** (gear icon, left sidebar) → **Script Properties** → **Add script property**,
-   one at a time:
+- **No auto-forwarding.** The alert never gets forwarded out of the Outlook mailbox to an
+  external inbox — Power Automate reads it from Outlook directly.
+- **No admin approval needed.** Power Automate's own Outlook connector is pre-trusted by the
+  tenant (confirmed: it connects without the "needs admin approval" screen a custom app hits).
+- **Free.** Power Automate's Outlook trigger and Google Sheets "Insert row" action are both on
+  the free/standard plan — no Premium connector involved. Only the actual WhatsApp send (a
+  generic outbound web request) is Premium in Power Automate, so that step is deliberately done
+  in Apps Script instead, where it's free.
+- **No phone.** Runs on Google's and Microsoft's own servers on a genuine 1-minute schedule.
+
+## Setup
+
+### 1. The Power Automate flow (reads Outlook, writes to a Sheet)
+
+1. Create a Google Sheet named `nurse-call-inbox` with header row `Timestamp | Subject | Body`.
+2. At <https://make.powerautomate.com>, signed in as the Outlook mailbox owner, create an
+   **Automated cloud flow** with trigger **When a new email arrives (V3)**.
+3. Under the trigger's advanced parameters, set **Subject Filter** to `Repeat Nurse Call`.
+4. Add a **Google Sheets → Insert row** action: File `nurse-call-inbox`, Worksheet `Sheet1`,
+   mapping `Timestamp` → *Received Time*, `Subject` → *Subject*, `Body` → *Body*.
+5. Save and turn the flow **On**.
+
+The email bodies land as raw HTML (with the full forwarded-header chain if a message was
+forwarded more than once) — `Code.gs`'s `htmlToText_` strips that down to the same plain-text
+shape the field-extraction regexes expect, verified against a real captured alert.
+
+### 2. The Apps Script (reads the Sheet, sends WhatsApp)
+
+1. Go to <https://script.google.com>, signed in as the same Google account that owns the Sheet.
+   **New project**, paste in `Code.gs` from this folder, rename the project `nurse-call-agent`.
+2. **Project Settings** → **Script Properties** → add:
 
    | Property | Value |
    |---|---|
    | `WA_PHONE_NUMBER_ID` | `993751480485795` |
    | `WA_ACCESS_TOKEN` | your Meta access token (see note below) |
    | `NURSE_CALL_WHATSAPP` | `+97333592461` |
+   | `SHEET_URL` | the `nurse-call-inbox` sheet's full URL (copy from the browser address bar) |
 
-   `TEMPLATE_NAME`, `TEMPLATE_LANGUAGE`, `GRAPH_API_VERSION`, `PROCESSED_LABEL` and
-   `LOOKBACK_DAYS` all have sensible defaults baked into `Code.gs` — only add them here if you
-   want to override one.
-5. Back in the editor, pick **sendTestMessage** from the function dropdown (top toolbar) and click
-   **Run**. The first run asks you to authorize the script — click through **Advanced** →
-   **Go to nurse-call-agent (unsafe)** if Google shows the "unverified app" warning (this is
-   normal for a script only you use; it isn't submitted for Google's review). Grant it.
-6. Check the recipient's WhatsApp for the test message. If it fails, click **Executions** (clock
-   icon) in the left sidebar to see the error from the log.
-7. Once the test message arrives, set up the schedule: **Triggers** (alarm-clock icon) →
-   **+ Add Trigger** → function `checkNurseCalls` → event source **Time-driven** → type
-   **Minutes timer** → **Every minute** → **Save**.
+   `SHEET_NAME`, `TEMPLATE_NAME`, `TEMPLATE_LANGUAGE` and `GRAPH_API_VERSION` all have sensible
+   defaults baked into `Code.gs` — only add them if you want to override one.
+3. Pick **sendTestMessage** from the function dropdown and click **Run** once, to trigger the
+   authorization prompt (click through **Advanced** → **Go to nurse-call-agent (unsafe)** if
+   Google shows the "unverified app" warning — normal for a script only you use) and confirm the
+   WhatsApp send works on its own.
+4. Pick **checkNurseCalls** and **Run** it once — it should process any row already sitting in the
+   sheet and send that alert. Check **Executions** (clock icon) for errors.
+5. Set up the schedule: **Triggers** (alarm-clock icon) → **+ Add Trigger** → function
+   `checkNurseCalls` → event source **Time-driven** → type **Minutes timer** → **Every minute** →
+   **Save**.
 
-That's it — it now checks Gmail every minute and sends any new nurse-call alert, with no phone
-involved. You can stop `run-loop.sh` on the phone and uninstall Termux if you like.
+That's the whole system live, with no phone involved anywhere.
 
 ## About the access token
 
