@@ -118,7 +118,7 @@ function extractField_(regex, text, opts) {
 
 function renderTemplate_(fields) {
   var template =
-    '*Repeat nurse call: {room}, {ward}*\n' +
+    '🚨 *Repeat nurse call: {room}, {ward}*\n' +
     'The call button was pressed again {gap} after the previous call ({call_type} at {time}).\n\n' +
     'Could you please check on the patient now? Thank you.';
   return template.replace(/\{(\w+)\}/g, function (_, key) {

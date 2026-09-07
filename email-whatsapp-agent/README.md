@@ -184,7 +184,7 @@ message (not the raw table) through the WhatsApp Cloud API to the number in `.en
 `NURSE_CALL_WHATSAPP`. The message looks like:
 
 ```
-*Repeat nurse call: Room 806, Ward 8 Nurse Station & Physio*
+🚨 *Repeat nurse call: Room 806, Ward 8 Nurse Station & Physio*
 The call button was pressed again 8 min after the previous call (Call at 7:10 PM).
 
 Could you please check on the patient now? Thank you.
