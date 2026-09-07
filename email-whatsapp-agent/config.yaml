@@ -32,7 +32,7 @@ whatsapp:
     token_env: WA_ACCESS_TOKEN
     mode: template
     template_name: email_forward
-    template_language: en_US
+    template_language: en  # matches the template's actual language in WhatsApp Manager
 
 contacts:
   nurse_call_alerts: "${NURSE_CALL_WHATSAPP}"   # set in .env, e.g. NURSE_CALL_WHATSAPP=+973XXXXXXXX

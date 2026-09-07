@@ -16,7 +16,7 @@
  *   SHEET_URL            full URL of the Google Sheet the Power Automate flow writes to
  *   SHEET_NAME           default "Sheet1"
  *   TEMPLATE_NAME        default "email_forward"
- *   TEMPLATE_LANGUAGE    default "en_US"
+ *   TEMPLATE_LANGUAGE    default "en" (must match the template's language in WhatsApp Manager)
  *   GRAPH_API_VERSION    default "v21.0"
  *   LAST_ROW             set automatically; the last sheet row already processed
  */
@@ -135,7 +135,7 @@ function sendWhatsAppTemplate_(props, toDigits, bodyText) {
   var phoneNumberId = requireProp_(props, 'WA_PHONE_NUMBER_ID');
   var token = requireProp_(props, 'WA_ACCESS_TOKEN');
   var templateName = props.getProperty('TEMPLATE_NAME') || 'email_forward';
-  var templateLanguage = props.getProperty('TEMPLATE_LANGUAGE') || 'en_US';
+  var templateLanguage = props.getProperty('TEMPLATE_LANGUAGE') || 'en';
   var apiVersion = props.getProperty('GRAPH_API_VERSION') || 'v21.0';
   var url = 'https://graph.facebook.com/' + apiVersion + '/' + phoneNumberId + '/messages';
 
