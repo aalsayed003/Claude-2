@@ -187,7 +187,7 @@ message (not the raw table) through the WhatsApp Cloud API to the number in `.en
 *Repeat nurse call: Room 806, Ward 8 Nurse Station & Physio*
 The call button was pressed again 8 min after the previous call (Call at 7:10 PM).
 
-Could you please check on the patient now and send me a quick update here once they've been seen? Thank you.
+Could you please check on the patient now? Thank you.
 ```
 
 Phone numbers and personal addresses are kept out of git on purpose: this repository is public.

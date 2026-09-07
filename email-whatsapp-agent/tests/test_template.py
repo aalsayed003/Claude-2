@@ -57,7 +57,7 @@ def test_shipped_nurse_call_template_renders(monkeypatch):
     assert text.splitlines()[0] == "*Repeat nurse call: Room 806, Ward 8 Nurse Station & Physio*"
     assert "🚨" not in text and "🙏" not in text
     assert "pressed again 8 min after the previous call (Call at 7:10 PM)" in text
-    assert "send me a quick update" in text
+    assert "Could you please check on the patient now" in text
     assert "FW:" not in text and "Sent from" not in text and "nursecall@" not in text
 
 
