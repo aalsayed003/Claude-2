@@ -2,44 +2,53 @@
 
 "Repeat Nurse Call" alerts turn into a short WhatsApp message via the Meta Cloud API — running
 on Google's servers, not on a phone, and reading Outlook directly rather than auto-forwarding
-mail out of the hospital's mailbox. Two free services do the work:
+mail out of the hospital's mailbox. Two Power Automate flows plus one Apps Script do the work:
 
 ```
-Outlook  --[Power Automate]-->  OneDrive Excel  --[Apps Script, every 1 min]-->  WhatsApp
+Outlook --[Flow 1: Power Automate]--> OneDrive Excel <--[Flow 2: HTTP trigger]-- Apps Script --> WhatsApp
 ```
 
-**Power Automate** reads the Outlook mailbox directly with its built-in, free "When a new email
-arrives" trigger and appends each matching alert's timestamp/subject/body as a row in an Excel
-table stored in OneDrive (also a free, standard action). **Apps Script** (`Code.gs`) downloads
-that file once a minute, extracts the ward/room/timing exactly like the Termux agent did, and
-sends the WhatsApp message.
+**Flow 1** reads the Outlook mailbox directly with its built-in, free "When a new email arrives"
+trigger and appends each matching alert's timestamp/subject/body as a row in an Excel table
+stored in OneDrive. **Flow 2** is a tiny flow that does nothing but read that table and hand the
+rows back as JSON whenever it's called — over Power Automate's own free HTTP trigger. **Apps
+Script** (`Code.gs`) calls Flow 2 once a minute, extracts the ward/room/timing exactly like the
+Termux agent did, and sends the WhatsApp message.
 
-## Why OneDrive Excel, not Google Sheets
+## Why two flows and an HTTP trigger, not a shared file
 
-An earlier version of this used a Google Sheet as the bridge. It worked, but Power Automate's
-Google Sheets connector shares a single Google API quota across *every* Power Automate customer
-using that connector — not just you — so writes started failing intermittently with
-`429 Too many requests sent to the Google Sheets API`, with runs retrying for 11–15 minutes
-before giving up. A failed write means the row never lands in the sheet, so Apps Script never
-sees that alert and no WhatsApp message goes out — not acceptable for something time-sensitive.
+Two simpler designs were tried first and both hit a wall:
 
-Switching the bridge file to OneDrive/Excel keeps the write side entirely inside Microsoft's
-own infrastructure (Outlook → OneDrive, same tenant), so there's no cross-vendor quota to hit.
-Apps Script then reads the file straight off its "anyone with the link" download URL and parses
-the raw `.xlsx` itself — no Microsoft Graph API, no OAuth, no admin-consent wall.
+- **A Google Sheet as the bridge.** Power Automate's Google Sheets connector shares a single
+  Google API quota across *every* Power Automate customer using it — not just you — so writes
+  started failing intermittently with `429 Too many requests`, with runs retrying for 11–15
+  minutes before giving up. A failed write means the row never lands anywhere, so the alert is
+  silently dropped — not acceptable for something time-sensitive.
+- **An OneDrive Excel file shared as "Anyone with the link."** This tenant's sharing policy
+  revokes anonymous links (you'll see "This link has been removed" instead of a working
+  download), which is a common data-governance setting in healthcare — so a public/anonymous
+  download URL isn't available here.
+
+The fix that avoids both: keep the Excel table in OneDrive (native Microsoft, no cross-vendor
+quota), but instead of Apps Script downloading the file directly, a second flow exposes it over
+Power Automate's own **"When an HTTP request is received"** trigger. That trigger (and its
+paired "Response" action) is the built-in **Request connector**, which is Standard/free — not
+the generic outbound "HTTP" action, which is the one Premium piece in Power Automate. Apps
+Script just calls that trigger's auto-generated URL, the same way it already calls the Meta
+WhatsApp API. No Microsoft Graph OAuth is involved anywhere, so there's no admin-consent wall,
+and no file needs to be shared publicly.
 
 ## Why this shape
 
 - **No auto-forwarding.** The alert never gets forwarded out of the Outlook mailbox to an
-  external inbox — Power Automate reads it from Outlook directly.
-- **No admin approval needed.** Power Automate's Outlook and Excel Online connectors are
-  pre-trusted by the tenant (confirmed: they connect without the "needs admin approval" screen
-  a custom app registration hits). Apps Script never talks to Microsoft Graph at all — it just
-  downloads a shared file over plain HTTPS.
-- **Free.** Power Automate's Outlook trigger and "Add a row into a table" (Excel Online) action
-  are both on the free/standard plan. Only the actual WhatsApp send (a generic outbound web
-  request) is Premium in Power Automate, so that step is deliberately done in Apps Script
-  instead, where it's free.
+  external inbox — Flow 1 reads it from Outlook directly.
+- **No admin approval needed.** Power Automate's Outlook, Excel Online, and Request connectors
+  are all pre-trusted by the tenant (confirmed: the Outlook trigger connects without the "needs
+  admin approval" screen a custom app registration hits). Apps Script never talks to Microsoft
+  Graph — it just calls a Power Automate webhook over plain HTTPS.
+- **Free.** Every connector and action used (Outlook trigger, Excel Online, Request/Response)
+  is Standard. Only the actual WhatsApp send (a generic outbound web request) is Premium in
+  Power Automate, so that step is deliberately done in Apps Script instead, where it's free.
 - **No phone.** Runs on Google's and Microsoft's own servers on a genuine 1-minute schedule.
 
 ## Setup
@@ -48,33 +57,37 @@ the raw `.xlsx` itself — no Microsoft Graph API, no OAuth, no admin-consent wa
 
 1. In OneDrive, create a new Excel workbook, e.g. `nurse-call-inbox.xlsx`.
 2. Add a header row `Timestamp | Subject | Body`, select those three header cells, then
-   **Insert → Table** (so Power Automate can target it as a table). Name the table
-   `NurseCallTable` (Table Design → Table Name).
-3. Click **Share** on the file → change the link setting to **Anyone with the link** → **Can
-   view** → **Copy link**. This depends on your tenant allowing anonymous/"Anyone" links for
-   OneDrive — if that option isn't available, see *If "Anyone" links are blocked* below.
-4. Take the copied link and add a download flag to the end: append `&download=1` if the link
-   already has a `?`, otherwise `?download=1`. Save this full URL — it's the `EXCEL_DOWNLOAD_URL`
-   script property below.
+   **Insert → Table**.
+3. Click into the table so the **Table Design** tab appears in the ribbon. On the left is a
+   **Table Name** box (defaults to `Table1`) — click it, type `NurseCallTable`, press Enter.
+   That's the name you'll pick in both flows below.
 
-### 2. The Power Automate flow (reads Outlook, writes to the Excel table)
+### 2. Flow 1 — reads Outlook, writes to the Excel table
 
 1. At <https://make.powerautomate.com>, signed in as the Outlook mailbox owner, create an
-   **Automated cloud flow** with trigger **When a new email arrives (V3)**.
+   **Automated cloud flow** named `Nurse call` with trigger **When a new email arrives (V3)**.
 2. Under the trigger's advanced parameters, set **Subject Filter** to `Repeat Nurse Call`.
 3. Add an **Excel Online (Business) → Add a row into a table** action: pick the OneDrive
    location and `nurse-call-inbox.xlsx`, table `NurseCallTable`, mapping `Timestamp` →
    *Received Time*, `Subject` → *Subject*, `Body` → *Body*.
 4. Save and turn the flow **On**.
 
-(If you still have the old "Google Sheets — Insert row" action from a previous setup, delete it
-and replace it with the Excel Online action above — don't run both.)
+(If you have an old "Google Sheets — Insert row" action from an earlier attempt, delete it and
+replace it with the Excel Online action above.)
 
-The email bodies land as raw HTML (with the full forwarded-header chain if a message was
-forwarded more than once) — `Code.gs`'s `htmlToText_` strips that down to the same plain-text
-shape the field-extraction regexes expect, verified against a real captured alert.
+### 3. Flow 2 — hands the table back as JSON on request
 
-### 3. The Apps Script (reads the file, sends WhatsApp)
+1. Create a second **Automated cloud flow** named `Nurse call - list rows` with trigger
+   **When a HTTP request is received**. Leave the **Request Body JSON Schema** field empty.
+2. Add an **Excel Online (Business) → List rows present in a table** action: same file
+   `nurse-call-inbox.xlsx`, table `NurseCallTable`.
+3. Add a **Response** action: **Status Code** `200`, **Body** set to the *value* output of the
+   "List rows present in a table" action (from the dynamic content picker).
+4. Save the flow, then turn it **On**. Open the trigger step — Power Automate now shows an
+   **HTTP POST URL**. Copy it; this is a long, secret, auto-generated link that only this flow
+   knows how to answer — treat it like a password. This is your `ROWS_API_URL` script property.
+
+### 4. The Apps Script
 
 1. Go to <https://script.google.com>, **New project**, paste in `Code.gs` from this folder,
    rename the project `nurse-call-agent`.
@@ -85,7 +98,7 @@ shape the field-extraction regexes expect, verified against a real captured aler
    | `WA_PHONE_NUMBER_ID` | `993751480485795` |
    | `WA_ACCESS_TOKEN` | your Meta access token (see note below) |
    | `NURSE_CALL_WHATSAPP` | `+97333592461` |
-   | `EXCEL_DOWNLOAD_URL` | the OneDrive share link from step 1.4, ending in `download=1` |
+   | `ROWS_API_URL` | the HTTP POST URL copied from Flow 2's trigger |
 
    `TEMPLATE_NAME`, `TEMPLATE_LANGUAGE` and `GRAPH_API_VERSION` all have sensible defaults baked
    into `Code.gs` — only add them if you want to override one.
@@ -99,16 +112,8 @@ shape the field-extraction regexes expect, verified against a real captured aler
    `checkNurseCalls` → event source **Time-driven** → type **Minutes timer** → **Every minute** →
    **Save**.
 
-That's the whole system live, with no phone involved anywhere, and nothing routed through
-Google's Sheets API.
-
-### If "Anyone" links are blocked
-
-Some tenants disable anonymous/"Anyone" sharing links tenant-wide for data-governance reasons.
-If OneDrive's share dialog only offers "People in your organization" or "Specific people", the
-`EXCEL_DOWNLOAD_URL` approach above won't work as-is — come back and we'll look at reading the
-file through a Microsoft Graph share-link call instead (needs a one-time OAuth consent, which
-may or may not need admin approval depending on how the tenant treats read-only file scopes).
+That's the whole system live, with no phone involved anywhere, no Google Sheets API in the
+loop, and no file shared publicly.
 
 ## About the access token
 
@@ -130,8 +135,9 @@ Same three-step pipeline as `agent/main.py`, just in Apps Script:
 3. The message is sent through the Meta Cloud API's `email_forward` template — the identical
    API call `agent/whatsapp.py`'s `CloudApiSender` makes.
 
-Rows are never re-processed: a `LAST_ROW` Script Property tracks the highest table row already
-handled, and only rows after it are read on each run.
+Rows are never re-processed: a `LAST_INDEX` Script Property tracks how many rows (in the order
+Flow 2 returns them, which is table order — new rows are always appended last) have already
+been handled, and only rows after that count are read on each run.
 
 ## Editing the wording
 
