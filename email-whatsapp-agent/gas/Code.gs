@@ -3,28 +3,22 @@
  *
  * No phone, no Termux, no server, and no auto-forwarding out of Outlook: a Power Automate
  * flow ("Nurse call") reads the Outlook mailbox directly and appends each matching email's
- * Timestamp/Subject/Body as a row in an Excel table stored in OneDrive. A second Power
- * Automate flow ("Nurse call - list rows") exposes that table over its own free HTTP trigger
- * (the "Request"/"Response" connector, not the paid generic "HTTP" action). This script calls
- * that trigger URL on a 1-minute time-driven trigger and sends new alerts to WhatsApp.
- *
- * This avoids two dead ends tried earlier (see gas/README.md for the full story):
- *   - Reading a Google Sheet: Power Automate's Google Sheets connector shares a Google API
- *     quota across all Power Automate customers, so writes started failing with 429s.
- *   - Reading a OneDrive file via its "Anyone with the link" download URL: this tenant's
- *     sharing policy revokes anonymous links ("This link has been removed").
- * Calling Power Automate's own HTTP trigger needs no Microsoft Graph OAuth from this script
- * (so no admin-consent wall) and no anonymous file sharing.
+ * Timestamp/Subject/Body into a Google Sheet. This script polls that sheet on a 1-minute
+ * time-driven trigger and sends new alerts to WhatsApp. See gas/README.md for setup, including
+ * why this is the bridge (a OneDrive/Excel file and a Power Automate HTTP trigger were both
+ * tried first and ruled out - see the README's "Why Google Sheets" section) and how the flow
+ * is hardened against Google's occasional 429s so an alert is never silently lost.
  *
  * Config lives in Script Properties (Project Settings -> Script Properties), never in code:
- *   WA_PHONE_NUMBER_ID    Meta Cloud API phone number ID
- *   WA_ACCESS_TOKEN       Meta Cloud API access token
- *   NURSE_CALL_WHATSAPP   recipient in international format, e.g. +97333592461
- *   ROWS_API_URL          the "Nurse call - list rows" flow's HTTP trigger URL
- *   TEMPLATE_NAME         default "email_forward"
- *   TEMPLATE_LANGUAGE     default "en_US"
- *   GRAPH_API_VERSION     default "v21.0"
- *   LAST_INDEX            set automatically; how many rows have already been processed
+ *   WA_PHONE_NUMBER_ID   Meta Cloud API phone number ID
+ *   WA_ACCESS_TOKEN      Meta Cloud API access token
+ *   NURSE_CALL_WHATSAPP  recipient in international format, e.g. +97333592461
+ *   SHEET_URL            full URL of the Google Sheet the Power Automate flow writes to
+ *   SHEET_NAME           default "Sheet1"
+ *   TEMPLATE_NAME        default "email_forward"
+ *   TEMPLATE_LANGUAGE    default "en_US"
+ *   GRAPH_API_VERSION    default "v21.0"
+ *   LAST_ROW             set automatically; the last sheet row already processed
  */
 
 var MATCH_RE = /^(?:FWD?\s*:\s*)?Repeat Nurse Call/i;
@@ -33,17 +27,22 @@ var SMALL_WORDS = {and: 1, or: 1, of: 1, the: 1, in: 1, at: 1, on: 1, for: 1, to
 function checkNurseCalls() {
   var props = PropertiesService.getScriptProperties();
   var recipient = normalizePhone_(requireProp_(props, 'NURSE_CALL_WHATSAPP'));
-  var rows = fetchRows_(requireProp_(props, 'ROWS_API_URL'));
+  var sheetName = props.getProperty('SHEET_NAME') || 'Sheet1';
+  var ss = SpreadsheetApp.openByUrl(requireProp_(props, 'SHEET_URL'));
+  var sheet = ss.getSheetByName(sheetName);
+  if (!sheet) throw new Error('Worksheet "' + sheetName + '" not found in the sheet');
 
-  var startIndex = Number(props.getProperty('LAST_INDEX') || '0');
-  if (startIndex >= rows.length) return; // nothing new since the last run
+  var lastRow = sheet.getLastRow();
+  var startRow = Number(props.getProperty('LAST_ROW') || '1') + 1;
+  if (startRow > lastRow) return; // nothing new since the last run
 
-  var processedThrough = startIndex;
+  // Columns: A Timestamp, B Subject, C Body (Power Automate's "Insert row" action appends here).
+  var rows = sheet.getRange(startRow, 1, lastRow - startRow + 1, 3).getValues();
+  var processedThrough = startRow - 1;
 
-  for (var i = startIndex; i < rows.length; i++) {
-    var row = rows[i];
-    var subject = String(row.Subject || row.subject || '');
-    var bodyRaw = String(row.Body || row.body || '');
+  for (var i = 0; i < rows.length; i++) {
+    var subject = String(rows[i][1] || '');
+    var bodyRaw = String(rows[i][2] || '');
 
     if (MATCH_RE.test(subject)) {
       var haystack = subject + '\n' + htmlToText_(bodyRaw);
@@ -59,22 +58,9 @@ function checkNurseCalls() {
         break; // stop here so this row (and any after it) is retried on the next run
       }
     }
-    processedThrough = i + 1;
+    processedThrough = startRow + i;
   }
-  props.setProperty('LAST_INDEX', String(processedThrough));
-}
-
-/** Calls the "list rows" Power Automate flow and returns its rows as an array of {Timestamp, Subject, Body}. */
-function fetchRows_(url) {
-  var response = UrlFetchApp.fetch(url, {muteHttpExceptions: true});
-  if (response.getResponseCode() !== 200) {
-    throw new Error(
-      'Could not call the "Nurse call - list rows" flow (HTTP ' + response.getResponseCode() + '): ' +
-      response.getContentText()
-    );
-  }
-  var data = JSON.parse(response.getContentText());
-  return Array.isArray(data) ? data : data.value || [];
+  props.setProperty('LAST_ROW', String(processedThrough));
 }
 
 function requireProp_(props, name) {
