@@ -34,6 +34,13 @@ using it — not just you — so writes occasionally fail with `429 Too many req
 write means that row (and its alert) never lands anywhere unless something catches it. Setup
 step 1 below hardens the flow against exactly that, so a 429 causes a delay, not a silent loss.
 
+The retry policy has its own side effect worth knowing about: occasionally "Insert row" actually
+succeeds on Google's side, but the success response back to Power Automate is lost, so Power
+Automate thinks it failed and retries — appending the *same* alert as a second (or third) row
+with an identical Timestamp and Subject. `Code.gs` catches this with a small rolling list of
+already-sent Timestamp+Subject pairs (`SEEN_KEYS`, capped at the last 50), so a duplicated row
+is skipped instead of triggering a repeat WhatsApp message for the same real event.
+
 ## Why this shape
 
 - **No auto-forwarding.** The alert never gets forwarded out of the Outlook mailbox to an

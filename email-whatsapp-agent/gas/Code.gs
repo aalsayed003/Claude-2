@@ -19,10 +19,18 @@
  *   TEMPLATE_LANGUAGE    default "en" (must match the template's language in WhatsApp Manager)
  *   GRAPH_API_VERSION    default "v21.0"
  *   LAST_ROW             set automatically; the last sheet row already processed
+ *   SEEN_KEYS            set automatically; recent Timestamp+Subject keys already sent
+ *
+ * SEEN_KEYS exists because Power Automate's retry policy (see gas/README.md) occasionally
+ * inserts the same alert into the sheet more than once - the write succeeds on Google's side
+ * but the success response is lost, so Power Automate retries and appends a duplicate row with
+ * an identical Timestamp and Subject. LAST_ROW alone can't catch that (each duplicate is a real,
+ * new row), so a small rolling list of already-sent Timestamp+Subject pairs is kept to skip them.
  */
 
 var MATCH_RE = /^(?:FWD?\s*:\s*)?Repeat Nurse Call/i;
 var SMALL_WORDS = {and: 1, or: 1, of: 1, the: 1, in: 1, at: 1, on: 1, for: 1, to: 1, a: 1, an: 1};
+var DEDUPE_LIMIT = 50;
 
 function checkNurseCalls() {
   var props = PropertiesService.getScriptProperties();
@@ -45,17 +53,21 @@ function checkNurseCalls() {
     var bodyRaw = String(rows[i][2] || '');
 
     if (MATCH_RE.test(subject)) {
-      var haystack = subject + '\n' + htmlToText_(bodyRaw);
-      var fields = {
-        ward: extractField_(/Repeat Nurse Call - (.+?) \//i, haystack, {title: true, def: 'the ward'}),
-        room: extractField_(/\/ \d+: (.+?) \(called/i, haystack, {title: true, def: 'a room'}),
-        gap: extractField_(/called again after (.+?)\)/i, haystack, {def: 'a few minutes'}),
-        call_type: extractField_(/^Call type\s+(.+?)\s*$/im, haystack, {def: 'Call'}),
-        time: extractField_(/This call was at\s+\S+\s+(\d+:\d+)(?::\d+)?\s*(AM|PM)/i, haystack, {def: ''}),
-      };
-      var text = renderTemplate_(fields);
-      if (!sendWhatsAppTemplate_(props, recipient, text)) {
-        break; // stop here so this row (and any after it) is retried on the next run
+      var dedupeKey = String(rows[i][0]) + '|' + subject;
+      if (!isDuplicate_(props, dedupeKey)) {
+        var haystack = subject + '\n' + htmlToText_(bodyRaw);
+        var fields = {
+          ward: extractField_(/Repeat Nurse Call - (.+?) \//i, haystack, {title: true, def: 'the ward'}),
+          room: extractField_(/\/ \d+: (.+?) \(called/i, haystack, {title: true, def: 'a room'}),
+          gap: extractField_(/called again after (.+?)\)/i, haystack, {def: 'a few minutes'}),
+          call_type: extractField_(/^Call type\s+(.+?)\s*$/im, haystack, {def: 'Call'}),
+          time: extractField_(/This call was at\s+\S+\s+(\d+:\d+)(?::\d+)?\s*(AM|PM)/i, haystack, {def: ''}),
+        };
+        var text = renderTemplate_(fields);
+        if (!sendWhatsAppTemplate_(props, recipient, text)) {
+          break; // stop here so this row (and any after it) is retried on the next run
+        }
+        markSeen_(props, dedupeKey);
       }
     }
     processedThrough = startRow + i;
@@ -71,6 +83,18 @@ function requireProp_(props, name) {
 
 function normalizePhone_(raw) {
   return raw.replace(/\D/g, '');
+}
+
+function isDuplicate_(props, key) {
+  var seen = JSON.parse(props.getProperty('SEEN_KEYS') || '[]');
+  return seen.indexOf(key) !== -1;
+}
+
+function markSeen_(props, key) {
+  var seen = JSON.parse(props.getProperty('SEEN_KEYS') || '[]');
+  seen.push(key);
+  if (seen.length > DEDUPE_LIMIT) seen = seen.slice(seen.length - DEDUPE_LIMIT);
+  props.setProperty('SEEN_KEYS', JSON.stringify(seen));
 }
 
 var HTML_ENTITIES_ = {
