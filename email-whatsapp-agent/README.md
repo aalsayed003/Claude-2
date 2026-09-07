@@ -170,22 +170,32 @@ by anyone who doesn't sign in themselves.
 **Plan B without any admin help (what the shipped config uses):** create an Outlook rule that
 redirects the matching emails to a Gmail address and run the agent against Gmail with
 `provider: imap`. In Outlook on the web: gear icon → **Mail** → **Rules** → **Add new rule**;
-condition *Subject includes* `Repeat Nurse Call`; action **Redirect to** your Gmail address
-(falls back to *Forward to* if Redirect is missing; the shipped rule accepts the `FW:` prefix).
+condition *Subject includes* `Nurse Call` (catches both `Repeat Nurse Call` and `Overdue Nurse
+Call` subjects); action **Redirect to** your Gmail address (falls back to *Forward to* if
+Redirect is missing; the shipped rules accept the `FW:` prefix).
 Some organisations block external auto-forwarding, so send yourself a test and check it arrives
 in Gmail, and check the Gmail spam folder the first time.
 
 ### The Al Salam nurse-call setup
 
 The committed `config.yaml` is already set for this: an Outlook rule redirects the alerts (subjects
-starting with `Repeat Nurse Call`, roughly ten a day) to Gmail, the agent reads Gmail over IMAP,
-pulls the ward/room/gap/time out of the alert with the `extract` block, and sends a short human
-message (not the raw table) through the WhatsApp Cloud API to the number in `.env` under
-`NURSE_CALL_WHATSAPP`. The message looks like:
+containing `Nurse Call` — both `Repeat Nurse Call` and `Overdue Nurse Call`) to Gmail, the agent
+reads Gmail over IMAP, pulls the relevant fields out of the alert with each rule's `extract`
+block, and sends a short human message (not the raw table) through the WhatsApp Cloud API to the
+number in `.env` under `NURSE_CALL_WHATSAPP`. A repeat call looks like:
 
 ```
 🚨 *Repeat nurse call: Room 806, Ward 8 Nurse Station & Physio*
 The call button was pressed again 8 min after the previous call (Call at 7:10 PM).
+
+Could you please check on the patient now? Thank you.
+```
+
+and an overdue (unanswered) call looks like:
+
+```
+🚨 *Overdue nurse call: 009: Bed 09, Emergency*
+This call has been waiting 10m 15s without a response (Call at 7:39 PM).
 
 Could you please check on the patient now? Thank you.
 ```

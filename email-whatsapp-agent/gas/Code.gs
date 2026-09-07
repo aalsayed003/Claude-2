@@ -4,7 +4,10 @@
  * No phone, no Termux, no server, and no auto-forwarding out of Outlook: a Power Automate
  * flow ("Nurse call") reads the Outlook mailbox directly and appends each matching email's
  * Timestamp/Subject/Body into a Google Sheet. This script polls that sheet on a 1-minute
- * time-driven trigger and sends new alerts to WhatsApp. See gas/README.md for setup, including
+ * time-driven trigger and sends new alerts to WhatsApp. Two alert types are recognized (see
+ * the RULES array below): "Repeat Nurse Call" (the same room called again before the first
+ * call was answered) and "Overdue Nurse Call" (a call waited on too long with no response at
+ * all). See gas/README.md for setup, including
  * why this is the bridge (a OneDrive/Excel file and a Power Automate HTTP trigger were both
  * tried first and ruled out - see the README's "Why Google Sheets" section) and how the flow
  * is hardened against Google's occasional 429s so an alert is never silently lost.
@@ -28,9 +31,51 @@
  * new row), so a small rolling list of already-sent Timestamp+Subject pairs is kept to skip them.
  */
 
-var MATCH_RE = /^(?:FWD?\s*:\s*)?Repeat Nurse Call/i;
 var SMALL_WORDS = {and: 1, or: 1, of: 1, the: 1, in: 1, at: 1, on: 1, for: 1, to: 1, a: 1, an: 1};
 var DEDUPE_LIMIT = 50;
+
+// Each rule matches a subject pattern, pulls fields out of the subject+body, and renders its
+// own WhatsApp message. Add a new alert type by adding another entry here.
+var RULES = [
+  {
+    match: /^(?:FWD?\s*:\s*)?Repeat Nurse Call/i,
+    extract: function (haystack) {
+      return {
+        ward: extractField_(/Repeat Nurse Call - (.+?) \//i, haystack, {title: true, def: 'the ward'}),
+        room: extractField_(/\/ \d+: (.+?) \(called/i, haystack, {title: true, def: 'a room'}),
+        gap: extractField_(/called again after (.+?)\)/i, haystack, {def: 'a few minutes'}),
+        call_type: extractField_(/^Call type\s+(.+?)\s*$/im, haystack, {def: 'Call'}),
+        time: extractField_(/This call was at\s+\S+\s+(\d+:\d+)(?::\d+)?\s*(AM|PM)/i, haystack, {def: ''}),
+      };
+    },
+    template: function (f) {
+      return (
+        '🚨 *Repeat nurse call: ' + f.room + ', ' + f.ward + '*\n' +
+        'The call button was pressed again ' + f.gap + ' after the previous call (' + f.call_type + ' at ' + f.time + ').\n\n' +
+        'Could you please check on the patient now? Thank you.'
+      );
+    },
+  },
+  {
+    match: /^(?:FWD?\s*:\s*)?Overdue Nurse Call/i,
+    extract: function (haystack) {
+      return {
+        ward: extractField_(/^Ward\s+(.+?)\s*$/im, haystack, {title: true, def: 'the ward'}),
+        room: extractField_(/^Address\s+(.+?)\s*$/im, haystack, {title: true, def: 'a room'}),
+        waiting: extractField_(/^Waiting\s+(.+?)\s*$/im, haystack, {def: 'a while'}),
+        call_type: extractField_(/^Call type\s+(.+?)\s*$/im, haystack, {def: 'Call'}),
+        time: extractField_(/Called at\s+\S+\s+(\d+:\d+)(?::\d+)?\s*(AM|PM)/i, haystack, {def: ''}),
+      };
+    },
+    template: function (f) {
+      return (
+        '🚨 *Overdue nurse call: ' + f.room + ', ' + f.ward + '*\n' +
+        'This call has been waiting ' + f.waiting + ' without a response (' + f.call_type + ' at ' + f.time + ').\n\n' +
+        'Could you please check on the patient now? Thank you.'
+      );
+    },
+  },
+];
 
 function checkNurseCalls() {
   var props = PropertiesService.getScriptProperties();
@@ -51,19 +96,19 @@ function checkNurseCalls() {
   for (var i = 0; i < rows.length; i++) {
     var subject = String(rows[i][1] || '');
     var bodyRaw = String(rows[i][2] || '');
+    var rule = null;
+    for (var r = 0; r < RULES.length; r++) {
+      if (RULES[r].match.test(subject)) {
+        rule = RULES[r];
+        break;
+      }
+    }
 
-    if (MATCH_RE.test(subject)) {
+    if (rule) {
       var dedupeKey = String(rows[i][0]) + '|' + subject;
       if (!isDuplicate_(props, dedupeKey)) {
         var haystack = subject + '\n' + htmlToText_(bodyRaw);
-        var fields = {
-          ward: extractField_(/Repeat Nurse Call - (.+?) \//i, haystack, {title: true, def: 'the ward'}),
-          room: extractField_(/\/ \d+: (.+?) \(called/i, haystack, {title: true, def: 'a room'}),
-          gap: extractField_(/called again after (.+?)\)/i, haystack, {def: 'a few minutes'}),
-          call_type: extractField_(/^Call type\s+(.+?)\s*$/im, haystack, {def: 'Call'}),
-          time: extractField_(/This call was at\s+\S+\s+(\d+:\d+)(?::\d+)?\s*(AM|PM)/i, haystack, {def: ''}),
-        };
-        var text = renderTemplate_(fields);
+        var text = rule.template(rule.extract(haystack));
         if (!sendWhatsAppTemplate_(props, recipient, text)) {
           break; // stop here so this row (and any after it) is retried on the next run
         }
@@ -138,16 +183,6 @@ function extractField_(regex, text, opts) {
   var value = parts.map(function (p) { return p.trim(); }).join(' ').trim();
   if (opts.title) value = smartTitle_(value);
   return value || opts.def || '';
-}
-
-function renderTemplate_(fields) {
-  var template =
-    '🚨 *Repeat nurse call: {room}, {ward}*\n' +
-    'The call button was pressed again {gap} after the previous call ({call_type} at {time}).\n\n' +
-    'Could you please check on the patient now? Thank you.';
-  return template.replace(/\{(\w+)\}/g, function (_, key) {
-    return fields[key] !== undefined ? fields[key] : '';
-  });
 }
 
 function flattenForTemplate_(text) {

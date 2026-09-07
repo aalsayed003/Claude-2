@@ -60,6 +60,27 @@ rules:
 
       Could you please check on the patient now? Thank you.
 
+  - name: Overdue nurse calls
+    match:
+      # Alerts look like: "Overdue Nurse Call - EMERGENCY / 009: BED 09 (10m 15s)"
+      # Fires when a call has gone unanswered past the response-time threshold, regardless of
+      # whether it was ever repeated - a separate condition from "Repeat Nurse Call" above.
+      subject_regex: "^(?:FWD?\\s*:\\s*)?Overdue Nurse Call"
+    send_to: [nurse_call_alerts]
+    # Pulled from the body's Ward/Address/Call type/Called at/Waiting table, not the subject -
+    # more robust than parsing the subject line for this alert's format.
+    extract:
+      ward:      { pattern: "^Ward\\s+(.+?)\\s*$", title: true, default: "the ward" }
+      room:      { pattern: "^Address\\s+(.+?)\\s*$", title: true, default: "a room" }
+      waiting:   { pattern: "^Waiting\\s+(.+?)\\s*$", default: "a while" }
+      call_type: { pattern: "^Call type\\s+(.+?)\\s*$", default: "Call" }
+      time:      { pattern: "Called at\\s+\\S+\\s+(\\d+:\\d+)(?::\\d+)?\\s*(AM|PM)", default: "" }
+    template: |
+      🚨 *Overdue nurse call: {room}, {ward}*
+      This call has been waiting {waiting} without a response ({call_type} at {time}).
+
+      Could you please check on the patient now? Thank you.
+
 polling:
   interval_seconds: 60
 

@@ -61,6 +61,27 @@ def test_shipped_nurse_call_template_renders(monkeypatch):
     assert "FW:" not in text and "Sent from" not in text and "nursecall@" not in text
 
 
+OVERDUE_BODY = """An unanswered nurse call has exceeded the response time threshold.
+
+Ward    EMERGENCY
+Address 009: BED 09
+Channel 002: EMERGENCY
+Call type       Call
+Called at       9/7/2026, 7:39:15 PM
+Waiting 10m 15s"""
+
+
+def test_shipped_overdue_nurse_call_template_renders(monkeypatch):
+    monkeypatch.setenv("NURSE_CALL_WHATSAPP", "+97333333333")
+    cfg = load_config(Path(__file__).resolve().parents[1] / "config.yaml")
+    rule = cfg.rules[1]
+    mail = _mail(subject="Overdue Nurse Call - EMERGENCY / 009: BED 09 (10m 15s)", body=OVERDUE_BODY)
+    text = format_message(mail, "", rule, 3000)
+    assert text.splitlines()[0] == "🚨 *Overdue nurse call: 009: Bed 09, Emergency*"
+    assert "waiting 10m 15s without a response (Call at 7:39 PM)" in text
+    assert "Could you please check on the patient now" in text
+
+
 def test_shipped_template_survives_missing_fields(monkeypatch):
     monkeypatch.setenv("NURSE_CALL_WHATSAPP", "+97333333333")
     cfg = load_config(Path(__file__).resolve().parents[1] / "config.yaml")

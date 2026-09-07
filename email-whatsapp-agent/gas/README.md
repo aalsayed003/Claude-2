@@ -1,8 +1,8 @@
 # Nurse-call alerts on Google Apps Script (no phone, no auto-forwarding)
 
-"Repeat Nurse Call" alerts turn into a short WhatsApp message via the Meta Cloud API — running
-on Google's servers, not on a phone, and reading Outlook directly rather than auto-forwarding
-mail out of the hospital's mailbox. Two free services do the work:
+"Repeat Nurse Call" and "Overdue Nurse Call" alerts turn into a short WhatsApp message via the
+Meta Cloud API — running on Google's servers, not on a phone, and reading Outlook directly
+rather than auto-forwarding mail out of the hospital's mailbox. Two free services do the work:
 
 ```
 Outlook  --[Power Automate]-->  Google Sheet  --[Apps Script, every 1 min]-->  WhatsApp
@@ -59,7 +59,11 @@ is skipped instead of triggering a repeat WhatsApp message for the same real eve
 1. Create a Google Sheet named `nurse-call-inbox` with header row `Timestamp | Subject | Body`.
 2. At <https://make.powerautomate.com>, signed in as the Outlook mailbox owner, create an
    **Automated cloud flow** with trigger **When a new email arrives (V3)**.
-3. Under the trigger's advanced parameters, set **Subject Filter** to `Repeat Nurse Call`.
+3. Under the trigger's advanced parameters, set **Subject Filter** to `Nurse Call` (not `Repeat
+   Nurse Call`) — the filter is a plain substring match, and `Nurse Call` is the part both
+   `Repeat Nurse Call` and `Overdue Nurse Call` subjects share, so this one filter catches both
+   alert types. **If your flow already has `Repeat Nurse Call` in this field, update it now** —
+   otherwise Overdue Nurse Call alerts will never reach the sheet at all.
 4. Add a **Google Sheets → Insert row** action: File `nurse-call-inbox`, Worksheet `Sheet1`,
    mapping `Timestamp` → *Received Time*, `Subject` → *Subject*, `Body` → *Body*.
 5. **Harden it against Google's 429s** — click the "Insert row" action → **Settings** (the
@@ -116,21 +120,30 @@ generate a token with `whatsapp_business_messaging` permission and no expiration
 
 ## How it matches an alert
 
-Same three-step pipeline as `agent/main.py`, just in Apps Script:
+Same three-step pipeline as `agent/main.py`, just in Apps Script, and two alert types are
+recognized — each is one entry in the `RULES` array near the top of `Code.gs`:
 
-1. Each new row's Subject is checked against a regex confirming it really starts with
-   `Repeat Nurse Call` (allowing an `FW:`/`Fwd:` prefix from the forward, but not `RE:` replies).
-2. A handful of regexes pull the ward, room, gap and call time out of the subject and body —
-   the same patterns as `config.yaml`'s `extract:` block, with the same fallback words
-   ("the ward", "a room", "a few minutes") if an alert ever looks different.
-3. The message is sent through the Meta Cloud API's `email_forward` template — the identical
-   API call `agent/whatsapp.py`'s `CloudApiSender` makes.
+- **Repeat Nurse Call** — the same room's call button was pressed again before the first call
+  was answered. Subject like `Repeat Nurse Call - WARD 8 NURSE STATION & PHYSIO / 011: Room 806
+  (called again after 6 min)`; ward/room/gap are pulled from the subject, call type/time from
+  the body table.
+- **Overdue Nurse Call** — a call has gone unanswered past the response-time threshold at all,
+  whether or not it was ever repeated. Subject like `Overdue Nurse Call - EMERGENCY / 009: BED
+  09 (10m 15s)`; ward/room/waiting time are all pulled from the body's Ward/Address/Waiting
+  table rows instead, since this subject format doesn't have a clean delimiter to split on.
+
+For either type: a regex on the Subject confirms which rule applies (allowing an `FW:`/`Fwd:`
+prefix from a forward, but not `RE:` replies), that rule's own regexes pull the relevant fields
+out of the subject+body — with fallback words ("the ward", "a room", "a few minutes", "a while")
+if an alert ever looks different — and the message is sent through the Meta Cloud API's
+`email_forward` template, the identical API call `agent/whatsapp.py`'s `CloudApiSender` makes.
 
 Rows are never re-processed: a `LAST_ROW` Script Property tracks the last sheet row already
 handled, and only rows after it are read on each run.
 
 ## Editing the wording
 
-The message text is the `renderTemplate_` function's `template` string, near the middle of
+Each rule's message text is its `template` function in the `RULES` array near the top of
 `Code.gs`. Edit it directly in the Apps Script editor (or here, then paste the new version in) —
-no deploy step, changes take effect on the very next trigger run.
+no deploy step, changes take effect on the very next trigger run. Add a new alert type by adding
+another entry to `RULES` with its own `match` regex, `extract` function, and `template` function.
