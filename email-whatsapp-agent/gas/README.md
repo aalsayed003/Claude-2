@@ -93,11 +93,16 @@ shape the field-extraction regexes expect, verified against a real captured aler
    |---|---|
    | `WA_PHONE_NUMBER_ID` | `993751480485795` |
    | `WA_ACCESS_TOKEN` | your Meta access token (see note below) |
-   | `NURSE_CALL_WHATSAPP` | `+97333592461` |
+   | `NURSE_CALL_WHATSAPP` | `+97333592461` — or several, comma-separated: `+97333592461,+97333000000` |
    | `SHEET_URL` | the `nurse-call-inbox` sheet's full URL (copy from the browser address bar) |
 
    `SHEET_NAME`, `TEMPLATE_NAME`, `TEMPLATE_LANGUAGE` and `GRAPH_API_VERSION` all have sensible
    defaults baked into `Code.gs` — only add them if you want to override one.
+
+   If your WhatsApp number is still in Meta's test mode (not yet approved for general sending),
+   **every** number in `NURSE_CALL_WHATSAPP` needs to be added and OTP-verified individually
+   under WhatsApp API Setup → **Manage phone number list** first, or sends to the unverified
+   ones will fail with error 131030 ("Recipient phone number not in allowed list").
 3. Pick **sendTestMessage** from the function dropdown and click **Run** once, to trigger the
    authorization prompt (click through **Advanced** → **Go to nurse-call-agent (unsafe)** if
    Google shows the "unverified app" warning — normal for a script only you use) and confirm the

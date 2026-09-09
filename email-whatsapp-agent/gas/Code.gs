@@ -15,7 +15,8 @@
  * Config lives in Script Properties (Project Settings -> Script Properties), never in code:
  *   WA_PHONE_NUMBER_ID   Meta Cloud API phone number ID
  *   WA_ACCESS_TOKEN      Meta Cloud API access token
- *   NURSE_CALL_WHATSAPP  recipient in international format, e.g. +97333592461
+ *   NURSE_CALL_WHATSAPP  one or more recipients in international format, comma-separated,
+ *                        e.g. +97333592461,+97333000000
  *   SHEET_URL            full URL of the Google Sheet the Power Automate flow writes to
  *   SHEET_NAME           default "Sheet1"
  *   TEMPLATE_NAME        default "email_forward"
@@ -79,7 +80,7 @@ var RULES = [
 
 function checkNurseCalls() {
   var props = PropertiesService.getScriptProperties();
-  var recipient = normalizePhone_(requireProp_(props, 'NURSE_CALL_WHATSAPP'));
+  var recipients = getRecipients_(props);
   var sheetName = props.getProperty('SHEET_NAME') || 'Sheet1';
   var ss = SpreadsheetApp.openByUrl(requireProp_(props, 'SHEET_URL'));
   var sheet = ss.getSheetByName(sheetName);
@@ -109,7 +110,7 @@ function checkNurseCalls() {
       if (!isDuplicate_(props, dedupeKey)) {
         var haystack = subject + '\n' + htmlToText_(bodyRaw);
         var text = rule.template(rule.extract(haystack));
-        if (!sendWhatsAppTemplate_(props, recipient, text)) {
+        if (!sendWhatsAppToAll_(props, recipients, text)) {
           break; // stop here so this row (and any after it) is retried on the next run
         }
         markSeen_(props, dedupeKey);
@@ -128,6 +129,25 @@ function requireProp_(props, name) {
 
 function normalizePhone_(raw) {
   return raw.replace(/\D/g, '');
+}
+
+function getRecipients_(props) {
+  return requireProp_(props, 'NURSE_CALL_WHATSAPP')
+    .split(',')
+    .map(function (s) { return normalizePhone_(s.trim()); })
+    .filter(function (s) { return s.length > 0; });
+}
+
+/** Sends to every recipient; returns true only if all sends succeeded (so a failure retries
+ * the whole row next run rather than silently skipping the recipients who didn't get it).
+ * Tradeoff: if one recipient fails and others succeeded, the succeeded ones get a duplicate
+ * on retry - preferred over any recipient silently missing a nurse-call alert. */
+function sendWhatsAppToAll_(props, recipients, text) {
+  var allOk = true;
+  for (var i = 0; i < recipients.length; i++) {
+    if (!sendWhatsAppTemplate_(props, recipients[i], text)) allOk = false;
+  }
+  return allOk;
 }
 
 function isDuplicate_(props, key) {
@@ -227,7 +247,7 @@ function sendWhatsAppTemplate_(props, toDigits, bodyText) {
 /** Run this manually once to send a test message and trigger the OAuth consent prompt. */
 function sendTestMessage() {
   var props = PropertiesService.getScriptProperties();
-  var recipient = normalizePhone_(requireProp_(props, 'NURSE_CALL_WHATSAPP'));
-  var ok = sendWhatsAppTemplate_(props, recipient, 'Test message from the nurse-call Apps Script.');
-  Logger.log(ok ? 'Test message sent.' : 'Test message failed - see log above.');
+  var recipients = getRecipients_(props);
+  var ok = sendWhatsAppToAll_(props, recipients, 'Test message from the nurse-call Apps Script.');
+  Logger.log(ok ? 'Test message sent to all recipients.' : 'Test message failed for at least one recipient - see log above.');
 }
