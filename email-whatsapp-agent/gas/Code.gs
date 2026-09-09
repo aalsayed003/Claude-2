@@ -15,8 +15,9 @@
  * Config lives in Script Properties (Project Settings -> Script Properties), never in code:
  *   WA_PHONE_NUMBER_ID   Meta Cloud API phone number ID
  *   WA_ACCESS_TOKEN      Meta Cloud API access token
- *   NURSE_CALL_WHATSAPP  one or more recipients in international format, comma-separated,
- *                        e.g. +97333592461,+97333000000
+ *   NURSE_CALL_WHATSAPP  one or more recipients in international format, separated by a comma,
+ *                        semicolon, or newline (any of the three works), e.g.
+ *                        +97333592461,+97333000000
  *   SHEET_URL            full URL of the Google Sheet the Power Automate flow writes to
  *   SHEET_NAME           default "Sheet1"
  *   TEMPLATE_NAME        default "email_forward"
@@ -133,7 +134,7 @@ function normalizePhone_(raw) {
 
 function getRecipients_(props) {
   return requireProp_(props, 'NURSE_CALL_WHATSAPP')
-    .split(',')
+    .split(/[,;\n]+/) // tolerate commas, semicolons, or newlines between numbers
     .map(function (s) { return normalizePhone_(s.trim()); })
     .filter(function (s) { return s.length > 0; });
 }
