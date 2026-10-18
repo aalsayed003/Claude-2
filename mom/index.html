@@ -1,0 +1,743 @@
+<title>Minutes Desk</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600;8..60,700&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: register sidebar | rough-notes pad | typed minutes sheet — stacks to tabs on phones */
+:root {
+  --bg: #eef1f4;
+  --panel: #ffffff;
+  --sunk: #f5f7f9;
+  --ink: #17212b;
+  --muted: #5d6b78;
+  --line: #d6dde4;
+  --accent: #1d5c86;
+  --accent-ink: #ffffff;
+  --accent-soft: #e2edf5;
+  --paper: #ffffff;
+  --paper-ink: #1b1f23;
+  --warn-bg: #fdf3dc;
+  --warn-ink: #7a5300;
+  --ok: #2c7a4b;
+  --danger: #b3261e;
+  --shadow: 0 1px 2px rgba(20,35,50,.06), 0 8px 24px rgba(20,35,50,.06);
+  --f-ui: "Instrument Sans", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --f-doc: "Source Serif 4", Georgia, "Times New Roman", serif;
+  --f-mono: "JetBrains Mono", ui-monospace, Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #11171d; --panel: #18212a; --sunk: #141b22; --ink: #e3e9ef; --muted: #93a2b0; --line: #2a3742;
+  --accent: #6fb0dc; --accent-ink: #0c1a24; --accent-soft: #1d3344; --paper: #1d262f; --paper-ink: #e6eaee;
+  --warn-bg: #3a2e12; --warn-ink: #f2cf7c; --ok: #6cc591; --danger: #f08b84;
+  --shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px rgba(0,0,0,.25); color-scheme: dark;
+} }
+:root[data-theme="dark"] {
+  --bg: #11171d; --panel: #18212a; --sunk: #141b22; --ink: #e3e9ef; --muted: #93a2b0; --line: #2a3742;
+  --accent: #6fb0dc; --accent-ink: #0c1a24; --accent-soft: #1d3344; --paper: #1d262f; --paper-ink: #e6eaee;
+  --warn-bg: #3a2e12; --warn-ink: #f2cf7c; --ok: #6cc591; --danger: #f08b84;
+  --shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px rgba(0,0,0,.25); color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body { background: var(--bg); color: var(--ink); font-family: var(--f-ui); font-size: 14px; line-height: 1.5; }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--panel); }
+button, input, select, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.app { display: grid; grid-template-rows: auto 1fr; height: 100%; }
+.top {
+  position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5;
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  background: var(--panel); border-bottom: 1px solid var(--line);
+  padding-block: 10px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.brand { display: flex; align-items: baseline; gap: 10px; margin-right: auto; }
+.brand b { font-family: var(--f-doc); font-size: 20px; font-weight: 700; letter-spacing: -.01em; }
+.brand span { color: var(--muted); font-size: 12px; }
+.status { font-family: var(--f-mono); font-size: 11px; color: var(--muted); }
+
+.btn { border: 1px solid var(--line); background: var(--panel); border-radius: 7px; padding: 7px 12px; font-weight: 500; display: inline-flex; align-items: center; gap: 6px; }
+.btn:hover { border-color: var(--accent); }
+.btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 600; }
+.btn.primary:hover { filter: brightness(1.08); }
+.btn.ghost { border-color: transparent; background: transparent; color: var(--muted); }
+.btn.ghost:hover { color: var(--ink); }
+.btn:disabled { opacity: .55; cursor: not-allowed; }
+.btn.danger { color: var(--danger); }
+
+.main {
+  display: grid; grid-template-columns: 250px minmax(0, 1fr) minmax(0, 1.15fr); gap: 16px; min-height: 0;
+  padding-block: 16px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.pane { min-width: 0; min-height: 0; display: flex; flex-direction: column; gap: 12px; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; }
+.scroll { overflow: auto; min-height: 0; }
+
+.label { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); font-weight: 600; }
+
+/* Register (sidebar) */
+.register { padding: 12px; display: flex; flex-direction: column; gap: 10px; flex: 1; min-height: 0; }
+.register .head { display: flex; align-items: center; justify-content: space-between; }
+.search { width: 100%; border: 1px solid var(--line); background: var(--sunk); border-radius: 7px; padding: 7px 10px; }
+.list { display: flex; flex-direction: column; gap: 2px; }
+.item { text-align: left; border: 0; background: transparent; border-radius: 7px; padding: 8px 10px; display: grid; gap: 2px; width: 100%; }
+.item:hover { background: var(--sunk); }
+.item.on { background: var(--accent-soft); }
+.item .t { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.item .m { font-family: var(--f-mono); font-size: 11px; color: var(--muted); display: flex; gap: 8px; }
+.pill { font-family: var(--f-ui); font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; padding: 0 6px; border-radius: 99px; border: 1px solid var(--line); }
+.pill.done { color: var(--ok); border-color: currentColor; }
+.empty { color: var(--muted); padding: 10px; font-size: 13px; }
+
+/* Notes pad */
+.notes { padding: 14px; display: flex; flex-direction: column; gap: 12px; flex: 1; min-height: 0; }
+.fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.fields .wide { grid-column: 1 / -1; }
+.field { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.field input, .field select, .field textarea { border: 1px solid var(--line); background: var(--sunk); border-radius: 7px; padding: 7px 10px; width: 100%; }
+.field input:focus, .field select:focus, .field textarea:focus { border-color: var(--accent); outline: none; background: var(--panel); }
+details.meta summary { cursor: pointer; color: var(--muted); font-size: 12px; font-weight: 600; padding: 2px 0; }
+details.meta[open] summary { margin-bottom: 10px; }
+#notes { flex: 1; min-height: 260px; resize: vertical; font-family: var(--f-mono); font-size: 13px; line-height: 1.65;
+  background: var(--sunk) repeating-linear-gradient(transparent 0 calc(1.65em * 1 - 1px), var(--line) calc(1.65em - 1px) 1.65em);
+  background-attachment: local; background-position: 0 10px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 7px; }
+#notes:focus { outline: none; border-color: var(--accent); }
+.gen { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.gen .hint { color: var(--muted); font-size: 12px; flex: 1; min-width: 160px; }
+
+/* Minutes sheet */
+.sheet-bar { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+.sheet-bar .grow { flex: 1; }
+.sheet-wrap { flex: 1; min-height: 0; overflow: auto; border-radius: 10px; }
+.sheet { background: var(--paper); color: var(--paper-ink); border: 1px solid var(--line); border-radius: 10px; box-shadow: var(--shadow);
+  padding: 36px 40px; font-family: var(--f-doc); font-size: 15px; line-height: 1.55; max-width: 820px; margin: 0 auto; }
+.sheet[contenteditable="true"] { outline: 2px dashed var(--accent); outline-offset: -6px; }
+.sheet .org { font-family: var(--f-ui); font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); }
+.sheet h1 { font-size: 13px; font-family: var(--f-ui); letter-spacing: .18em; text-transform: uppercase; margin: 4px 0 2px; color: var(--accent); }
+.sheet h2 { font-size: 24px; margin: 0 0 16px; line-height: 1.2; text-wrap: balance; }
+.sheet h3 { font-size: 16px; margin: 22px 0 6px; border-bottom: 1px solid var(--line); padding-bottom: 4px; }
+.sheet h4 { font-size: 15px; margin: 14px 0 4px; }
+.sheet table { border-collapse: collapse; width: 100%; font-size: 14px; }
+.sheet .metatab td { padding: 3px 12px 3px 0; vertical-align: top; }
+.sheet .metatab td:first-child { font-family: var(--f-ui); font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); white-space: nowrap; width: 1%; padding-top: 5px; }
+.sheet ul { margin: 4px 0; padding-left: 22px; }
+.sheet li { margin: 2px 0; }
+.sheet .decision { margin: 6px 0 0; padding: 6px 10px; border-left: 3px solid var(--accent); background: var(--accent-soft); }
+.sheet .decision b { font-family: var(--f-ui); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--accent); }
+.sheet .actions th, .sheet .actions td { border: 1px solid var(--line); padding: 6px 8px; text-align: left; vertical-align: top; }
+.sheet .actions th { font-family: var(--f-ui); font-size: 11px; letter-spacing: .06em; text-transform: uppercase; background: var(--sunk); }
+.sheet .actions td.n { font-variant-numeric: tabular-nums; width: 1%; }
+.sheet .tbc { color: var(--danger); font-style: italic; }
+.sheet .sign { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-top: 32px; font-size: 13px; }
+.sheet .sign div { border-top: 1px solid var(--paper-ink); padding-top: 4px; }
+.table-x { overflow-x: auto; }
+.example-tag { display: inline-block; font-family: var(--f-ui); font-size: 11px; font-weight: 600; background: var(--warn-bg); color: var(--warn-ink); border-radius: 99px; padding: 1px 8px; margin-bottom: 10px; }
+
+.confirm { background: var(--warn-bg); color: var(--warn-ink); border-radius: 10px; padding: 10px 14px; font-size: 13px; }
+.confirm ul { margin: 4px 0 0; padding-left: 18px; }
+.refine { display: flex; gap: 8px; padding: 10px; }
+.refine input { flex: 1; min-width: 0; border: 1px solid var(--line); background: var(--sunk); border-radius: 7px; padding: 7px 10px; }
+.placeholder { color: var(--muted); text-align: center; padding: 60px 20px; font-family: var(--f-ui); }
+.placeholder b { display: block; color: var(--ink); font-family: var(--f-doc); font-size: 18px; margin-bottom: 6px; }
+
+.working { display: flex; align-items: center; gap: 10px; font-family: var(--f-mono); font-size: 12px; color: var(--muted); padding: 8px 2px; }
+.dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); animation: pulse 1s ease-in-out infinite; }
+@keyframes pulse { 50% { opacity: .25; } }
+@media (prefers-reduced-motion: reduce) { .dot { animation: none; } }
+
+.toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(18px + env(safe-area-inset-bottom, 0px)); background: var(--ink); color: var(--bg); padding: 8px 14px; border-radius: 8px; font-size: 13px; z-index: 20; max-width: calc(100% - 32px); }
+.modal-bg { position: fixed; inset: 0; background: rgba(10,20,30,.45); display: grid; place-items: center; z-index: 30; padding: 16px; }
+.modal { background: var(--panel); border-radius: 12px; padding: 18px; width: min(440px, 100%); display: grid; gap: 12px; box-shadow: var(--shadow); }
+.modal h3 { margin: 0; font-family: var(--f-doc); }
+.modal p { margin: 0; color: var(--muted); font-size: 13px; }
+.row { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; }
+
+.tabs { display: none; }
+@media (max-width: 1080px) {
+  .main { grid-template-columns: 220px minmax(0, 1fr); }
+  .pane.sheetpane { grid-column: 1 / -1; }
+}
+@media (max-width: 720px) {
+  .app { height: auto; }
+  .main { grid-template-columns: minmax(0, 1fr); }
+  .tabs { display: flex; gap: 4px; background: var(--sunk); border: 1px solid var(--line); border-radius: 8px; padding: 3px; }
+  .tabs button { flex: 1; border: 0; background: transparent; border-radius: 6px; padding: 6px; font-weight: 600; color: var(--muted); }
+  .tabs button.on { background: var(--panel); color: var(--ink); box-shadow: var(--shadow); }
+  .main[data-tab="notes"] .sheetpane, .main[data-tab="notes"] .regpane,
+  .main[data-tab="mom"] .notespane, .main[data-tab="mom"] .regpane,
+  .main[data-tab="list"] .notespane, .main[data-tab="list"] .sheetpane { display: none; }
+  .fields { grid-template-columns: minmax(0, 1fr); }
+  .sheet { padding: 22px 18px; font-size: 14.5px; }
+  .sheet .sign { grid-template-columns: 1fr; }
+  .brand span { display: none; }
+}
+</style>
+
+<div class="app">
+  <header class="top">
+    <div class="brand"><b>Minutes Desk</b><span>Rough notes in, minutes of meeting out</span></div>
+    <span class="status" id="saveState"></span>
+    <button class="btn" id="newBtn" type="button">+ New meeting</button>
+  </header>
+
+  <main class="main" id="main" data-tab="notes">
+    <div class="tabs" style="grid-column:1/-1">
+      <button type="button" data-tab="list">Meetings</button>
+      <button type="button" data-tab="notes" class="on">Notes</button>
+      <button type="button" data-tab="mom">Minutes</button>
+    </div>
+
+    <section class="pane regpane">
+      <div class="card register">
+        <div class="head"><span class="label">Meetings</span><span class="status" id="count"></span></div>
+        <input class="search" id="search" type="search" placeholder="Search meetings">
+        <div class="list scroll" id="list"></div>
+      </div>
+    </section>
+
+    <section class="pane notespane">
+      <div class="card notes">
+        <div class="fields">
+          <label class="field wide"><span class="label">Meeting title</span><input id="f-title" placeholder="e.g. Weekly operations review"></label>
+          <label class="field"><span class="label">Date</span><input id="f-date" type="date"></label>
+          <label class="field"><span class="label">Time</span><input id="f-time" placeholder="10:00 – 11:15"></label>
+        </div>
+        <details class="meta" id="metaBox">
+          <summary>Venue, attendees and style</summary>
+          <div class="fields">
+            <label class="field"><span class="label">Organisation</span><input id="f-org" placeholder="Shown at the top of the minutes"></label>
+            <label class="field"><span class="label">Venue</span><input id="f-venue" placeholder="Boardroom / Teams"></label>
+            <label class="field"><span class="label">Chaired by</span><input id="f-chair"></label>
+            <label class="field"><span class="label">Minutes by</span><input id="f-taker"></label>
+            <label class="field wide"><span class="label">Attendees</span><input id="f-attendees" placeholder="Comma-separated, with roles if you like"></label>
+            <label class="field wide"><span class="label">Apologies / absent</span><input id="f-apologies"></label>
+            <label class="field"><span class="label">Style</span>
+              <select id="f-tone">
+                <option value="formal">Formal (board / committee)</option>
+                <option value="standard">Standard business</option>
+                <option value="concise">Concise (bullets only)</option>
+              </select></label>
+            <label class="field"><span class="label">Language</span>
+              <select id="f-lang">
+                <option value="English">English</option>
+                <option value="Arabic">Arabic</option>
+                <option value="same as the notes">Same as the notes</option>
+              </select></label>
+          </div>
+        </details>
+        <label class="field" style="flex:1;min-height:0">
+          <span class="label">Rough notes</span>
+          <textarea id="notes" spellcheck="true" placeholder="Type or paste anything: shorthand, half sentences, names, numbers. e.g.&#10;- budget: AK says over by 8%, cut travel&#10;- new HIS go-live push to Jan? IT to confirm by 30th&#10;- action: SM send revised roster Thu"></textarea>
+        </label>
+        <div class="gen">
+          <button class="btn primary" id="genBtn" type="button">Prepare minutes</button>
+          <span class="hint" id="genHint">Claude tidies the notes into formal minutes: agenda items, decisions and an action table. Nothing is made up; gaps are marked TBC.</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="pane sheetpane">
+      <div class="sheet-bar">
+        <button class="btn" id="editBtn" type="button">Edit text</button>
+        <span class="grow"></span>
+        <button class="btn" id="copyBtn" type="button">Copy</button>
+        <button class="btn" id="copyMailBtn" type="button">Copy for email</button>
+        <button class="btn" id="docBtn" type="button">Word</button>
+        <button class="btn" id="mdBtn" type="button">Markdown</button>
+        <button class="btn ghost danger" id="delBtn" type="button">Delete</button>
+      </div>
+      <div id="working" class="working" hidden><span class="dot"></span><span id="workingText">Drafting minutes…</span></div>
+      <div id="confirm" class="confirm" hidden></div>
+      <div class="sheet-wrap"><article class="sheet" id="sheet"></article></div>
+      <form class="card refine" id="refineForm">
+        <input id="refine" placeholder="Ask for changes: “make it shorter”, “add Dr. Hassan as attendee”, “translate to Arabic”">
+        <button class="btn" id="refineBtn" type="submit">Apply</button>
+      </form>
+    </section>
+  </main>
+</div>
+
+<div id="modalHost"></div>
+<div id="toast" class="toast" hidden></div>
+
+<script>
+(() => {
+  "use strict";
+  const $ = (s) => document.querySelector(s);
+  const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+  const today = () => new Date().toISOString().slice(0, 10);
+  const lsGet = (k, d) => { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch { return d; } };
+  const lsSet = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} };
+
+  // ---------- example shown until the first meeting is saved ----------
+  const EXAMPLE = {
+    id: "example", example: true, title: "Weekly operations review", date: "2026-10-14", time: "09:00 – 10:10",
+    org: "Example Organisation", venue: "Boardroom, 3rd floor", chair: "Chief Operating Officer", taker: "Executive Assistant",
+    attendees: "COO, Finance Manager, IT Manager, Nursing Director, HR Manager", apologies: "Quality Manager",
+    tone: "formal", lang: "English",
+    notes: "- last week mins ok, approved\n- finance: opex over budget 8% sept, mostly agency staff + overtime. FM to share breakdown by dept by fri\n- agreed freeze on new agency bookings w/o COO sign off\n- IT: new booking system go live maybe jan instead of nov, vendor delay. ITM confirm date by 30th\n- nursing: 2 new hires start 1 nov, roster gap on night shift still. ND + HR look at incentive\n- HR: appraisal cycle opens 1st, reminder email to managers\n- next mtg same time next wed",
+    mom: {
+      summary: "The committee reviewed September financial performance, the booking-system timeline, nurse staffing and the upcoming appraisal cycle. A freeze on new agency bookings was agreed.",
+      agenda: [
+        { item: "Approval of previous minutes", discussion: ["The minutes of the previous meeting were reviewed."], decisions: ["The minutes were approved as a true record."] },
+        { item: "Financial performance – September", discussion: ["Operating expenditure was 8% over budget for September.", "The overrun is mainly attributed to agency staffing and overtime."], decisions: ["No new agency bookings may be made without COO approval, effective immediately."] },
+        { item: "Booking system implementation", discussion: ["Due to a vendor delay, go-live may move from November to January."], decisions: [] },
+        { item: "Nurse staffing", discussion: ["Two new nurses join on 1 November.", "A gap remains on the night-shift roster."], decisions: [] },
+        { item: "Appraisal cycle", discussion: ["The appraisal cycle opens on 1 November."], decisions: [] }
+      ],
+      actions: [
+        { action: "Share a department-level breakdown of the September opex overrun", owner: "Finance Manager", due: "17 Oct 2026" },
+        { action: "Confirm the revised booking-system go-live date with the vendor", owner: "IT Manager", due: "30 Oct 2026" },
+        { action: "Propose an incentive to fill night-shift roster gaps", owner: "Nursing Director / HR Manager", due: "TBC" },
+        { action: "Send appraisal-cycle reminder to all managers", owner: "HR Manager", due: "Before 1 Nov 2026" }
+      ],
+      nextMeeting: "Wednesday 21 October 2026, 09:00, Boardroom",
+      toConfirm: ["Due date for the night-shift incentive proposal was not stated."]
+    }
+  };
+
+  // ---------- state ----------
+  let meetings = [];          // saved meetings (newest first)
+  let current = null;         // the meeting open in the editor
+  let store = null;           // { save(m), remove(id), subscribe(cb) }
+  let ai = null;              // { json(prompt, onProgress) }
+  let editing = false;
+  let busy = false;
+
+  // ---------- storage: claude.ai private db, else this browser ----------
+  async function initStore() {
+    const c = window.claude;
+    if (c && c.use) {
+      try {
+        const [db, user] = await Promise.all([c.use("db"), c.use("user")]);
+        if (db && user) {
+          const me = await user.id();
+          const col = db.collection("data/users/" + me);
+          return {
+            kind: "cloud",
+            save: (m) => col.doc(m.id).set(strip(m)),
+            remove: (id) => col.doc(id).delete(),
+            subscribe: (cb) => col.orderBy("updatedAt", "desc").onSnapshot(
+              (snap) => cb(snap.docs.map((d) => ({ ...d.data(), id: d.id }))),
+              () => setSave("Sync stopped. Reload to reconnect.")
+            )
+          };
+        }
+      } catch {}
+    }
+    return {
+      kind: "local",
+      save: async (m) => { const all = lsGet("md.meetings", []).filter((x) => x.id !== m.id); all.unshift(strip(m)); lsSet("md.meetings", all); emitLocal(); },
+      remove: async (id) => { lsSet("md.meetings", lsGet("md.meetings", []).filter((x) => x.id !== id)); emitLocal(); },
+      subscribe: (cb) => { localCb = cb; emitLocal(); return () => {}; }
+    };
+  }
+  let localCb = null;
+  const emitLocal = () => localCb && localCb(lsGet("md.meetings", []).sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0)));
+  const strip = (m) => { const o = { ...m }; delete o.example; return JSON.parse(JSON.stringify(o)); };
+
+  // ---------- AI: claude.ai sample, else Anthropic API key ----------
+  async function initAI() {
+    const c = window.claude;
+    if (c && c.use) {
+      const sample = await c.use("sample");
+      if (sample) return { kind: "claude", json: (p, onP) => sample.json(p, { modelTier: "complex", onText: ({ text }) => onP && onP(text.length) }) };
+    }
+    return {
+      kind: "api",
+      json: async (p, onP) => {
+        let key = lsGet("md.apikey", "");
+        if (!key) key = await askKey();
+        if (!key) throw { code: "no_key", message: "An Anthropic API key is needed when this page runs outside claude.ai." };
+        const res = await fetch("https://api.anthropic.com/v1/messages", {
+          method: "POST",
+          headers: { "content-type": "application/json", "x-api-key": key, "anthropic-version": "2023-06-01", "anthropic-dangerous-direct-browser-access": "true" },
+          body: JSON.stringify({ model: "claude-sonnet-5-5", max_tokens: 8000, messages: [{ role: "user", content: p }] })
+        });
+        if (!res.ok) { if (res.status === 401) lsSet("md.apikey", ""); throw { code: "http_" + res.status, message: (await res.text()).slice(0, 300) }; }
+        const data = await res.json();
+        const text = (data.content || []).map((b) => b.text || "").join("");
+        onP && onP(text.length);
+        return parseJSON(text);
+      }
+    };
+  }
+  function parseJSON(t) {
+    const s = t.indexOf("{"), e = t.lastIndexOf("}");
+    return JSON.parse(t.slice(s, e + 1));
+  }
+
+  const SCHEMA = `{
+  "title": string,                       // clean meeting title
+  "summary": string,                     // 1–3 sentence overview
+  "attendees": string[] | null,          // only if the notes add or correct names
+  "apologies": string[] | null,
+  "agenda": [ { "item": string, "discussion": string[], "decisions": string[] } ],
+  "actions": [ { "action": string, "owner": string, "due": string } ],
+  "nextMeeting": string | null,
+  "toConfirm": string[]                  // gaps or ambiguities the minute-taker should check
+}`;
+
+  function header(m) {
+    return [
+      `Meeting title: ${m.title || "(not given)"}`,
+      `Organisation: ${m.org || "-"}`,
+      `Date: ${m.date || "-"}  Time: ${m.time || "-"}  Venue: ${m.venue || "-"}`,
+      `Chair: ${m.chair || "-"}  Minutes by: ${m.taker || "-"}`,
+      `Attendees: ${m.attendees || "-"}`,
+      `Apologies: ${m.apologies || "-"}`
+    ].join("\n");
+  }
+  const TONES = {
+    formal: "Formal board/committee register: third person, past tense (\"The committee noted…\", \"It was resolved that…\").",
+    standard: "Clear professional business English, past tense, neutral.",
+    concise: "Very concise: short bullet fragments, no filler, keep every fact."
+  };
+  function draftPrompt(m) {
+    return `You are an experienced company secretary. Turn the rough meeting notes below into proper Minutes of Meeting (MOM).
+
+Rules:
+- Use ONLY facts in the notes and details. Never invent names, numbers, dates or decisions.
+- Expand shorthand and initials only when the meaning is clear from context; otherwise keep them as written.
+- Group points into logical agenda items in the order discussed. Fix grammar and spelling.
+- Separate discussion points from decisions/resolutions. A decision is something agreed, approved or resolved.
+- Every task, follow-up or "X to do Y" becomes an action item. If the owner or due date is missing, use "TBC".
+- Convert relative dates ("Thu", "next week", "by 30th") to actual dates using the meeting date ${m.date || "(unknown)"}; if unsure keep the original wording.
+- Style: ${TONES[m.tone] || TONES.formal}
+- Write the minutes in ${m.lang || "English"}.
+- List anything unclear, contradictory or missing in "toConfirm".
+
+Return ONLY a JSON object, no prose, matching:
+${SCHEMA}
+
+MEETING DETAILS
+${header(m)}
+
+ROUGH NOTES
+"""
+${m.notes}
+"""`;
+  }
+  function refinePrompt(m, ask) {
+    return `You are an experienced company secretary editing draft Minutes of Meeting.
+Apply this change request: "${ask}"
+Keep everything else as it is. Do not invent facts beyond the request, the notes and the details.
+Style: ${TONES[m.tone] || TONES.formal} Language: ${m.lang || "English"} unless the request says otherwise.
+
+Return ONLY the full updated JSON object, matching:
+${SCHEMA}
+
+MEETING DETAILS
+${header(m)}
+
+ROUGH NOTES (source)
+"""
+${m.notes}
+"""
+
+CURRENT MINUTES (JSON)
+${JSON.stringify({ title: m.title, ...m.mom })}`;
+  }
+
+  // ---------- rendering the minutes ----------
+  const tbc = (s) => (!s || /^tbc$/i.test(String(s).trim())) ? `<span class="tbc">TBC</span>` : esc(s);
+  const splitList = (s) => String(s || "").split(/[,;\n]/).map((x) => x.trim()).filter(Boolean);
+  const fmtDate = (d) => { if (!d) return ""; const t = new Date(d + "T00:00:00"); return isNaN(t) ? d : t.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" }); };
+
+  function momHTML(m) {
+    const o = m.mom || {};
+    const att = (o.attendees && o.attendees.length ? o.attendees : splitList(m.attendees));
+    const apo = (o.apologies && o.apologies.length ? o.apologies : splitList(m.apologies));
+    const rtl = /arab/i.test(m.lang || "") ? ' dir="rtl"' : "";
+    const rows = [
+      ["Date", fmtDate(m.date)], ["Time", m.time], ["Venue", m.venue], ["Chaired by", m.chair], ["Minutes by", m.taker],
+      ["Present", att.join(", ")], ["Apologies", apo.join(", ")]
+    ].filter((r) => r[1]);
+    let h = `<div${rtl}>`;
+    if (m.org) h += `<div class="org">${esc(m.org)}</div>`;
+    h += `<h1>Minutes of Meeting</h1><h2>${esc(m.title || o.title || "Untitled meeting")}</h2>`;
+    if (rows.length) h += `<table class="metatab">${rows.map((r) => `<tr><td>${esc(r[0])}</td><td>${esc(r[1])}</td></tr>`).join("")}</table>`;
+    if (o.summary) h += `<h3>Summary</h3><p>${esc(o.summary)}</p>`;
+    (o.agenda || []).forEach((a, i) => {
+      h += `<h3>${i + 1}. ${esc(a.item)}</h3>`;
+      if (a.discussion && a.discussion.length) h += `<ul>${a.discussion.map((d) => `<li>${esc(d)}</li>`).join("")}</ul>`;
+      (a.decisions || []).forEach((d) => { h += `<p class="decision"><b>Decision</b><br>${esc(d)}</p>`; });
+    });
+    if (o.actions && o.actions.length) {
+      h += `<h3>Action items</h3><div class="table-x"><table class="actions"><thead><tr><th>#</th><th>Action</th><th>Owner</th><th>Due</th></tr></thead><tbody>`;
+      h += o.actions.map((a, i) => `<tr><td class="n">${i + 1}</td><td>${esc(a.action)}</td><td>${tbc(a.owner)}</td><td>${tbc(a.due)}</td></tr>`).join("");
+      h += `</tbody></table></div>`;
+    }
+    if (o.nextMeeting) h += `<h3>Next meeting</h3><p>${esc(o.nextMeeting)}</p>`;
+    h += `<div class="sign"><div>Prepared by: ${esc(m.taker || "")}</div><div>Approved by (Chair): ${esc(m.chair || "")}</div></div></div>`;
+    return h;
+  }
+
+  function renderSheet() {
+    const sheet = $("#sheet");
+    const m = current;
+    const conf = $("#confirm");
+    if (!m || !m.mom) {
+      sheet.innerHTML = `<div class="placeholder"><b>Your minutes will appear here</b>Write rough notes on the left, then choose <em>Prepare minutes</em>.</div>`;
+      conf.hidden = true;
+    } else {
+      sheet.innerHTML = (m.example ? `<span class="example-tag" contenteditable="false">Example: start a new meeting to write your own</span>` : "") + (m.editedHtml || momHTML(m));
+      const tc = (m.mom.toConfirm || []).filter(Boolean);
+      conf.hidden = !tc.length;
+      conf.innerHTML = tc.length ? `<b>Check before sending</b><ul>${tc.map((t) => `<li>${esc(t)}</li>`).join("")}</ul>` : "";
+    }
+    const has = !!(m && m.mom);
+    ["#copyBtn", "#copyMailBtn", "#docBtn", "#mdBtn", "#editBtn", "#refineBtn"].forEach((s) => $(s).disabled = !has || busy);
+    $("#refine").disabled = !has || busy;
+    $("#delBtn").hidden = !m || m.example || !meetings.some((x) => x.id === m.id);
+    $("#editBtn").textContent = editing ? "Done editing" : "Edit text";
+    sheet.contentEditable = editing ? "true" : "false";
+  }
+
+  function renderList() {
+    const q = $("#search").value.trim().toLowerCase();
+    const list = meetings.filter((m) => !q || [m.title, m.notes, m.attendees].join(" ").toLowerCase().includes(q));
+    $("#count").textContent = meetings.length ? meetings.length : "";
+    const el = $("#list");
+    if (!meetings.length) { el.innerHTML = `<div class="empty">No saved meetings yet. Your meetings are listed here once you start typing notes.</div>`; return; }
+    if (!list.length) { el.innerHTML = `<div class="empty">No meeting matches “${esc(q)}”.</div>`; return; }
+    el.innerHTML = list.map((m) => `<button type="button" class="item${current && current.id === m.id ? " on" : ""}" data-id="${esc(m.id)}">
+      <span class="t">${esc(m.title || "Untitled meeting")}</span>
+      <span class="m"><span>${esc(m.date || "")}</span>${m.mom ? `<span class="pill done">Minutes ready</span>` : `<span class="pill">Notes</span>`}</span></button>`).join("");
+  }
+
+  const FIELDS = ["title", "date", "time", "org", "venue", "chair", "taker", "attendees", "apologies", "tone", "lang"];
+  function loadForm() {
+    const m = current;
+    FIELDS.forEach((f) => { $("#f-" + f).value = m[f] || (f === "tone" ? "formal" : f === "lang" ? "English" : ""); });
+    $("#notes").value = m.notes || "";
+    editing = false;
+    renderSheet(); renderList();
+  }
+
+  // ---------- saving ----------
+  let saveTimer = null;
+  const setSave = (t) => { $("#saveState").textContent = t; };
+  function touch() {
+    if (!current) return;
+    if (current.example) { // typing into the example turns it into the user's own meeting
+      current = { ...current, id: uid(), example: false, createdAt: Date.now() };
+    }
+    FIELDS.forEach((f) => { current[f] = $("#f-" + f).value; });
+    current.notes = $("#notes").value;
+    queueSave();
+  }
+  function queueSave() {
+    current.updatedAt = Date.now();
+    setSave("Saving…");
+    clearTimeout(saveTimer);
+    const snapshot = { ...current };
+    saveTimer = setTimeout(async () => {
+      try { await store.save(snapshot); setSave(store.kind === "cloud" ? "Saved to your account" : "Saved in this browser"); }
+      catch (e) { setSave("Not saved: " + (e && e.message || "storage refused the write")); }
+    }, 700);
+  }
+
+  // ---------- AI actions ----------
+  function setBusy(on, text) {
+    busy = on;
+    $("#working").hidden = !on;
+    if (text) $("#workingText").textContent = text;
+    $("#genBtn").disabled = on;
+    $("#genBtn").textContent = on ? "Working…" : (current && current.mom ? "Redo minutes from notes" : "Prepare minutes");
+    renderSheet();
+  }
+  function aiError(e) {
+    const code = e && e.code;
+    if (code === "not_granted") return "Claude access was not allowed for this page. Allow it from the page's Permissions menu to prepare minutes.";
+    if (code === "rate_limited") return "Too many requests just now. Wait a minute and try again.";
+    if (code === "no_key") return e.message;
+    if (e instanceof SyntaxError) return "Claude's reply could not be read as minutes. Try again.";
+    return "Could not prepare the minutes: " + ((e && e.message) || "unknown error") + ". Try again.";
+  }
+  function applyMom(o) {
+    if (!o || !Array.isArray(o.agenda)) throw new SyntaxError("bad shape");
+    if (o.title && !current.title) { current.title = o.title; $("#f-title").value = o.title; }
+    current.mom = o;
+    current.editedHtml = "";
+    queueSave();
+    renderList();
+  }
+  async function generate() {
+    touch();
+    if (!current.notes.trim()) { toast("Add some rough notes first."); $("#notes").focus(); return; }
+    if (!ai) { toast("Connecting to Claude… try again in a moment."); return; }
+    setBusy(true, "Drafting minutes…");
+    showTab("mom");
+    try {
+      const o = await ai.json(draftPrompt(current), (n) => $("#workingText").textContent = `Drafting minutes… ${n.toLocaleString()} characters`);
+      applyMom(o);
+      toast("Minutes ready. Check the highlighted points before sending.");
+    } catch (e) { toast(aiError(e), 6000); }
+    finally { setBusy(false); }
+  }
+  async function refine(ask) {
+    if (!current || !current.mom || !ask) return;
+    if (current.example) touch();
+    setBusy(true, "Applying your changes…");
+    try {
+      const o = await ai.json(refinePrompt(current, ask), (n) => $("#workingText").textContent = `Applying your changes… ${n.toLocaleString()} characters`);
+      applyMom(o);
+      $("#refine").value = "";
+      toast("Changes applied.");
+    } catch (e) { toast(aiError(e), 6000); }
+    finally { setBusy(false); }
+  }
+
+  // ---------- exports ----------
+  function sheetHTML() { // the document as shown, minus UI-only bits
+    const d = document.createElement("div");
+    d.innerHTML = current.editedHtml || momHTML(current);
+    d.querySelectorAll(".example-tag").forEach((x) => x.remove());
+    return d.innerHTML;
+  }
+  function plainText() {
+    const d = document.createElement("div");
+    d.innerHTML = sheetHTML();
+    d.querySelectorAll("h3").forEach((x) => x.textContent = "\n" + x.textContent.toUpperCase());
+    d.querySelectorAll("li").forEach((x) => x.textContent = "• " + x.textContent);
+    d.querySelectorAll(".decision").forEach((x) => x.textContent = "DECISION: " + x.textContent.replace(/^Decision/i, "").trim());
+    d.querySelectorAll("tr").forEach((tr) => tr.textContent = [...tr.children].map((c) => c.textContent.trim()).join(" | "));
+    d.querySelectorAll("p, h1, h2, h3, li, tr, .org, .sign div").forEach((x) => x.append("\n"));
+    return d.textContent.replace(/\n{3,}/g, "\n\n").trim();
+  }
+  function markdown() {
+    const m = current, o = m.mom;
+    const att = o.attendees && o.attendees.length ? o.attendees : splitList(m.attendees);
+    const apo = o.apologies && o.apologies.length ? o.apologies : splitList(m.apologies);
+    const L = [];
+    if (m.org) L.push(`**${m.org}**`, "");
+    L.push(`# Minutes of Meeting: ${m.title || o.title || "Untitled"}`, "");
+    [["Date", fmtDate(m.date)], ["Time", m.time], ["Venue", m.venue], ["Chaired by", m.chair], ["Minutes by", m.taker], ["Present", att.join(", ")], ["Apologies", apo.join(", ")]]
+      .filter((r) => r[1]).forEach((r) => L.push(`- **${r[0]}:** ${r[1]}`));
+    if (o.summary) L.push("", "## Summary", "", o.summary);
+    (o.agenda || []).forEach((a, i) => {
+      L.push("", `## ${i + 1}. ${a.item}`, "");
+      (a.discussion || []).forEach((d) => L.push(`- ${d}`));
+      (a.decisions || []).forEach((d) => L.push("", `> **Decision:** ${d}`));
+    });
+    if (o.actions && o.actions.length) {
+      L.push("", "## Action items", "", "| # | Action | Owner | Due |", "|---|---|---|---|");
+      o.actions.forEach((a, i) => L.push(`| ${i + 1} | ${a.action} | ${a.owner || "TBC"} | ${a.due || "TBC"} |`));
+    }
+    if (o.nextMeeting) L.push("", "## Next meeting", "", o.nextMeeting);
+    return L.join("\n") + "\n";
+  }
+  const WORD_CSS = `body{font-family:Georgia,serif;font-size:11pt;color:#1b1f23}h1{font-family:Arial;font-size:10pt;letter-spacing:2pt;text-transform:uppercase;color:#1d5c86;margin:0}h2{font-size:18pt;margin:2pt 0 10pt}h3{font-size:12pt;border-bottom:1px solid #ccc;margin:14pt 0 4pt}.org{font-family:Arial;font-size:8pt;letter-spacing:1.5pt;text-transform:uppercase;color:#666}.metatab td{padding:2pt 10pt 2pt 0;vertical-align:top}.metatab td:first-child{font-family:Arial;font-size:8pt;text-transform:uppercase;color:#666}.decision{border-left:3pt solid #1d5c86;background:#e2edf5;padding:4pt 8pt}.decision b{font-family:Arial;font-size:8pt;text-transform:uppercase;color:#1d5c86}table.actions{border-collapse:collapse;width:100%}.actions th,.actions td{border:1px solid #bbb;padding:4pt 6pt;text-align:left;vertical-align:top}.actions th{background:#f0f3f6;font-family:Arial;font-size:8pt;text-transform:uppercase}.tbc{color:#b3261e;font-style:italic}.sign{margin-top:28pt}.sign div{border-top:1px solid #333;padding-top:3pt;margin-top:18pt;width:60%}`;
+  const fileBase = () => ("MOM " + (current.title || "meeting") + " " + (current.date || "")).trim().replace(/[\\/:*?"<>|]+/g, "-");
+  async function save(filename, data, mime) {
+    const c = window.claude;
+    const dl = c && c.use ? await c.use("downloads") : null;
+    if (dl) {
+      try { const r = await dl.save({ filename, data }); if (r === "saved" || (r && r.status === "saved")) toast("Saved " + filename); }
+      catch (e) { if (e && e.code !== "declined") toast("Could not save the file: " + (e.message || e.code)); }
+      return;
+    }
+    if (c) { toast("Downloads aren't available here. Use Copy instead."); return; }
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob([data], { type: mime })); a.download = filename; a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  }
+  async function copy(text, html) {
+    try {
+      if (html && window.ClipboardItem) {
+        await navigator.clipboard.write([new ClipboardItem({ "text/html": new Blob([html], { type: "text/html" }), "text/plain": new Blob([text], { type: "text/plain" }) })]);
+      } else { await navigator.clipboard.writeText(text); }
+      toast(html ? "Copied with formatting. Paste into your email." : "Copied as plain text.");
+    } catch {
+      if (html) { try { await navigator.clipboard.writeText(text); toast("Copied as plain text (formatting not supported here)."); return; } catch {} }
+      const r = document.createRange(); r.selectNodeContents($("#sheet"));
+      const s = getSelection(); s.removeAllRanges(); s.addRange(r);
+      toast("Copy is blocked here. The minutes are selected: press Ctrl/⌘+C.", 5000);
+    }
+  }
+  const emailHTML = () => `<div style="font-family:Georgia,serif;font-size:14px;color:#1b1f23"><style>${WORD_CSS}</style>${sheetHTML()}</div>`;
+
+  // ---------- UI helpers ----------
+  let toastTimer;
+  function toast(msg, ms = 3000) { const t = $("#toast"); t.textContent = msg; t.hidden = false; clearTimeout(toastTimer); toastTimer = setTimeout(() => t.hidden = true, ms); }
+  function modal(html, onMount) {
+    const host = $("#modalHost");
+    host.innerHTML = `<div class="modal-bg"><div class="modal" role="dialog" aria-modal="true">${html}</div></div>`;
+    const close = () => host.innerHTML = "";
+    onMount(host.querySelector(".modal"), close);
+  }
+  function askKey() {
+    return new Promise((resolve) => modal(`<h3>Connect to Claude</h3>
+      <p>Outside claude.ai this page calls the Anthropic API from your browser. Paste an API key; it is kept only in this browser.</p>
+      <label class="field"><span class="label">Anthropic API key</span><input id="keyIn" type="password" placeholder="sk-ant-…" autocomplete="off"></label>
+      <div class="row"><button class="btn" type="button" data-x>Cancel</button><button class="btn primary" type="button" data-ok>Save key</button></div>`,
+      (el, close) => {
+        el.querySelector("[data-x]").onclick = () => { close(); resolve(""); };
+        el.querySelector("[data-ok]").onclick = () => { const k = el.querySelector("#keyIn").value.trim(); lsSet("md.apikey", k); close(); resolve(k); };
+        el.querySelector("#keyIn").focus();
+      }));
+  }
+  function confirmDelete() {
+    modal(`<h3>Delete this meeting?</h3><p>“${esc(current.title || "Untitled meeting")}” and its minutes will be removed. This can't be undone.</p>
+      <div class="row"><button class="btn" type="button" data-x>Keep it</button><button class="btn primary" type="button" data-ok>Delete meeting</button></div>`,
+      (el, close) => {
+        el.querySelector("[data-x]").onclick = close;
+        el.querySelector("[data-ok]").onclick = async () => {
+          close(); const id = current.id; clearTimeout(saveTimer);
+          try { await store.remove(id); toast("Meeting deleted."); } catch (e) { toast("Could not delete: " + (e.message || e.code)); return; }
+          openMeeting(meetings.find((m) => m.id !== id) || null);
+        };
+      });
+  }
+  function blank() { return { id: uid(), title: "", date: today(), time: "", org: lsGet("md.org", ""), venue: "", chair: "", taker: "", attendees: "", apologies: "", tone: "formal", lang: "English", notes: "", mom: null, editedHtml: "", createdAt: Date.now(), updatedAt: Date.now() }; }
+  function openMeeting(m) { current = m ? { ...m } : (meetings.length ? { ...meetings[0] } : { ...EXAMPLE, mom: { ...EXAMPLE.mom } }); loadForm(); setBusy(false); }
+  function showTab(t) {
+    $("#main").dataset.tab = t;
+    document.querySelectorAll(".tabs button").forEach((b) => b.classList.toggle("on", b.dataset.tab === t));
+  }
+
+  // ---------- wire up ----------
+  FIELDS.forEach((f) => $("#f-" + f).addEventListener("input", touch));
+  $("#f-org").addEventListener("change", (e) => lsSet("md.org", e.target.value));
+  $("#notes").addEventListener("input", touch);
+  $("#genBtn").onclick = generate;
+  $("#newBtn").onclick = () => { openMeeting(blank()); $("#f-title").focus(); showTab("notes"); };
+  $("#search").addEventListener("input", renderList);
+  $("#list").addEventListener("click", (e) => { const b = e.target.closest(".item"); if (!b) return; openMeeting(meetings.find((m) => m.id === b.dataset.id)); showTab("notes"); });
+  document.querySelectorAll(".tabs button").forEach((b) => b.onclick = () => showTab(b.dataset.tab));
+  $("#refineForm").addEventListener("submit", (e) => { e.preventDefault(); refine($("#refine").value.trim()); });
+  $("#editBtn").onclick = () => {
+    if (editing) {
+      const d = document.createElement("div"); d.innerHTML = $("#sheet").innerHTML; d.querySelectorAll(".example-tag").forEach((x) => x.remove());
+      if (current.example) touch();
+      current.editedHtml = d.innerHTML; queueSave(); toast("Your edits are saved. Using Apply or Redo replaces them.");
+    }
+    editing = !editing; renderSheet(); if (editing) $("#sheet").focus();
+  };
+  $("#copyBtn").onclick = () => copy(plainText());
+  $("#copyMailBtn").onclick = () => copy(plainText(), emailHTML());
+  $("#mdBtn").onclick = () => save(fileBase() + ".md", markdown(), "text/markdown");
+  $("#docBtn").onclick = () => save(fileBase() + ".doc",
+    `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word"><head><meta charset="utf-8"><title>${esc(current.title)}</title><style>${WORD_CSS}</style></head><body>${sheetHTML()}</body></html>`,
+    "application/msword");
+  $("#delBtn").onclick = confirmDelete;
+
+  // ---------- boot ----------
+  openMeeting(null);
+  setSave("Connecting…");
+  initAI().then((a) => { ai = a; });
+  initStore().then((s) => {
+    store = s;
+    setSave(s.kind === "cloud" ? "Saved to your account" : "Saved in this browser");
+    let first = true;
+    s.subscribe((list) => {
+      meetings = list;
+      if (first) { first = false; if (list.length && (!current || current.example)) { openMeeting(list[0]); return; } }
+      renderList(); renderSheet();
+    });
+  });
+})();
+</script>
