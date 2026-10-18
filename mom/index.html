@@ -20,6 +20,8 @@
   --warn-ink: #7a5300;
   --ok: #2c7a4b;
   --danger: #b3261e;
+  --rec: #c62f2f;
+  --rec-ink: #ffffff;
   --shadow: 0 1px 2px rgba(20,35,50,.06), 0 8px 24px rgba(20,35,50,.06);
   --f-ui: "Instrument Sans", "Segoe UI", system-ui, -apple-system, sans-serif;
   --f-doc: "Source Serif 4", Georgia, "Times New Roman", serif;
@@ -28,13 +30,13 @@
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
   --bg: #11171d; --panel: #18212a; --sunk: #141b22; --ink: #e3e9ef; --muted: #93a2b0; --line: #2a3742;
   --accent: #6fb0dc; --accent-ink: #0c1a24; --accent-soft: #1d3344; --paper: #1d262f; --paper-ink: #e6eaee;
-  --warn-bg: #3a2e12; --warn-ink: #f2cf7c; --ok: #6cc591; --danger: #f08b84;
+  --warn-bg: #3a2e12; --warn-ink: #f2cf7c; --ok: #6cc591; --danger: #f08b84; --rec: #ff7a72; --rec-ink: #2a0a08;
   --shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px rgba(0,0,0,.25); color-scheme: dark;
 } }
 :root[data-theme="dark"] {
   --bg: #11171d; --panel: #18212a; --sunk: #141b22; --ink: #e3e9ef; --muted: #93a2b0; --line: #2a3742;
   --accent: #6fb0dc; --accent-ink: #0c1a24; --accent-soft: #1d3344; --paper: #1d262f; --paper-ink: #e6eaee;
-  --warn-bg: #3a2e12; --warn-ink: #f2cf7c; --ok: #6cc591; --danger: #f08b84;
+  --warn-bg: #3a2e12; --warn-ink: #f2cf7c; --ok: #6cc591; --danger: #f08b84; --rec: #ff7a72; --rec-ink: #2a0a08;
   --shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px rgba(0,0,0,.25); color-scheme: dark;
 }
 * { box-sizing: border-box; }
@@ -103,6 +105,24 @@ details.meta[open] summary { margin-bottom: 10px; }
   background: var(--sunk) repeating-linear-gradient(transparent 0 calc(1.65em * 1 - 1px), var(--line) calc(1.65em - 1px) 1.65em);
   background-attachment: local; background-position: 0 10px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 7px; }
 #notes:focus { outline: none; border-color: var(--accent); }
+#transcript { flex: 1; min-height: 260px; resize: vertical; font-family: var(--f-mono); font-size: 12.5px; line-height: 1.6; background: var(--sunk); padding: 10px 12px; border: 1px solid var(--line); border-radius: 7px; }
+#transcript:focus { outline: none; border-color: var(--accent); }
+.recbar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--sunk); }
+.recbar select { border: 1px solid var(--line); background: var(--panel); border-radius: 7px; padding: 6px 8px; max-width: 100%; }
+.recbar .grow { flex: 1; }
+.recdot { width: 10px; height: 10px; border-radius: 50%; background: var(--rec); flex: none; }
+.recbtn.on { background: var(--rec); border-color: var(--rec); color: var(--rec-ink); font-weight: 600; }
+.recbtn.on .recdot { background: var(--rec-ink); animation: pulse 1s ease-in-out infinite; }
+.recbtn.paused .recdot { animation: none; }
+.timer { font-family: var(--f-mono); font-variant-numeric: tabular-nums; font-size: 13px; color: var(--muted); min-width: 5ch; }
+.timer.live { color: var(--rec); font-weight: 500; }
+.srcs { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.seg { display: inline-flex; gap: 2px; background: var(--sunk); border: 1px solid var(--line); border-radius: 7px; padding: 2px; }
+.seg button { border: 0; background: transparent; border-radius: 5px; padding: 4px 10px; font-weight: 600; color: var(--muted); font-size: 12px; }
+.seg button.on { background: var(--panel); color: var(--ink); box-shadow: var(--shadow); }
+.seg .n { font-family: var(--f-mono); font-weight: 400; font-size: 11px; }
+.interim { font-family: var(--f-mono); font-size: 12px; color: var(--muted); font-style: italic; min-height: 1.4em; overflow-wrap: anywhere; }
+.inputs { display: flex; flex-direction: column; gap: 6px; flex: 1; min-height: 0; }
 .gen { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
 .gen .hint { color: var(--muted); font-size: 12px; flex: 1; min-width: 160px; }
 
@@ -226,13 +246,36 @@ details.meta[open] summary { margin-bottom: 10px; }
               </select></label>
           </div>
         </details>
-        <label class="field" style="flex:1;min-height:0">
-          <span class="label">Rough notes</span>
-          <textarea id="notes" spellcheck="true" placeholder="Type or paste anything: shorthand, half sentences, names, numbers. e.g.&#10;- budget: AK says over by 8%, cut travel&#10;- new HIS go-live push to Jan? IT to confirm by 30th&#10;- action: SM send revised roster Thu"></textarea>
-        </label>
+        <div class="recbar">
+          <button class="btn recbtn" id="recBtn" type="button"><span class="recdot"></span><span id="recLabel">Record</span></button>
+          <button class="btn" id="stopBtn" type="button" hidden>Stop</button>
+          <span class="timer" id="recTime">00:00</span>
+          <select id="recLang" aria-label="Spoken language">
+            <option value="en-GB">English (UK)</option>
+            <option value="en-US">English (US)</option>
+            <option value="ar-BH">Arabic (Bahrain)</option>
+            <option value="ar-SA">Arabic (Saudi)</option>
+          </select>
+          <span class="grow"></span>
+          <label class="btn ghost" for="importFile">Import transcript</label>
+          <input id="importFile" type="file" accept=".txt,.vtt,.srt,.md,text/plain,text/vtt" hidden>
+          <button class="btn ghost" id="audioBtn" type="button" hidden>Save audio</button>
+        </div>
+        <div id="recHelp" class="confirm" hidden></div>
+        <div class="inputs">
+          <div class="srcs">
+            <div class="seg" role="tablist" aria-label="Source">
+              <button type="button" role="tab" data-src="notes" class="on">Rough notes <span class="n" id="nCount"></span></button>
+              <button type="button" role="tab" data-src="transcript">Transcript <span class="n" id="tCount"></span></button>
+            </div>
+          </div>
+          <textarea id="notes" aria-label="Rough notes" spellcheck="true" placeholder="Type or paste anything: shorthand, half sentences, names, numbers. e.g.&#10;- budget: AK says over by 8%, cut travel&#10;- new HIS go-live push to Jan? IT to confirm by 30th&#10;- action: SM send revised roster Thu"></textarea>
+          <textarea id="transcript" aria-label="Transcript" hidden spellcheck="false" placeholder="Press Record and the meeting is transcribed here as people speak, with timestamps.&#10;&#10;Or import a transcript file from Teams, Zoom, Google Meet or your phone's recorder (.vtt, .srt or .txt), or paste one here.&#10;&#10;You can correct names and words before preparing the minutes."></textarea>
+          <div class="interim" id="interim" hidden></div>
+        </div>
         <div class="gen">
           <button class="btn primary" id="genBtn" type="button">Prepare minutes</button>
-          <span class="hint" id="genHint">Claude tidies the notes into formal minutes: agenda items, decisions and an action table. Nothing is made up; gaps are marked TBC.</span>
+          <span class="hint" id="genHint">Claude combines your notes and the transcript into formal minutes: agenda items, decisions and an action table. Nothing is made up; gaps are marked TBC.</span>
         </div>
       </div>
     </section>
@@ -390,16 +433,27 @@ details.meta[open] summary { margin-bottom: 10px; }
       `Apologies: ${m.apologies || "-"}`
     ].join("\n");
   }
+  const MAX_TRANSCRIPT = 150000;
+  function sources(m) {
+    let s = `ROUGH NOTES\n"""\n${m.notes || "(none)"}\n"""`;
+    const t = (m.transcript || "").trim();
+    if (t) {
+      const cut = t.length > MAX_TRANSCRIPT ? t.slice(0, MAX_TRANSCRIPT) + "\n[transcript truncated]" : t;
+      s += `\n\nTRANSCRIPT (automatic speech recognition: expect misheard words, repetition and small talk; where it conflicts with the rough notes, the notes win)\n"""\n${cut}\n"""`;
+    }
+    return s;
+  }
   const TONES = {
     formal: "Formal board/committee register: third person, past tense (\"The committee noted…\", \"It was resolved that…\").",
     standard: "Clear professional business English, past tense, neutral.",
     concise: "Very concise: short bullet fragments, no filler, keep every fact."
   };
   function draftPrompt(m) {
-    return `You are an experienced company secretary. Turn the rough meeting notes below into proper Minutes of Meeting (MOM).
+    return `You are an experienced company secretary. Turn the rough meeting notes and/or transcript below into proper Minutes of Meeting (MOM).
 
 Rules:
-- Use ONLY facts in the notes and details. Never invent names, numbers, dates or decisions.
+- Use ONLY facts in the notes, transcript and details. Never invent names, numbers, dates or decisions.
+- From a transcript, keep only the substance: what was reported, discussed, agreed and assigned. Drop greetings, chit-chat and filler. Attribute points to speakers only when the speaker is clear.
 - Expand shorthand and initials only when the meaning is clear from context; otherwise keep them as written.
 - Group points into logical agenda items in the order discussed. Fix grammar and spelling.
 - Separate discussion points from decisions/resolutions. A decision is something agreed, approved or resolved.
@@ -415,10 +469,7 @@ ${SCHEMA}
 MEETING DETAILS
 ${header(m)}
 
-ROUGH NOTES
-"""
-${m.notes}
-"""`;
+${sources(m)}`;
   }
   function refinePrompt(m, ask) {
     return `You are an experienced company secretary editing draft Minutes of Meeting.
@@ -432,10 +483,8 @@ ${SCHEMA}
 MEETING DETAILS
 ${header(m)}
 
-ROUGH NOTES (source)
-"""
-${m.notes}
-"""
+SOURCES
+${sources(m)}
 
 CURRENT MINUTES (JSON)
 ${JSON.stringify({ title: m.title, ...m.mom })}`;
@@ -513,6 +562,9 @@ ${JSON.stringify({ title: m.title, ...m.mom })}`;
     const m = current;
     FIELDS.forEach((f) => { $("#f-" + f).value = m[f] || (f === "tone" ? "formal" : f === "lang" ? "English" : ""); });
     $("#notes").value = m.notes || "";
+    $("#transcript").value = m.transcript || "";
+    updateCounts();
+    showSrc(m.notes || !m.transcript ? "notes" : "transcript");
     editing = false;
     renderSheet(); renderList();
   }
@@ -527,7 +579,20 @@ ${JSON.stringify({ title: m.title, ...m.mom })}`;
     }
     FIELDS.forEach((f) => { current[f] = $("#f-" + f).value; });
     current.notes = $("#notes").value;
+    current.transcript = $("#transcript").value;
+    updateCounts();
     queueSave();
+  }
+  const words = (s) => (String(s || "").match(/\S+/g) || []).length;
+  function updateCounts() {
+    const n = words($("#notes").value), t = words($("#transcript").value);
+    $("#nCount").textContent = n ? n + "w" : "";
+    $("#tCount").textContent = t ? t + "w" : "";
+  }
+  function showSrc(src) {
+    $("#notes").hidden = src !== "notes";
+    $("#transcript").hidden = src !== "transcript";
+    document.querySelectorAll(".seg button").forEach((b) => b.classList.toggle("on", b.dataset.src === src));
   }
   function queueSave() {
     current.updatedAt = Date.now();
@@ -567,7 +632,7 @@ ${JSON.stringify({ title: m.title, ...m.mom })}`;
   }
   async function generate() {
     touch();
-    if (!current.notes.trim()) { toast("Add some rough notes first."); $("#notes").focus(); return; }
+    if (!current.notes.trim() && !current.transcript.trim()) { toast("Add rough notes or a transcript first."); $("#notes").focus(); return; }
     if (!ai) { toast("Connecting to Claude… try again in a moment."); return; }
     setBusy(true, "Drafting minutes…");
     showTab("mom");
@@ -692,14 +757,178 @@ ${JSON.stringify({ title: m.title, ...m.mom })}`;
         };
       });
   }
-  function blank() { return { id: uid(), title: "", date: today(), time: "", org: lsGet("md.org", ""), venue: "", chair: "", taker: "", attendees: "", apologies: "", tone: "formal", lang: "English", notes: "", mom: null, editedHtml: "", createdAt: Date.now(), updatedAt: Date.now() }; }
-  function openMeeting(m) { current = m ? { ...m } : (meetings.length ? { ...meetings[0] } : { ...EXAMPLE, mom: { ...EXAMPLE.mom } }); loadForm(); setBusy(false); }
+  function blank() { return { id: uid(), title: "", date: today(), time: "", org: lsGet("md.org", ""), venue: "", chair: "", taker: "", attendees: "", apologies: "", tone: "formal", lang: "English", notes: "", transcript: "", mom: null, editedHtml: "", createdAt: Date.now(), updatedAt: Date.now() }; }
+  function openMeeting(m) { if (rec.state !== "idle") stopRec(); lastAudio = null; $("#audioBtn").hidden = true; $("#recHelp").hidden = true; current = m ? { ...m } : (meetings.length ? { ...meetings[0] } : { ...EXAMPLE, mom: { ...EXAMPLE.mom } }); loadForm(); setBusy(false); }
   function showTab(t) {
     $("#main").dataset.tab = t;
     document.querySelectorAll(".tabs button").forEach((b) => b.classList.toggle("on", b.dataset.tab === t));
   }
 
+  // ---------- recording + live transcript ----------
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  const rec = { state: "idle", stream: null, media: null, chunks: [], sr: null, since: 0, elapsed: 0, tick: null };
+  let lastAudio = null;
+  const clock = (ms) => { const s = Math.floor(ms / 1000), h = Math.floor(s / 3600), mm = String(Math.floor(s / 60) % 60).padStart(2, "0"), ss = String(s % 60).padStart(2, "0"); return h ? `${h}:${mm}:${ss}` : `${mm}:${ss}`; };
+  const recMs = () => rec.elapsed + (rec.state === "rec" ? Date.now() - rec.since : 0);
+
+  function recUI() {
+    const b = $("#recBtn");
+    b.classList.toggle("on", rec.state !== "idle");
+    b.classList.toggle("paused", rec.state === "paused");
+    $("#recLabel").textContent = rec.state === "rec" ? "Pause" : rec.state === "paused" ? "Resume" : "Record";
+    $("#stopBtn").hidden = rec.state === "idle";
+    $("#recTime").classList.toggle("live", rec.state === "rec");
+    $("#recTime").textContent = clock(recMs());
+    $("#recLang").disabled = rec.state !== "idle";
+    $("#interim").hidden = rec.state === "idle";
+  }
+  function recHelp(html) { const h = $("#recHelp"); h.innerHTML = html; h.hidden = !html; }
+
+  function appendLine(text) {
+    text = text.trim();
+    if (!text) return;
+    const t = $("#transcript");
+    const line = `[${clock(recMs())}] ${text}`;
+    t.value = t.value.trim() ? t.value.replace(/\s*$/, "\n") + line : line;
+    t.scrollTop = t.scrollHeight;
+    touch();
+  }
+  function startSR() {
+    if (!SR) return;
+    const sr = new SR();
+    sr.lang = $("#recLang").value;
+    sr.continuous = true;
+    sr.interimResults = true;
+    sr.onresult = (e) => {
+      let interim = "";
+      for (let i = e.resultIndex; i < e.results.length; i++) {
+        const r = e.results[i];
+        if (r.isFinal) appendLine(r[0].transcript); else interim += r[0].transcript;
+      }
+      $("#interim").textContent = interim ? "… " + interim : "Listening…";
+    };
+    sr.onerror = (e) => {
+      if (e.error === "not-allowed" || e.error === "service-not-allowed") {
+        rec.sr = null;
+        recHelp("<b>Live transcription was blocked.</b> Audio is still recording. Allow speech recognition for this site, or import a transcript afterwards.");
+      }
+    };
+    sr.onend = () => { if (rec.sr === sr && rec.state === "rec") { try { sr.start(); } catch {} } }; // browsers end sessions after silence; keep listening
+    rec.sr = sr;
+    try { sr.start(); } catch {}
+    $("#interim").textContent = "Listening…";
+  }
+  function stopSR() { const sr = rec.sr; rec.sr = null; if (sr) { try { sr.stop(); } catch {} } }
+
+  async function startRec() {
+    recHelp("");
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return micBlocked();
+    try { rec.stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } }); }
+    catch (e) { return micBlocked(e); }
+    if (current.example) touch();
+    rec.chunks = []; rec.elapsed = 0; rec.since = Date.now(); rec.state = "rec"; lastAudio = null; $("#audioBtn").hidden = true;
+    if (window.MediaRecorder) {
+      try {
+        rec.media = new MediaRecorder(rec.stream);
+        rec.media.ondataavailable = (e) => { if (e.data && e.data.size) rec.chunks.push(e.data); };
+        rec.media.onstop = () => {
+          if (!rec.chunks.length) return;
+          lastAudio = new Blob(rec.chunks, { type: rec.media.mimeType || "audio/webm" });
+          $("#audioBtn").hidden = false;
+        };
+        rec.media.start(1000);
+      } catch { rec.media = null; }
+    }
+    showSrc("transcript");
+    if (SR) startSR();
+    else recHelp("<b>Recording audio only.</b> This browser can't transcribe live (use Chrome, Edge or Safari for that). Save the audio, then import a transcript, or type notes as you go.");
+    rec.tick = setInterval(recUI, 500);
+    recUI();
+  }
+  function pauseRec() {
+    rec.elapsed = recMs(); rec.state = "paused";
+    stopSR();
+    if (rec.media && rec.media.state === "recording") rec.media.pause();
+    $("#interim").textContent = "Paused";
+    recUI();
+  }
+  function resumeRec() {
+    rec.since = Date.now(); rec.state = "rec";
+    if (rec.media && rec.media.state === "paused") rec.media.resume();
+    if (SR) startSR();
+    recUI();
+  }
+  function stopRec() {
+    rec.elapsed = recMs(); rec.state = "idle";
+    stopSR();
+    if (rec.media && rec.media.state !== "inactive") rec.media.stop();
+    if (rec.stream) rec.stream.getTracks().forEach((t) => t.stop());
+    rec.stream = null; rec.media = null;
+    clearInterval(rec.tick);
+    recUI();
+    if (current) toast("Recording stopped. Check the transcript, then Prepare minutes.", 4000);
+  }
+  function micBlocked(e) {
+    const framed = !!window.claude || window.top !== window.self;
+    const denied = e && (e.name === "NotAllowedError" || e.name === "SecurityError");
+    recHelp(framed
+      ? "<b>Recording isn't available inside claude.ai.</b> Record the meeting with Teams, Zoom, Google Meet or your phone's voice recorder, then use <b>Import transcript</b> to bring in the .vtt, .srt or .txt file. Or open the standalone version of Minutes Desk in Chrome to record here directly."
+      : denied
+        ? "<b>Microphone access was refused.</b> Allow the microphone for this site in your browser's address bar, then press Record again."
+        : "<b>No microphone found.</b> Connect one and press Record again, or import a transcript file.");
+  }
+
+  // Teams/Zoom/Meet captions (.vtt/.srt) → "[hh:mm:ss] Speaker: text"
+  function parseCaptions(t) {
+    t = String(t).replace(/^\uFEFF/, "").replace(/\r/g, "");
+    if (!/-->/.test(t)) return t.trim();
+    const out = [];
+    let ts = "", last = null;
+    t.split("\n").forEach((raw) => {
+      const line = raw.trim();
+      if (!line || /^WEBVTT/.test(line) || /^(NOTE|STYLE|REGION)\b/.test(line) || /^\d+$/.test(line) || /^[0-9a-f-]{20,}(\/\d+-\d+)?$/i.test(line)) return;
+      if (line.includes("-->")) { ts = line.split("-->")[0].trim().replace(/[.,]\d+$/, "").replace(/^00:(\d\d:\d\d)$/, "$1"); return; }
+      let speaker = "";
+      let txt = line.replace(/<v\s+([^>]+)>/, (_, s) => { speaker = s.trim(); return ""; }).replace(/<[^>]+>/g, "").trim();
+      if (!txt) return;
+      const m = !speaker && txt.match(/^([^:]{2,40}):\s+(.*)$/);
+      if (m) { speaker = m[1]; txt = m[2]; }
+      if (last && speaker && last.speaker === speaker) { last.text += " " + txt; return; } // merge consecutive cues from the same speaker
+      last = { ts, speaker, text: txt };
+      out.push(last);
+      ts = "";
+    });
+    return out.map((c) => (c.ts ? `[${c.ts}] ` : "") + (c.speaker ? c.speaker + ": " : "") + c.text).join("\n");
+  }
+  async function importFile(file) {
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) { toast("That file is over 5 MB. Import a text transcript (.vtt, .srt or .txt), not audio."); return; }
+    if (/^(audio|video)\//.test(file.type)) { toast("That's an audio file. Import its transcript (.vtt, .srt or .txt) instead."); return; }
+    const text = parseCaptions(await file.text());
+    if (!text) { toast("That file has no text in it."); return; }
+    const t = $("#transcript");
+    t.value = t.value.trim() ? t.value.replace(/\s*$/, "\n\n") + text : text;
+    showSrc("transcript");
+    touch();
+    recHelp("");
+    toast(`Imported ${words(text).toLocaleString()} words from ${file.name}.`);
+  }
+  function saveAudio() {
+    if (!lastAudio) return;
+    const ext = /mp4|m4a|aac/.test(lastAudio.type) ? "m4a" : /ogg/.test(lastAudio.type) ? "ogg" : "webm";
+    save(fileBase() + " recording." + ext, lastAudio, lastAudio.type);
+  }
+
   // ---------- wire up ----------
+  $("#recBtn").onclick = () => rec.state === "idle" ? startRec() : rec.state === "rec" ? pauseRec() : resumeRec();
+  $("#stopBtn").onclick = stopRec;
+  $("#audioBtn").onclick = saveAudio;
+  $("#importFile").addEventListener("change", (e) => { importFile(e.target.files[0]); e.target.value = ""; });
+  $("#recLang").value = lsGet("md.reclang", "en-GB");
+  $("#recLang").addEventListener("change", (e) => lsSet("md.reclang", e.target.value));
+  $("#transcript").addEventListener("input", touch);
+  document.querySelectorAll(".seg button").forEach((b) => b.onclick = () => showSrc(b.dataset.src));
+  window.addEventListener("beforeunload", (e) => { if (rec.state !== "idle" || lastAudio) { e.preventDefault(); e.returnValue = ""; } });
   FIELDS.forEach((f) => $("#f-" + f).addEventListener("input", touch));
   $("#f-org").addEventListener("change", (e) => lsSet("md.org", e.target.value));
   $("#notes").addEventListener("input", touch);
