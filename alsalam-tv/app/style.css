@@ -1,0 +1,115 @@
+/* Al Salam TV. Designed at 1920x1080 and scaled to the TV's real resolution by app.js. */
+:root {
+  --navy: #006098;
+  --blue: #009BDF;
+  --band-light: #4D9FD6;
+  --band-navy: #4A6585;
+  --ink: #1d2b36;
+  --muted: #5f7383;
+  --bg: #f3f7fa;
+  --card: #ffffff;
+  --line: #dbe6ee;
+}
+html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #000; cursor: none; }
+body { font-family: "Noto Sans", "Noto Sans Arabic", "Segoe UI", Calibri, Arial, sans-serif; color: var(--ink); }
+#root { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; background: var(--bg); overflow: hidden; transform-origin: 0 0; }
+[dir="rtl"] { font-family: "Noto Sans Arabic", "Noto Naskh Arabic", "Segoe UI", Arial, sans-serif; }
+
+/* ---------- header ---------- */
+#top { position: absolute; left: 0; right: 0; top: 0; height: 130px; background: #fff; display: flex; align-items: center; padding: 0 56px; box-sizing: border-box; }
+#top::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 8px; background: linear-gradient(90deg, var(--band-light) 0, var(--band-light) 52%, var(--band-navy) 52%, var(--band-navy) 100%); }
+#logo { height: 84px; }
+#room { flex: 1; text-align: center; font-size: 38px; color: var(--navy); font-weight: 600; }
+#clock { text-align: right; }
+#time { font-size: 46px; font-weight: 600; color: var(--navy); line-height: 1.1; }
+#date { font-size: 22px; color: var(--muted); }
+
+/* ---------- screens ---------- */
+.screen { position: absolute; left: 0; right: 0; top: 130px; bottom: 70px; display: none; }
+.s-home #home, .s-tv #tv, .s-videos #videos, .s-info #info, .s-waiting #waiting { display: block; }
+
+/* ---------- home ---------- */
+#home { background: url(assets/hand.png) no-repeat right -120px bottom -160px; background-size: 760px; }
+#welcome { text-align: center; padding-top: 70px; }
+#welcome .en { font-size: 64px; font-weight: 600; color: var(--navy); }
+#welcome .ar { font-size: 60px; font-weight: 600; color: var(--navy); margin-top: 6px; }
+#welcome .sub { font-size: 30px; color: var(--muted); margin-top: 18px; }
+#welcome .dot { margin: 0 18px; color: var(--blue); }
+#tiles { display: flex; justify-content: center; margin-top: 70px; }
+.tile { width: 420px; height: 300px; margin: 0 26px; background: var(--card); border-radius: 26px; box-shadow: 0 6px 24px rgba(0, 60, 100, 0.10); border: 3px solid var(--line); display: flex; flex-direction: column; align-items: center; justify-content: center; transition: transform 0.15s; }
+.tile svg { width: 110px; height: 110px; fill: none; stroke: var(--blue); stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+.tile .en { font-size: 36px; font-weight: 600; color: var(--navy); margin-top: 18px; }
+.tile .ar { font-size: 34px; color: var(--navy); margin-top: 4px; }
+.tile.focus { background: var(--navy); border-color: var(--navy); transform: scale(1.06); }
+.tile.focus svg { stroke: #fff; }
+.tile.focus .en, .tile.focus .ar { color: #fff; }
+#contact-strip { position: absolute; left: 0; right: 0; bottom: 34px; text-align: center; font-size: 28px; color: var(--muted); }
+#contact-strip b { color: var(--navy); }
+#contact-strip .sep { margin: 0 26px; color: var(--blue); }
+
+/* ---------- live TV ---------- */
+#tv { top: 130px; bottom: 0; }
+#tv-side { position: absolute; left: 0; top: 0; bottom: 0; width: 600px; background: #fff; border-right: 2px solid var(--line); display: flex; flex-direction: column; padding-top: 22px; box-sizing: border-box; }
+#tv-groups { display: flex; flex-wrap: wrap; padding: 0 22px 10px; }
+.group { font-size: 22px; padding: 8px 16px; margin: 4px; border-radius: 22px; background: #e9f1f7; color: var(--navy); }
+.group.active { background: var(--navy); color: #fff; }
+#tv-status, #video-status { font-size: 22px; color: var(--muted); padding: 4px 28px 10px; min-height: 28px; }
+#tv-list { flex: 1; overflow: hidden; }
+.item { display: flex; align-items: center; height: 76px; padding: 0 26px; font-size: 28px; border-left: 6px solid transparent; white-space: nowrap; overflow: hidden; }
+.item img, .item .noimg { width: 72px; height: 48px; object-fit: contain; margin-right: 18px; border-radius: 6px; background: #eef3f7; flex-shrink: 0; }
+.item .name { overflow: hidden; text-overflow: ellipsis; flex: 1; }
+.item.playing .name { color: var(--blue); font-weight: 600; }
+.item.focus { background: var(--navy); border-left-color: var(--blue); color: #fff; }
+.item.focus .name { color: #fff; }
+.help { font-size: 18px; color: var(--muted); padding: 12px 26px 16px; line-height: 1.5; }
+
+/* ---------- videos ---------- */
+#videos h1 { margin: 0; padding: 40px 80px 10px; font-size: 44px; color: var(--navy); display: flex; justify-content: space-between; }
+#video-status { padding-left: 80px; }
+#video-grid { display: flex; flex-wrap: wrap; padding: 10px 60px; }
+.vcard { width: 400px; height: 230px; margin: 20px; background: #fff; border-radius: 20px; border: 3px solid var(--line); box-sizing: border-box; padding: 26px; display: flex; flex-direction: column; justify-content: flex-end; position: relative; }
+.vcard::before { content: "▶"; position: absolute; left: 26px; top: 22px; font-size: 44px; color: var(--blue); }
+.vcard .en { font-size: 28px; font-weight: 600; color: var(--navy); }
+.vcard .ar { font-size: 26px; color: var(--navy); text-align: right; }
+.vcard.focus { background: var(--navy); border-color: var(--navy); transform: scale(1.04); }
+.vcard.focus::before, .vcard.focus .en, .vcard.focus .ar { color: #fff; }
+
+/* ---------- info ---------- */
+#info-menu { position: absolute; left: 60px; top: 50px; width: 560px; }
+.menu-item { padding: 22px 30px; margin-bottom: 14px; border-radius: 16px; background: #fff; border: 3px solid var(--line); }
+.menu-item .en { font-size: 30px; font-weight: 600; color: var(--navy); }
+.menu-item .ar { font-size: 28px; color: var(--navy); text-align: right; }
+.menu-item.focus { background: var(--navy); border-color: var(--navy); }
+.menu-item.focus .en, .menu-item.focus .ar { color: #fff; }
+#info-body { position: absolute; left: 680px; right: 60px; top: 50px; bottom: 30px; background: #fff; border-radius: 22px; border: 3px solid var(--line); padding: 40px 54px; overflow: hidden; }
+#info-body h2 { margin: 0; font-size: 44px; color: var(--navy); }
+#info-title-ar { text-align: right; margin-top: -54px !important; }
+#info-text-en, #info-text-ar { font-size: 32px; line-height: 1.55; white-space: pre-line; margin-top: 30px; }
+#info-text-ar { text-align: right; border-top: 2px solid var(--line); padding-top: 26px; }
+
+/* ---------- waiting area ---------- */
+#slide { position: absolute; right: 40px; top: 40px; bottom: 40px; width: 560px; background: #fff; border-radius: 24px; border: 3px solid var(--line); padding: 40px; box-sizing: border-box; overflow: hidden; }
+#slide-img { width: 100%; max-height: 380px; object-fit: contain; border-radius: 14px; margin-bottom: 24px; display: none; }
+#slide-title-en { font-size: 44px; font-weight: 600; color: var(--navy); }
+#slide-title-ar { font-size: 42px; font-weight: 600; color: var(--navy); text-align: right; margin-top: 6px; }
+#slide-en { font-size: 32px; line-height: 1.45; margin-top: 26px; }
+#slide-ar { font-size: 32px; line-height: 1.55; margin-top: 20px; text-align: right; }
+#slide.fade { opacity: 0; transition: opacity 0.5s; }
+#slide { transition: opacity 0.5s; }
+
+/* ---------- shared player ---------- */
+#player { position: absolute; background: #000; display: none; }
+#video { width: 100%; height: 100%; background: #000; }
+.s-tv #player { display: block; left: 600px; right: 0; top: 130px; bottom: 0; }
+.s-waiting #player { display: block; left: 40px; right: 640px; top: 170px; bottom: 110px; border-radius: 20px; overflow: hidden; }
+.s-full #player { display: block; left: 0; right: 0; top: 0; bottom: 0; border-radius: 0; z-index: 5; }
+#osd { position: absolute; left: 40px; bottom: 40px; padding: 18px 28px; background: rgba(0, 48, 76, 0.88); color: #fff; border-radius: 14px; display: none; max-width: 80%; }
+#osd-name { font-size: 40px; font-weight: 600; }
+#osd-info { font-size: 24px; color: #bfe3f5; margin-top: 6px; }
+
+/* ---------- ticker ---------- */
+#ticker { position: absolute; left: 0; right: 0; bottom: 0; height: 70px; background: var(--navy); color: #fff; overflow: hidden; white-space: nowrap; }
+#ticker-text { display: inline-block; font-size: 30px; line-height: 70px; padding-left: 100%; animation: ticker linear infinite; }
+#ticker-text .sep { color: var(--blue); margin: 0 40px; }
+@keyframes ticker { from { transform: translateX(0); } to { transform: translateX(-100%); } }
+.s-tv #ticker, .s-full #ticker, .s-loading #ticker { display: none; }

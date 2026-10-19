@@ -1,0 +1,90 @@
+{
+  "mode": "room",
+  "roomNumber": "",
+
+  "welcome": {
+    "en": "Welcome to Al Salam Specialist Hospital",
+    "ar": "أهلاً وسهلاً بكم في مستشفى السلام التخصصي",
+    "subEn": "We wish you a speedy recovery",
+    "subAr": "نتمنى لكم الشفاء العاجل"
+  },
+
+  "contact": {
+    "phone": "+973 13101010",
+    "email": "info@alsalam.care",
+    "web": "www.alsalam.care",
+    "wifiName": "",
+    "wifiPassword": ""
+  },
+
+  "infoPages": [
+    {
+      "titleEn": "Visiting hours",
+      "titleAr": "أوقات الزيارة",
+      "en": "Edit this text in config.json: add the visiting hours and visitor rules.",
+      "ar": "عدّل هذا النص في ملف config.json: أضف أوقات الزيارة وتعليمات الزوار."
+    },
+    {
+      "titleEn": "Our services",
+      "titleAr": "خدماتنا",
+      "en": "Edit this text in config.json: list the hospital's departments and services.",
+      "ar": "عدّل هذا النص في ملف config.json: أضف أقسام وخدمات المستشفى."
+    },
+    {
+      "titleEn": "Patient rights",
+      "titleAr": "حقوق المريض",
+      "en": "Edit this text in config.json: add the patient rights and responsibilities.",
+      "ar": "عدّل هذا النص في ملف config.json: أضف حقوق وواجبات المريض."
+    },
+    {
+      "titleEn": "Contact us",
+      "titleAr": "تواصل معنا",
+      "en": "Tel: +973 13101010\nEmail: info@alsalam.care\nwww.alsalam.care\nP.O. Box 80278, Manama, Kingdom of Bahrain",
+      "ar": "هاتف: 13101010 973+\nالبريد الإلكتروني: info@alsalam.care\nwww.alsalam.care\nص.ب 80278، المنامة، مملكة البحرين"
+    }
+  ],
+
+  "announcements": [
+    { "en": "Welcome to Al Salam Specialist Hospital", "ar": "أهلاً وسهلاً بكم في مستشفى السلام التخصصي" },
+    { "en": "For appointments call +973 13101010", "ar": "للمواعيد اتصلوا على 13101010" }
+  ],
+
+  "channels": [],
+  "channelLists": [
+    { "en": "All Arabic", "ar": "كل القنوات العربية", "url": "https://iptv-org.github.io/iptv/languages/ara.m3u" },
+    { "en": "Bahrain", "ar": "البحرين", "url": "https://iptv-org.github.io/iptv/countries/bh.m3u" },
+    { "en": "Saudi Arabia", "ar": "السعودية", "url": "https://iptv-org.github.io/iptv/countries/sa.m3u" },
+    { "en": "UAE", "ar": "الإمارات", "url": "https://iptv-org.github.io/iptv/countries/ae.m3u" },
+    { "en": "Kuwait", "ar": "الكويت", "url": "https://iptv-org.github.io/iptv/countries/kw.m3u" },
+    { "en": "Qatar", "ar": "قطر", "url": "https://iptv-org.github.io/iptv/countries/qa.m3u" },
+    { "en": "Egypt", "ar": "مصر", "url": "https://iptv-org.github.io/iptv/countries/eg.m3u" }
+  ],
+  "blockedWords": [],
+
+  "videoTitles": {},
+
+  "waiting": {
+    "main": "tv",
+    "channelUrl": "",
+    "muted": false,
+    "slideSeconds": 12,
+    "slides": [
+      {
+        "titleEn": "Welcome",
+        "titleAr": "أهلاً وسهلاً",
+        "en": "Please take a seat. You will be called by name.",
+        "ar": "تفضلوا بالجلوس، سيتم مناداتكم بالاسم.",
+        "image": ""
+      },
+      {
+        "titleEn": "Appointments",
+        "titleAr": "المواعيد",
+        "en": "Book your next visit: +973 13101010",
+        "ar": "احجزوا موعدكم القادم: 13101010",
+        "image": ""
+      }
+    ]
+  },
+
+  "remoteConfigUrl": ""
+}

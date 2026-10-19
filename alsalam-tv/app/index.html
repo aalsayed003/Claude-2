@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Al Salam TV</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="root" class="s-loading">
+
+  <header id="top">
+    <img id="logo" src="assets/logo.png" alt="Al Salam Specialist Hospital">
+    <div id="room"></div>
+    <div id="clock"><div id="time"></div><div id="date"></div></div>
+  </header>
+
+  <!-- Room mode: home -->
+  <section id="home" class="screen">
+    <div id="welcome">
+      <div class="en" id="welcome-en"></div>
+      <div class="ar" id="welcome-ar" dir="rtl"></div>
+      <div class="sub"><span id="welcome-sub-en"></span><span class="dot">•</span><span id="welcome-sub-ar" dir="rtl"></span></div>
+    </div>
+    <div id="tiles"></div>
+    <div id="contact-strip"></div>
+  </section>
+
+  <!-- Room mode: live TV -->
+  <section id="tv" class="screen">
+    <div id="tv-side">
+      <div id="tv-groups"></div>
+      <div id="tv-status"></div>
+      <div id="tv-list"></div>
+      <div class="help">▲▼ <span>choose / اختيار</span> · OK <span>play / تشغيل</span> · ◀▶ <span>list / القائمة</span> · BACK <span>رجوع</span></div>
+    </div>
+  </section>
+
+  <!-- Room mode: health videos -->
+  <section id="videos" class="screen">
+    <h1><span>Health education videos</span><span dir="rtl">فيديوهات التثقيف الصحي</span></h1>
+    <div id="video-status"></div>
+    <div id="video-grid"></div>
+  </section>
+
+  <!-- Room mode: hospital information -->
+  <section id="info" class="screen">
+    <div id="info-menu"></div>
+    <div id="info-body">
+      <h2 id="info-title-en"></h2>
+      <h2 id="info-title-ar" dir="rtl"></h2>
+      <div id="info-text-en"></div>
+      <div id="info-text-ar" dir="rtl"></div>
+    </div>
+  </section>
+
+  <!-- Waiting-area mode -->
+  <section id="waiting" class="screen">
+    <div id="slide">
+      <img id="slide-img" alt="">
+      <div id="slide-title-en"></div>
+      <div id="slide-title-ar" dir="rtl"></div>
+      <div id="slide-en"></div>
+      <div id="slide-ar" dir="rtl"></div>
+    </div>
+  </section>
+
+  <!-- One shared video player, positioned by the current screen -->
+  <div id="player">
+    <video id="video" playsinline></video>
+    <div id="osd"><div id="osd-name"></div><div id="osd-info"></div></div>
+  </div>
+
+  <footer id="ticker"><div id="ticker-text"></div></footer>
+</div>
+
+<script src="vendor/hls.min.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
