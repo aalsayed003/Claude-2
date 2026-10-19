@@ -59,7 +59,7 @@
     { "en": "Qatar", "ar": "قطر", "url": "https://iptv-org.github.io/iptv/countries/qa.m3u" },
     { "en": "Egypt", "ar": "مصر", "url": "https://iptv-org.github.io/iptv/countries/eg.m3u" }
   ],
-  "blockedWords": [],
+  "blockedWords": ["beIN", "OSN"],
 
   "videoTitles": {},
 
