@@ -22,16 +22,25 @@ Everything is in English and Arabic.
 
 ## 1. What to buy (per TV)
 
+Prices seen at Bahrain shops in October 2026. Raspberry Pi prices rose several times in 2026
+because of memory costs, so check before ordering.
+
 | Item | Notes | Approx. price |
 |---|---|---|
-| Raspberry Pi 5 (4 GB) | Raspberry Pi 4 (4 GB) also works | BHD 25–30 |
-| Official power supply | 27 W USB-C for Pi 5 (15 W for Pi 4) | BHD 5 |
-| Case with fan | Any Pi 5 case | BHD 5 |
-| microSD card, 32 GB | SanDisk or Samsung "High Endurance" lasts longer | BHD 5 |
-| Micro-HDMI to HDMI cable | The Pi has micro-HDMI ports | BHD 3 |
-| *Optional:* air-mouse remote (2.4 GHz USB) | Only if the TV's own remote doesn't work with the box (see section 5) | BHD 5 |
+| **Raspberry Pi 5, 4 GB** (2 GB is also fine; avoid 1 GB) | Microless Bahrain, Bitware, Whizz | BHD 60–70 |
+| Official 27 W USB-C power supply | Bitware | BHD 10 |
+| Pi 5 case with fan | Bitware | BHD 10 |
+| microSD card, 32–64 GB, "High Endurance" | Sharaf DG, Lulu, Amazon.ae | BHD 5–8 |
+| Micro-HDMI to HDMI cable | Electronics shops | BHD 3–5 |
+| *Optional:* air-mouse remote (2.4 GHz USB) | Only if the TV's own remote doesn't work with the box (see section 5) | BHD 5–8 |
 
-You also need, once only, a USB keyboard and a PC to prepare the memory card.
+A **Raspberry Pi 5 Full Kit** (board, case, power supply, cable and card together) is often
+cheaper than buying the parts separately, if one is in stock.
+
+You also need, once only, a USB keyboard and a PC with a microSD card reader to prepare the card.
+
+**Network:** the box needs internet without a login page. A guest Wi-Fi with a "click to
+accept" page will not work. Use a network cable, or ask IT to let the box's address through.
 
 ## 2. Prepare the memory card (on any PC)
 
