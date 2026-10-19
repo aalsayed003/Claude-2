@@ -80,7 +80,7 @@ Turn off the Pi, put the memory card in a PC, and edit `alsalam-tv/data/config.j
 | `"contact"` | Phone, website, `wifiName`, `wifiPassword` |
 | `"infoPages"` | The Hospital Information pages: add, remove or edit them |
 | `"announcements"` | The scrolling bar at the bottom |
-| `"channels"` | Optional hand-picked channel list shown first as "Recommended": `{"name": "...", "url": "...m3u8"}` |
+| `"channels"` | The approved channel list, shown first as "Recommended": `{"name": "...", "url": "...m3u8", "backupUrls": ["..."]}`. Backup links are tried in order if the main link fails |
 | `"channelLists"` | Free channel lists (by country) |
 | `"blockedWords"` | Hide channels whose name contains these words, e.g. `["music", "movies"]` |
 | `"videoTitles"` | Nice titles for videos: `"hand-washing.mp4": {"en": "Hand washing", "ar": "غسل اليدين"}` |

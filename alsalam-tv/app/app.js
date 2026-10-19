@@ -265,13 +265,20 @@
     }
     el.tvList.innerHTML = html;
   }
-  function playChannel(ch) {
+  // A channel can list backup links (config.json "backupUrls"), tried in order if one fails
+  function channelUrls(ch) { return [ch.url].concat(ch.backupUrls || []); }
+  function playChannel(ch, attempt) {
+    attempt = attempt || 0;
+    var urls = channelUrls(ch);
     tv.playing = ch;
     tv.playingList = tv.channels.length ? tv.channels.slice() : tv.playingList;
     renderTvList();
-    playMedia(ch.url, {
+    playMedia(urls[attempt], {
       name: ch.name,
-      onFail: function () { showOsd(ch.name, 'Not available now, try another channel · غير متاحة حالياً', true); }
+      onFail: function () {
+        if (attempt + 1 < urls.length) playChannel(ch, attempt + 1);
+        else showOsd(ch.name, 'Not available now, try another channel · غير متاحة حالياً', true);
+      }
     });
   }
   function zap(delta) {
@@ -418,16 +425,22 @@
     if (!groups.length) return finish([]);
     loadChannelList(groups[0], function (err, list) { finish(err ? [] : list); });
   }
-  function waitingChannel() {
+  function waitingChannel(attempt) {
+    attempt = attempt || 0;
     var list = waiting.channels;
     if (!list.length) { setTimeout(startWaiting, 60000); return; }
     var ch = list[waiting.index % list.length];
-    playMedia(ch.url, {
+    var urls = channelUrls(ch);
+    playMedia(urls[attempt], {
       name: ch.name,
       muted: !!(config.waiting && config.waiting.muted),
       quiet: true,
-      // Unattended screen: if a channel fails, move on to the next one by itself
-      onFail: function () { waiting.index++; setTimeout(waitingChannel, 2000); }
+      // Unattended screen: try the backup links, then move on to the next channel by itself
+      onFail: function () {
+        if (attempt + 1 < urls.length) { waitingChannel(attempt + 1); return; }
+        waiting.index++;
+        setTimeout(waitingChannel, 2000);
+      }
     });
   }
   function waitingVideos() {
@@ -475,7 +488,7 @@
     if (is('up', k) || is('chUp', k)) waiting.index = Math.max(0, waiting.index - 1);
     else if (is('down', k) || is('chDown', k)) waiting.index++;
     else return false;
-    waitingChannel();
+    waitingChannel(0);
     return true;
   }
 
