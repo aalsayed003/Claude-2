@@ -251,20 +251,26 @@
     });
   }
   function renderTvList() {
+    // Every row is rendered so the list also scrolls by touch (phones, tablets)
     var list = tv.channels;
-    var visible = Math.max(1, Math.floor((el.tvList.clientHeight || 600) / ROW_HEIGHT));
-    var start = Math.max(0, Math.min(tv.focus - Math.floor(visible / 2), list.length - visible));
     var html = '';
-    for (var i = start; i < Math.min(list.length, start + visible); i++) {
+    for (var i = 0; i < list.length; i++) {
       var ch = list[i], cls = 'item';
       if (i === tv.focus && !full) cls += ' focus';
       if (tv.playing && tv.playing.url === ch.url) cls += ' playing';
       html += '<div class="' + cls + '" data-i="' + i + '">' +
-        (ch.logo ? '<img src="' + esc(ch.logo) + '" onerror="this.style.visibility=\'hidden\'">' : '<div class="noimg"></div>') +
+        (ch.logo ? '<img loading="lazy" src="' + esc(ch.logo) + '" onerror="this.style.visibility=\'hidden\'">' : '<div class="noimg"></div>') +
         '<span class="name">' + esc(ch.name) + '</span></div>';
     }
+    var keepScroll = el.tvList.scrollTop;
     el.tvList.innerHTML = html;
+    el.tvList.scrollTop = keepScroll;
+    // Keep the remote's highlighted row in view
+    var top = tv.focus * ROW_HEIGHT, h = el.tvList.clientHeight || 600;
+    if (top < el.tvList.scrollTop) el.tvList.scrollTop = Math.max(0, top - ROW_HEIGHT * 2);
+    else if (top + ROW_HEIGHT > el.tvList.scrollTop + h) el.tvList.scrollTop = top + ROW_HEIGHT * 3 - h;
   }
+
   // A channel can list backup links (config.json "backupUrls"), tried in order if one fails
   function channelUrls(ch) { return [ch.url].concat(ch.backupUrls || []); }
   function playChannel(ch, attempt) {
@@ -595,7 +601,10 @@
     el.tvList.onclick = function (e) { var i = clickIndex(e, el.tvList); if (i >= 0) { tv.focus = i; press(13); } };
     el.videoGrid.onclick = function (e) { var i = clickIndex(e, el.videoGrid); if (i >= 0) { vids.focus = i; press(13); } };
     el.infoMenu.onclick = function (e) { var i = clickIndex(e, el.infoMenu); if (i >= 0) { info.focus = i; renderInfo(); } };
-    el.player.onclick = function () { if (screen === 'tv') setFull(!full); };
+    el.player.onclick = function () {
+      if (screen === 'tv') setFull(!full);
+      else if (screen === 'videos' && vids.playing) press(27); // tap stops a health video
+    };
     el.logo.onclick = function () { if (config.mode !== 'waiting') show('home'); };
   }
 
@@ -643,14 +652,19 @@
     tickClock();
     setInterval(tickClock, 15000);
 
+    // On the Pi the server maps data/; as a plain website (testing) the folder sits next to app/
     getJSON(CONFIG_URL, function (err, c) {
+      if (!err) return gotConfig(err, c);
+      getJSON('../' + CONFIG_URL, gotConfig);
+    });
+    function gotConfig(err, c) {
       // Last good remote settings win; the local file is the fallback
       var remote = load('remoteConfig', null);
       if (remote && c && remote.remoteConfigUrl === c.remoteConfigUrl && c.remoteConfigUrl) c = remote;
       if (err || !c) c = remote || {};
       applyConfig(c);
       begin();
-    });
+    }
   }
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init, false);

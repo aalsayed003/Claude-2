@@ -54,7 +54,8 @@ body { font-family: "Noto Sans", "Noto Sans Arabic", "Segoe UI", Calibri, Arial,
 .group { font-size: 22px; padding: 8px 16px; margin: 4px; border-radius: 22px; background: #e9f1f7; color: var(--navy); }
 .group.active { background: var(--navy); color: #fff; }
 #tv-status, #video-status { font-size: 22px; color: var(--muted); padding: 4px 28px 10px; min-height: 28px; }
-#tv-list { flex: 1; overflow: hidden; }
+#tv-list { flex: 1; overflow-y: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+#tv-list::-webkit-scrollbar, #videos::-webkit-scrollbar { display: none; }
 .item { display: flex; align-items: center; height: 76px; padding: 0 26px; font-size: 28px; border-left: 6px solid transparent; white-space: nowrap; overflow: hidden; }
 .item img, .item .noimg { width: 72px; height: 48px; object-fit: contain; margin-right: 18px; border-radius: 6px; background: #eef3f7; flex-shrink: 0; }
 .item .name { overflow: hidden; text-overflow: ellipsis; flex: 1; }
@@ -64,6 +65,7 @@ body { font-family: "Noto Sans", "Noto Sans Arabic", "Segoe UI", Calibri, Arial,
 .help { font-size: 18px; color: var(--muted); padding: 12px 26px 16px; line-height: 1.5; }
 
 /* ---------- videos ---------- */
+#videos { overflow-y: auto; scrollbar-width: none; }
 #videos h1 { margin: 0; padding: 40px 80px 10px; font-size: 44px; color: var(--navy); display: flex; justify-content: space-between; }
 #video-status { padding-left: 80px; }
 #video-grid { display: flex; flex-wrap: wrap; padding: 10px 60px; }
