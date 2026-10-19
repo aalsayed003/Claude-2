@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=1920, height=1080">
+<title>Middle East TV</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="app">
+  <div id="sidebar">
+    <div id="brand">Middle East TV <span>تلفزيون الشرق الأوسط</span></div>
+    <div id="groups"></div>
+    <div id="status">Loading channels…</div>
+    <div id="list"></div>
+    <div id="help">▲▼ choose · OK play/full screen · ◀▶ category · RED favourite · BACK exit full screen</div>
+  </div>
+  <div id="stage">
+    <video id="video" autoplay></video>
+    <div id="placeholder">Choose a channel and press OK</div>
+    <div id="osd"><div id="osd-name"></div><div id="osd-info"></div></div>
+  </div>
+</div>
+
+<div id="settings" class="hidden">
+  <h2>Add your own playlist (M3U link)</h2>
+  <p>Paste or type an M3U playlist URL. It appears as the “My list” category.</p>
+  <input id="m3u-input" type="text" placeholder="https://example.com/playlist.m3u">
+  <div class="row">
+    <button id="m3u-save">Save</button>
+    <button id="m3u-clear">Remove</button>
+    <button id="m3u-close">Close</button>
+  </div>
+</div>
+
+<script src="vendor/hls.min.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
